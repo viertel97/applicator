@@ -38,14 +38,14 @@ def _model_for(kind: Literal["cv", "anschreiben"]):
 
 
 def _list(db, user, kind):
-    M = _model_for(kind)
-    return db.query(M).filter_by(user_id=user.id).order_by(M.created_at.asc()).all()
+    model = _model_for(kind)
+    return db.query(model).filter_by(user_id=user.id).order_by(model.created_at.asc()).all()
 
 
 def _set_default_exclusive(db, user, kind, target_id):
-    M = _model_for(kind)
-    db.query(M).filter_by(user_id=user.id).update({"is_default": False})
-    db.query(M).filter_by(id=target_id).update({"is_default": True})
+    model = _model_for(kind)
+    db.query(model).filter_by(user_id=user.id).update({"is_default": False})
+    db.query(model).filter_by(id=target_id, user_id=user.id).update({"is_default": True})
 
 
 @router.get("/cv-variants", response_model=list[VariantOut])
@@ -85,8 +85,11 @@ def update_cv(
         v.name = body.name
     if body.source_md is not None:
         v.source_md = body.source_md
-    if body.is_default:
-        _set_default_exclusive(db, user, "cv", v.id)
+    if body.is_default is not None:
+        if body.is_default:
+            _set_default_exclusive(db, user, "cv", v.id)
+        else:
+            v.is_default = False
     db.commit()
     db.refresh(v)
     return v
@@ -145,8 +148,11 @@ def update_an(
         v.name = body.name
     if body.source_md is not None:
         v.source_md = body.source_md
-    if body.is_default:
-        _set_default_exclusive(db, user, "anschreiben", v.id)
+    if body.is_default is not None:
+        if body.is_default:
+            _set_default_exclusive(db, user, "anschreiben", v.id)
+        else:
+            v.is_default = False
     db.commit()
     db.refresh(v)
     return v
