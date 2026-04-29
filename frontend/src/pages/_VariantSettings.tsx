@@ -8,6 +8,7 @@ type CrudApi = {
   create: (name: string, md: string, is_default?: boolean) => Promise<Variant>;
   update: (id: string, patch: Partial<Variant>) => Promise<Variant>;
   remove: (id: string) => Promise<unknown>;
+  upload: (file: File) => Promise<Variant>;
 };
 
 export function VariantSettings({
@@ -47,9 +48,45 @@ export function VariantSettings({
     mutationFn: (id: string) => crudApi.remove(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: [queryKey] }),
   });
+  const upload = useMutation({
+    mutationFn: (file: File) => crudApi.upload(file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [queryKey] }),
+  });
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    files.forEach((f) => upload.mutate(f));
+    e.target.value = "";
+  };
+  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    Array.from(e.dataTransfer.files).forEach((f) => upload.mutate(f));
+  };
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">{title}</h1>
+      <label
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={onDrop}
+        className="block border-2 border-dashed border-slate-300 rounded p-6 mb-6 text-center cursor-pointer hover:bg-slate-50"
+      >
+        <input
+          type="file"
+          accept=".docx"
+          multiple
+          onChange={onPick}
+          className="hidden"
+        />
+        <div className="text-sm text-slate-600">
+          {upload.isPending
+            ? "Uploading…"
+            : "Drop .docx files here, or click to choose"}
+        </div>
+        {upload.isError && (
+          <div className="text-sm text-rose-600 mt-1">
+            {(upload.error as Error).message}
+          </div>
+        )}
+      </label>
       <ul className="space-y-2 mb-6">
         {(list.data ?? []).map((v) =>
           editing?.id === v.id ? (

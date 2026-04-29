@@ -1,14 +1,18 @@
 import uuid
+from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep
 from app.db.models import AnschreibenVariant, CVVariant, User
+from app.renderer.from_docx import docx_bytes_to_markdown
 
 router = APIRouter(prefix="/api", tags=["documents"])
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 class VariantCreate(BaseModel):
@@ -47,6 +51,37 @@ def _set_default_exclusive(db, user, kind, target_id):
     db.query(model).filter_by(id=target_id, user_id=user.id).update({"is_default": True})
 
 
+def _has_any(db, user, kind) -> bool:
+    model = _model_for(kind)
+    return db.query(model.id).filter_by(user_id=user.id).first() is not None
+
+
+async def _read_docx_upload(file: UploadFile) -> str:
+    if not (file.filename or "").lower().endswith(".docx"):
+        raise HTTPException(400, "only .docx files are accepted")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "file too large")
+    try:
+        return docx_bytes_to_markdown(data)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(400, f"failed to parse docx: {exc}") from exc
+
+
+def _upload_variant(db: Session, user: User, kind, file_name: str, source_md: str):
+    model = _model_for(kind)
+    name = Path(file_name or "uploaded.docx").stem or "uploaded"
+    is_first = not _has_any(db, user, kind)
+    v = model(user_id=user.id, name=name, source_md=source_md, is_default=False)
+    db.add(v)
+    db.flush()
+    if is_first:
+        _set_default_exclusive(db, user, kind, v.id)
+    db.commit()
+    db.refresh(v)
+    return v
+
+
 @router.get("/cv-variants", response_model=list[VariantOut])
 def list_cv(
     db: Annotated[Session, Depends(db_dep)], user: Annotated[User, Depends(current_user)]
@@ -68,6 +103,16 @@ def create_cv(
     db.commit()
     db.refresh(v)
     return v
+
+
+@router.post("/cv-variants/upload", response_model=VariantOut)
+async def upload_cv(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+    file: Annotated[UploadFile, File()],
+):
+    source_md = await _read_docx_upload(file)
+    return _upload_variant(db, user, "cv", file.filename or "", source_md)
 
 
 @router.patch("/cv-variants/{vid}", response_model=VariantOut)
@@ -131,6 +176,16 @@ def create_an(
     db.commit()
     db.refresh(v)
     return v
+
+
+@router.post("/anschreiben-variants/upload", response_model=VariantOut)
+async def upload_an(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+    file: Annotated[UploadFile, File()],
+):
+    source_md = await _read_docx_upload(file)
+    return _upload_variant(db, user, "anschreiben", file.filename or "", source_md)
 
 
 @router.patch("/anschreiben-variants/{vid}", response_model=VariantOut)
