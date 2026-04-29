@@ -6,11 +6,20 @@ services:
       POSTGRES_USER: applicator
       POSTGRES_PASSWORD: applicator
     volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U applicator -d applicator"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
   api:
     build: ./backend
     env_file: .env
-    depends_on: [db]
+    environment:
+      DATABASE_URL: postgresql+psycopg://applicator:applicator@db:5432/applicator
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./data:/app/data
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
