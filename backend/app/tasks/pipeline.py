@@ -81,33 +81,22 @@ def crawl_task(self, app_id: str) -> dict:
             "app_id": app_id,
             "raw_path": str(raw_path),
             "text": fetch_result.text,
-            "html": fetch_result.html,
-            "url": fetch_result.url,
-            "status_code": fetch_result.status_code,
         }
 
 
 @celery_app.task(name="pipeline.extract", bind=True)
 def extract_task(self, payload: dict) -> dict:
-    from app.crawler.httpx_fetcher import FetchResult
-
     if payload.get("skipped"):
         return payload
     app_id = payload["app_id"]
     settings = _settings()
     cm = _db_factory()
-    fetch_result = FetchResult(
-        url=payload["url"],
-        status_code=payload["status_code"],
-        html=payload["html"],
-        text=payload["text"],
-    )
     with cm() as db:
         app = db.get(Application, uuid.UUID(app_id))
         if app is None:
             return {"app_id": app_id, "skipped": True}
         try:
-            run_extract(db, app, fetch_result, payload["raw_path"], _llm(settings))
+            run_extract(db, app, payload["text"], payload["raw_path"], _llm(settings))
         except Exception as exc:
             db.rollback()
             with cm() as db2:
@@ -120,8 +109,6 @@ def extract_task(self, payload: dict) -> dict:
 
 @celery_app.task(name="pipeline.generate", bind=True)
 def generate_task(self, app_id: str) -> dict:
-    if isinstance(app_id, dict):  # chain payload
-        app_id = app_id["app_id"]
     settings = _settings()
     cm = _db_factory()
     with cm() as db:

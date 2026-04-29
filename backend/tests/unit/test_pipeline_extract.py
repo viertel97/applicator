@@ -2,7 +2,6 @@ import json
 import uuid
 from unittest.mock import MagicMock
 
-from app.crawler.httpx_fetcher import FetchResult
 from app.db.models import Application, JobPosting, JobState
 from app.pipeline.extract import run_extract
 from tests.fakes.llm import FakeLLM
@@ -22,7 +21,7 @@ def test_run_extract_creates_jobposting_and_advances_state():
     app.id = uuid.uuid4()
     app.user_id = uuid.uuid4()
     app.job_state = JobState.crawling
-    fetch_result = FetchResult(url="u", status_code=200, html="<p>x</p>", text="x" * 1000)
+    text = "x" * 1000
 
     captured = {}
 
@@ -34,7 +33,7 @@ def test_run_extract_creates_jobposting_and_advances_state():
     llm = FakeLLM(handler=lambda m, s: json.dumps(payload))
     raw_path = "/tmp/raw.html"
 
-    run_extract(db, app, fetch_result, raw_path, llm)
+    run_extract(db, app, text, raw_path, llm)
 
     assert app.job_state == JobState.extracted
     assert app.language == "en"

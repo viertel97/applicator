@@ -2,7 +2,6 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.crawler.httpx_fetcher import FetchResult
 from app.db.models import Application, JobPosting, JobState
 from app.extractor import extract
 from app.extractor.schemas import ExtractedJobPosting
@@ -12,7 +11,7 @@ from app.llm.base import LLMClient
 def run_extract(
     db: Session,
     app: Application,
-    fetch_result: FetchResult,
+    text: str,
     raw_path: Path | str,
     llm: LLMClient,
 ) -> None:
@@ -21,10 +20,10 @@ def run_extract(
     if app.job_posting is not None:
         db.delete(app.job_posting)
         db.flush()
-    job: ExtractedJobPosting = extract(fetch_result.text, llm)
+    job: ExtractedJobPosting = extract(text, llm)
     jp = JobPosting(
         application_id=app.id,
-        raw_text=fetch_result.text[:200000],
+        raw_text=text[:200000],
         raw_html_path=str(raw_path),
         title=job.title,
         company=job.company,
