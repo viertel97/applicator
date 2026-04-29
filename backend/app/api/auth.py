@@ -106,12 +106,18 @@ def login(settings: Annotated[Settings, Depends(settings_dep)]) -> RedirectRespo
 
 @router.get("/callback")
 def callback(
-    code: str,
-    state: str,
     response: Response,
     db: Annotated[Session, Depends(db_dep)],
     settings: Annotated[Settings, Depends(settings_dep)],
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
 ):
+    if error:
+        raise HTTPException(400, f"oauth provider error: {error}: {error_description}")
+    if not code or not state:
+        raise HTTPException(400, "missing code or state")
     try:
         verify_oauth_state(state, settings.app_secret_key)
     except ValueError as exc:

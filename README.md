@@ -6,7 +6,7 @@ Self-hosted job application assistant.
 
 1. Copy `.env.example` to `.env` and fill values:
    - Generate a Fernet key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` → `APP_SECRET_KEY`
-   - Microsoft OAuth: register app at https://entra.microsoft.com → set `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`
+   - Microsoft OAuth: register app at https://entra.microsoft.com → set `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`. Register the redirect URI under **Web** platform (not Single-page application — that requires PKCE which this confidential client flow does not use).
    - For dockerized deploy, override `MS_REDIRECT_URI=http://localhost:8080/api/auth/callback` and `FRONTEND_ORIGIN=http://localhost:8080`
    - LLM: set `LLM_API_KEY` (Groq by default)
    - `DATABASE_URL` in `.env` is ignored under compose — the `api` service points at the `db` service automatically.
