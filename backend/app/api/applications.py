@@ -108,6 +108,18 @@ def _default_id(db: Session, user: User, model) -> uuid.UUID | None:
     return row.id if row else None
 
 
+def _check_variant_ownership(
+    db: Session, variant_id: uuid.UUID | None, model, user: User, label: str
+) -> uuid.UUID | None:
+    """Return the variant id if it belongs to *user*, raise 400 otherwise."""
+    if variant_id is None:
+        return None
+    row = db.query(model).filter_by(id=variant_id, user_id=user.id).first()
+    if row is None:
+        raise HTTPException(400, f"{label} not found or does not belong to current user")
+    return row.id
+
+
 @router.post("", response_model=ApplicationOut, status_code=202)
 def create(
     body: CreateApplication,
@@ -116,8 +128,13 @@ def create(
     user: Annotated[User, Depends(current_user)],
     settings: Annotated[Settings, Depends(settings_dep)],
 ):
-    cv_id = body.cv_variant_id or _default_id(db, user, CVVariant)
-    an_id = body.anschreiben_variant_id or _default_id(db, user, AnschreibenVariant)
+    # Validate ownership before falling back to defaults
+    cv_id = _check_variant_ownership(db, body.cv_variant_id, CVVariant, user, "cv_variant_id")
+    an_id = _check_variant_ownership(
+        db, body.anschreiben_variant_id, AnschreibenVariant, user, "anschreiben_variant_id"
+    )
+    cv_id = cv_id or _default_id(db, user, CVVariant)
+    an_id = an_id or _default_id(db, user, AnschreibenVariant)
     if not cv_id or not an_id:
         raise HTTPException(400, "no default CV or Anschreiben configured")
     h = url_hash(str(body.url))
