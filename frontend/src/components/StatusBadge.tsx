@@ -21,6 +21,7 @@ const JOB_STATE_LABEL: Record<JobState, string> = {
   pending: "Queued",
   crawling: "Crawling…",
   extracting: "Extracting…",
+  extracted: "Extracted",
   generating: "Generating…",
   ready: "Ready",
   failed: "Failed",

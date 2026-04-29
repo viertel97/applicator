@@ -1,7 +1,15 @@
 import { api } from "./client";
 
 export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn";
-export type JobState = "pending" | "crawling" | "extracting" | "generating" | "ready" | "failed";
+export type JobState =
+  | "pending"
+  | "crawling"
+  | "extracting"
+  | "extracted"
+  | "generating"
+  | "ready"
+  | "failed";
+export type FailedStage = "crawl" | "extract" | "generate";
 
 export type JobPosting = {
   title: string | null;
@@ -26,22 +34,51 @@ export type Application = {
   status: AppStatus;
   job_state: JobState;
   job_error: string | null;
+  failed_stage: FailedStage | null;
   language: string | null;
   generated_md: string | null;
   has_docx: boolean;
+  cv_variant_id: string | null;
+  anschreiben_variant_id: string | null;
+  job_posting_dirty: boolean;
   job_posting: JobPosting | null;
+};
+
+export type CreateApplicationBody = {
+  url: string;
+  cv_variant_id?: string | null;
+  anschreiben_variant_id?: string | null;
+};
+
+export type VariantsPatchBody = {
+  cv_variant_id?: string;
+  anschreiben_variant_id?: string;
+  clear_cv?: boolean;
+  clear_anschreiben?: boolean;
 };
 
 export const applications = {
   list: () => api<Application[]>("/api/applications"),
   get: (id: string) => api<Application>(`/api/applications/${id}`),
-  create: (url: string) =>
-    api<Application>("/api/applications", { method: "POST", body: JSON.stringify({ url }) }),
+  create: (body: CreateApplicationBody) =>
+    api<Application>("/api/applications", { method: "POST", body: JSON.stringify(body) }),
   setStatus: (id: string, status: AppStatus) =>
     api<Application>(`/api/applications/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  patchJobPosting: (id: string, fields: Partial<JobPosting>) =>
+    api<Application>(`/api/applications/${id}/job-posting`, {
+      method: "PATCH",
+      body: JSON.stringify(fields),
+    }),
+  patchVariants: (id: string, body: VariantsPatchBody) =>
+    api<Application>(`/api/applications/${id}/variants`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  generate: (id: string) =>
+    api<Application>(`/api/applications/${id}/generate`, { method: "POST" }),
   retry: (id: string) =>
     api<Application>(`/api/applications/${id}/retry`, { method: "POST" }),
   docxUrl: (id: string) => `/api/applications/${id}/docx`,
