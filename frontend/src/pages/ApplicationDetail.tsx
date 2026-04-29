@@ -64,7 +64,11 @@ export default function ApplicationDetail() {
           </div>
         )}
         <div className="bg-white border rounded p-3">
-          <JobPostingPanel jp={a.job_posting} />
+          <JobPostingPanel
+            appId={a.id}
+            jp={a.job_posting}
+            disabled={["crawling", "extracting", "generating"].includes(a.job_state)}
+          />
         </div>
         <div className="mt-4 flex items-center gap-2">
           <span>Status:</span>
