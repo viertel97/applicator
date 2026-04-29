@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import ApplicationsList from "./pages/ApplicationsList";
+import ApplicationDetail from "./pages/ApplicationDetail";
 import { useAuth } from "./hooks/useAuth";
 
 function ProtectedShell({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <ApplicationsList />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/applications/:id"
+        element={
+          <ProtectedShell>
+            <ApplicationDetail />
           </ProtectedShell>
         }
       />
