@@ -34,9 +34,16 @@ class JobState(str, enum.Enum):
     pending = "pending"
     crawling = "crawling"
     extracting = "extracting"
+    extracted = "extracted"
     generating = "generating"
     ready = "ready"
     failed = "failed"
+
+
+class FailedStage(str, enum.Enum):
+    crawl = "crawl"
+    extract = "extract"
+    generate = "generate"
 
 
 class InterviewKind(str, enum.Enum):
@@ -106,15 +113,23 @@ class Application(Base):
     status: Mapped[ApplicationStatus] = mapped_column(
         Enum(ApplicationStatus), default=ApplicationStatus.draft
     )
-    cv_variant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cv_variant.id"))
-    anschreiben_variant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("anschreiben_variant.id")
+    cv_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("cv_variant.id"), nullable=True
+    )
+    anschreiben_variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("anschreiben_variant.id"), nullable=True
     )
     generated_md: Mapped[str | None] = mapped_column(Text, nullable=True)
     generated_docx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     language: Mapped[str | None] = mapped_column(String(2), nullable=True)
     job_state: Mapped[JobState] = mapped_column(Enum(JobState), default=JobState.pending)
     job_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failed_stage: Mapped[FailedStage | None] = mapped_column(
+        Enum(FailedStage), nullable=True
+    )
+    job_posting_dirty: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
