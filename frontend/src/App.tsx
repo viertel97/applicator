@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
+import ApplicationsList from "./pages/ApplicationsList";
 import { useAuth } from "./hooks/useAuth";
 
 function ProtectedShell({ children }: { children: React.ReactNode }) {
@@ -14,13 +15,14 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
-        path="*"
+        path="/applications"
         element={
           <ProtectedShell>
-            <div className="p-6">Authenticated — applications page next.</div>
+            <ApplicationsList />
           </ProtectedShell>
         }
       />
+      <Route path="*" element={<Navigate to="/applications" replace />} />
     </Routes>
   );
 }
