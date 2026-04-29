@@ -1,42 +1,67 @@
 import json
+from contextlib import contextmanager
 
-from app.api import applications as applications_api
+from sqlalchemy.orm import sessionmaker
+
 from app.auth.session import create_session
 from app.config import Settings
 from app.crawler.httpx_fetcher import FetchResult
-from app.db.models import AnschreibenVariant, CVVariant, User
-from app.pipeline import Pipeline
+from app.db.models import (
+    AnschreibenVariant,
+    Application,
+    CVVariant,
+    JobState,
+    User,
+)
+from app.tasks.celery_app import celery_app
 from tests.fakes.fetcher import FakeFetcher
 from tests.fakes.llm import FakeLLM
 
 
 def _patch_pipeline(monkeypatch, db_session, settings, llm_handler, fetcher_result):
-    from contextlib import contextmanager
+    from app.tasks import pipeline as tp
 
-    from sqlalchemy.orm import sessionmaker
+    celery_app.conf.task_always_eager = True
+    celery_app.conf.task_eager_propagates = True
 
     engine = db_session.get_bind()
     fetcher = FakeFetcher(result=fetcher_result)
 
-    def fake_kickoff(bg, app_id, s):
-        session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    @contextmanager
+    def factory():
+        s = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
+        try:
+            yield s
+        finally:
+            s.close()
 
-        @contextmanager
-        def factory():
-            ses = session_factory()
-            try:
-                yield ses
-            finally:
-                ses.close()
+    monkeypatch.setattr(tp, "_db_factory", lambda: factory)
+    monkeypatch.setattr(tp, "_settings", lambda: settings)
+    monkeypatch.setattr(tp, "_llm", lambda s: FakeLLM(handler=llm_handler))
+    monkeypatch.setattr(tp, "_fetcher", lambda: fetcher)
 
-        Pipeline(
-            db_factory=factory,
-            llm=FakeLLM(handler=llm_handler),
-            settings=settings,
-            fetcher=fetcher,
-        ).run(app_id)
 
-    monkeypatch.setattr(applications_api, "_kickoff", fake_kickoff)
+def test_create_url_only_reaches_extracted(monkeypatch, auth_user, db_session, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/u", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en"}
+    _patch_pipeline(
+        monkeypatch, db_session, settings,
+        lambda m, s: json.dumps(payload) if s else "# Letter", fr,
+    )
+    c, _ = auth_user
+    r = c.post("/api/applications", json={"url": "https://x.test/u"})
+    assert r.status_code == 202, r.text
+    aid = r.json()["id"]
+    g = c.get(f"/api/applications/{aid}").json()
+    assert g["job_state"] == "extracted"
+    assert g["generated_md"] is None
+    assert g["has_docx"] is False
+    assert g["cv_variant_id"] is None
+    assert g["anschreiben_variant_id"] is None
+    assert g["job_posting_dirty"] is False
+    assert g["failed_stage"] is None
 
 
 def test_create_runs_pipeline_and_lists(monkeypatch, auth_user, db_session, tmp_path):
@@ -53,10 +78,21 @@ def test_create_runs_pipeline_and_lists(monkeypatch, auth_user, db_session, tmp_
 
     _patch_pipeline(monkeypatch, db_session, settings, llm_handler, fr)
 
-    c, _ = auth_user
-    r = c.post("/api/applications", json={"url": "https://x.test/j"})
+    c, user = auth_user
+    cv = db_session.query(CVVariant).filter_by(user_id=user.id).first()
+    an = db_session.query(AnschreibenVariant).filter_by(user_id=user.id).first()
+    r = c.post(
+        "/api/applications",
+        json={
+            "url": "https://x.test/j",
+            "cv_variant_id": str(cv.id),
+            "anschreiben_variant_id": str(an.id),
+        },
+    )
     assert r.status_code == 202, r.text
     aid = r.json()["id"]
+    # URL-only chain only runs crawl+extract; user must trigger generate.
+    c.post(f"/api/applications/{aid}/generate")
     g = c.get(f"/api/applications/{aid}").json()
     assert g["job_state"] == "ready"
     assert g["job_posting"]["title"] == "Dev"
@@ -87,8 +123,17 @@ def test_status_patch(monkeypatch, auth_user, db_session, tmp_path):
         lambda m, s: '{"language":"en"}' if s else "letter",
         fr,
     )
-    c, _ = auth_user
-    aid = c.post("/api/applications", json={"url": "https://x.test/j"}).json()["id"]
+    c, user = auth_user
+    cv = db_session.query(CVVariant).filter_by(user_id=user.id).first()
+    an = db_session.query(AnschreibenVariant).filter_by(user_id=user.id).first()
+    aid = c.post(
+        "/api/applications",
+        json={
+            "url": "https://x.test/j",
+            "cv_variant_id": str(cv.id),
+            "anschreiben_variant_id": str(an.id),
+        },
+    ).json()["id"]
     r = c.patch(f"/api/applications/{aid}", json={"status": "applied"})
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "applied"
@@ -103,8 +148,18 @@ def test_docx_download(monkeypatch, auth_user, db_session, tmp_path):
         lambda m, s: '{"language":"en","title":"Dev"}' if s else "# Hi",
         fr,
     )
-    c, _ = auth_user
-    aid = c.post("/api/applications", json={"url": "https://x.test/j"}).json()["id"]
+    c, user = auth_user
+    cv = db_session.query(CVVariant).filter_by(user_id=user.id).first()
+    an = db_session.query(AnschreibenVariant).filter_by(user_id=user.id).first()
+    aid = c.post(
+        "/api/applications",
+        json={
+            "url": "https://x.test/j",
+            "cv_variant_id": str(cv.id),
+            "anschreiben_variant_id": str(an.id),
+        },
+    ).json()["id"]
+    c.post(f"/api/applications/{aid}/generate")
     r = c.get(f"/api/applications/{aid}/docx")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith(
