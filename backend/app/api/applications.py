@@ -25,7 +25,18 @@ from app.tasks.pipeline import crawl_task, extract_task, generate_task
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
-_RUNNING_STATES = {JobState.pending, JobState.crawling, JobState.extracting, JobState.generating}
+_BUSY_STATES = {JobState.crawling, JobState.extracting, JobState.generating}
+
+
+def _reset_for_crawl(db: Session, app_row: Application) -> None:
+    if app_row.job_posting:
+        db.delete(app_row.job_posting)
+    app_row.generated_md = None
+    app_row.generated_docx_path = None
+    app_row.job_error = None
+    app_row.failed_stage = None
+    app_row.job_posting_dirty = False
+    app_row.job_state = JobState.pending
 
 
 class CreateApplication(BaseModel):
@@ -291,36 +302,18 @@ def retry(
     user: Annotated[User, Depends(current_user)],
 ):
     app_row = _load_owned(db, aid, user)
-    if app_row.job_state in _RUNNING_STATES and app_row.job_state != JobState.pending:
+    if app_row.job_state in _BUSY_STATES:
         raise HTTPException(409, "pipeline already running")
 
     failed_stage = app_row.failed_stage
     if app_row.job_state in (JobState.ready, JobState.extracted) or failed_stage in (
         FailedStage.crawl,
+        FailedStage.extract,
         None,
     ):
-        if app_row.job_posting:
-            db.delete(app_row.job_posting)
-        app_row.generated_md = None
-        app_row.generated_docx_path = None
-        app_row.job_error = None
-        app_row.failed_stage = None
-        app_row.job_posting_dirty = False
-        app_row.job_state = JobState.pending
-        db.commit()
-        db.refresh(app_row)
-        _start_crawl_chain(app_row.id)
-        return ApplicationOut.from_orm_row(app_row)
-
-    if failed_stage == FailedStage.extract:
         # extract_task needs the crawl payload, which isn't persisted —
         # rerun the full crawl→extract chain.
-        if app_row.job_posting:
-            db.delete(app_row.job_posting)
-        app_row.job_error = None
-        app_row.failed_stage = None
-        app_row.job_posting_dirty = False
-        app_row.job_state = JobState.pending
+        _reset_for_crawl(db, app_row)
         db.commit()
         db.refresh(app_row)
         _start_crawl_chain(app_row.id)
