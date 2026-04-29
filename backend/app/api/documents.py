@@ -29,8 +29,7 @@ class VariantOut(BaseModel):
     source_md: str
     is_default: bool
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 def _model_for(kind: Literal["cv", "anschreiben"]):
