@@ -1,4 +1,9 @@
-import secrets
+import base64
+import hashlib
+import hmac
+import os
+import struct
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -14,7 +19,73 @@ from app.db.models import User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-_oauth_states: dict[str, bool] = {}  # in-memory; OK for single-user MVP
+_STATE_TTL_SECONDS = 600  # 10 minutes
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _b64url_decode(s: str) -> bytes:
+    # Re-add padding
+    padding = 4 - len(s) % 4
+    if padding != 4:
+        s += "=" * padding
+    return base64.urlsafe_b64decode(s)
+
+
+def generate_oauth_state(secret: str) -> str:
+    """Return a tamper-evident, time-limited state token.
+
+    Format: <random_b64>.<timestamp_b64>.<hmac_b64>
+    The HMAC covers random + timestamp so neither can be altered independently.
+    """
+    random_bytes = os.urandom(16)
+    timestamp = int(time.time())
+    ts_bytes = struct.pack(">Q", timestamp)  # 8-byte big-endian uint64
+
+    payload = random_bytes + ts_bytes
+    sig = hmac.new(secret.encode(), payload, hashlib.sha256).digest()
+
+    return (
+        f"{_b64url_encode(random_bytes)}"
+        f".{_b64url_encode(ts_bytes)}"
+        f".{_b64url_encode(sig)}"
+    )
+
+
+def verify_oauth_state(state: str, secret: str) -> None:
+    """Verify a state token produced by generate_oauth_state.
+
+    Raises ValueError with a descriptive message on any failure.
+    """
+    parts = state.split(".")
+    if len(parts) != 3:
+        raise ValueError("Invalid OAuth state: wrong format")
+
+    try:
+        random_bytes = _b64url_decode(parts[0])
+        ts_bytes = _b64url_decode(parts[1])
+        provided_sig = _b64url_decode(parts[2])
+    except Exception as exc:
+        raise ValueError(f"Invalid OAuth state: base64 decode error: {exc}") from exc
+
+    if len(ts_bytes) != 8:
+        raise ValueError("Invalid OAuth state: timestamp length mismatch")
+
+    payload = random_bytes + ts_bytes
+    expected_sig = hmac.new(secret.encode(), payload, hashlib.sha256).digest()
+
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        raise ValueError("Invalid OAuth state: HMAC mismatch (possible forgery)")
+
+    timestamp = struct.unpack(">Q", ts_bytes)[0]
+    age = time.time() - timestamp
+    if age > _STATE_TTL_SECONDS:
+        raise ValueError(f"OAuth state expired ({age:.0f}s > {_STATE_TTL_SECONDS}s)")
+    if age < -60:
+        # Clock skew guard: state from more than 60 s in the future is suspicious
+        raise ValueError("OAuth state timestamp is in the future")
 
 
 def _ms_config(s: Settings) -> MSConfig:
@@ -28,8 +99,7 @@ def _ms_config(s: Settings) -> MSConfig:
 
 @router.get("/login")
 def login(settings: Annotated[Settings, Depends(settings_dep)]) -> RedirectResponse:
-    state = secrets.token_urlsafe(16)
-    _oauth_states[state] = True
+    state = generate_oauth_state(settings.app_secret_key)
     url = authorize_url(_ms_config(settings), state)
     return RedirectResponse(url=url)
 
@@ -42,8 +112,11 @@ def callback(
     db: Annotated[Session, Depends(db_dep)],
     settings: Annotated[Settings, Depends(settings_dep)],
 ):
-    if not _oauth_states.pop(state, False):
-        raise HTTPException(400, "invalid state")
+    try:
+        verify_oauth_state(state, settings.app_secret_key)
+    except ValueError as exc:
+        raise HTTPException(400, f"invalid state: {exc}") from exc
+
     token = acquire_token_by_code(_ms_config(settings), code)
     if "id_token_claims" not in token:
         raise HTTPException(400, f"oauth failed: {token.get('error_description')}")
