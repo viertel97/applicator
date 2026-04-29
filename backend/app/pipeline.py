@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.crawler.fetcher import HybridFetcher
 from app.crawler.httpx_fetcher import FetchResult
-from app.db.models import Application, JobPosting, JobState
+from app.db.models import AnschreibenVariant, Application, CVVariant, JobPosting, JobState
 from app.extractor import extract
 from app.extractor.schemas import ExtractedJobPosting
 from app.generator import generate
@@ -76,16 +76,19 @@ class Pipeline:
             benefits=job.benefits,
             language=job.language,
         )
+        app.language = job.language
         db.add(jp)
         db.commit()
-        app.language = job.language
 
         app.job_state = JobState.generating
         db.commit()
-        from app.db.models import AnschreibenVariant, CVVariant
-
         cv = db.get(CVVariant, app.cv_variant_id)
         an = db.get(AnschreibenVariant, app.anschreiben_variant_id)
+        if cv is None or an is None:
+            raise RuntimeError(
+                f"CV variant {app.cv_variant_id} or Anschreiben variant "
+                f"{app.anschreiben_variant_id} not found"
+            )
         md = generate(job, cv.source_md, an.source_md, job.language, self.llm)
         app.generated_md = md
 
