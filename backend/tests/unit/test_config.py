@@ -47,3 +47,34 @@ def test_wrong_length_key_raises(monkeypatch):
     _base_env(monkeypatch, app_secret_key="tooshort")
     with pytest.raises(ValidationError):
         Settings()
+
+
+def test_celery_defaults_use_redis_url(monkeypatch):
+    monkeypatch.setenv("APP_SECRET_KEY", "tfCTeAU_0mgpv_WhKykdY0HAXhHRinLOumXAM7HtEMM=")
+    monkeypatch.setenv("MS_TENANT_ID", "t")
+    monkeypatch.setenv("MS_CLIENT_ID", "c")
+    monkeypatch.setenv("MS_CLIENT_SECRET", "s")
+    monkeypatch.setenv("MS_REDIRECT_URI", "http://x")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@localhost/db")
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
+    from app.config import Settings
+    s = Settings()
+    assert s.redis_url == "redis://redis:6379/0"
+    assert s.celery_broker_url == "redis://redis:6379/0"
+    assert s.celery_result_backend == "redis://redis:6379/0"
+
+
+def test_celery_overrides(monkeypatch):
+    monkeypatch.setenv("APP_SECRET_KEY", "tfCTeAU_0mgpv_WhKykdY0HAXhHRinLOumXAM7HtEMM=")
+    monkeypatch.setenv("MS_TENANT_ID", "t")
+    monkeypatch.setenv("MS_CLIENT_ID", "c")
+    monkeypatch.setenv("MS_CLIENT_SECRET", "s")
+    monkeypatch.setenv("MS_REDIRECT_URI", "http://x")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@localhost/db")
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
+    monkeypatch.setenv("CELERY_BROKER_URL", "redis://other:6379/1")
+    from app.config import Settings
+    s = Settings()
+    assert s.celery_broker_url == "redis://other:6379/1"

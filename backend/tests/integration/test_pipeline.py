@@ -27,6 +27,7 @@ def settings(tmp_path, monkeypatch):
     monkeypatch.setenv("MS_CLIENT_SECRET", "s")
     monkeypatch.setenv("MS_REDIRECT_URI", "http://x")
     monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@localhost/db")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     return Settings()

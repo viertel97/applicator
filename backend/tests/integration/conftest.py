@@ -46,6 +46,7 @@ def app_client(db_session, monkeypatch):
     monkeypatch.setenv("MS_CLIENT_SECRET", "s")
     monkeypatch.setenv("MS_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
     monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     from app.main import create_app
     app = create_app()
 

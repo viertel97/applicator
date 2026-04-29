@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     session_cookie_name: str = "applicator_session"
     session_cookie_secure: bool = False
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str | None = None
+    celery_result_backend: str | None = None
+
+    @field_validator("celery_broker_url", mode="before")
+    @classmethod
+    def _default_broker(cls, v, info):
+        return v or info.data.get("redis_url")
+
+    @field_validator("celery_result_backend", mode="before")
+    @classmethod
+    def _default_backend(cls, v, info):
+        return v or info.data.get("redis_url")
 
     @field_validator("app_secret_key")
     @classmethod

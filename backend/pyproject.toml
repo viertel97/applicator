@@ -19,6 +19,7 @@ dependencies = [
   "cryptography>=43",
   "openai>=1.40",
   "markdown>=3.6",
+  "celery[redis]>=5.4",
 ]
 
 [project.optional-dependencies]
