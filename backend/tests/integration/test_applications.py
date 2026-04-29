@@ -1,31 +1,11 @@
 import json
 
-import pytest
-
 from app.api import applications as applications_api
-from app.auth.session import create_session
 from app.config import Settings
 from app.crawler.httpx_fetcher import FetchResult
-from app.db.models import AnschreibenVariant, CVVariant, User
 from app.pipeline import Pipeline
 from tests.fakes.fetcher import FakeFetcher
 from tests.fakes.llm import FakeLLM
-
-
-@pytest.fixture
-def auth_user(db_session, app_client):
-    u = User(ms_oid="o", email="a@b.c", display_name="A")
-    db_session.add(u)
-    db_session.flush()
-    db_session.add_all([
-        CVVariant(user_id=u.id, name="cv", source_md="cv", is_default=True),
-        AnschreibenVariant(user_id=u.id, name="an", source_md="an", is_default=True),
-    ])
-    db_session.commit()
-    db_session.refresh(u)
-    sid = create_session(db_session, u.id)
-    app_client.cookies.set("applicator_session", sid)
-    return app_client, u
 
 
 def _patch_pipeline(monkeypatch, db_session, settings, llm_handler, fetcher_result):

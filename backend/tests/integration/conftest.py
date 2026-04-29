@@ -5,7 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
 
 from app.api.deps import db_dep
+from app.auth.session import create_session
 from app.db import models  # noqa: F401 — register all ORM models with Base
+from app.db.models import AnschreibenVariant, CVVariant, User
 from app.db.session import Base
 
 
@@ -54,3 +56,19 @@ def app_client(db_session, monkeypatch):
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def auth_user(db_session, app_client):
+    u = User(ms_oid="o", email="a@b.c", display_name="A")
+    db_session.add(u)
+    db_session.flush()
+    db_session.add_all([
+        CVVariant(user_id=u.id, name="cv", source_md="cv", is_default=True),
+        AnschreibenVariant(user_id=u.id, name="an", source_md="an", is_default=True),
+    ])
+    db_session.commit()
+    db_session.refresh(u)
+    sid = create_session(db_session, u.id)
+    app_client.cookies.set("applicator_session", sid)
+    return app_client, u
