@@ -10,6 +10,7 @@ Self-hosted job application assistant.
    - For dockerized deploy, override `MS_REDIRECT_URI=http://localhost:8080/api/auth/callback` and `FRONTEND_ORIGIN=http://localhost:8080`
    - LLM: set `LLM_API_KEY` (Groq by default)
    - `DATABASE_URL` in `.env` is ignored under compose — the `api` service points at the `db` service automatically.
+   - `REDIS_URL` defaults to `redis://redis:6379/0` under compose.
 2. `docker compose up --build`
 3. Open http://localhost:8080
 
