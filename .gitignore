@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+*.egg-info/
+node_modules/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+data/
+*.docx
+!backend/app/renderer/template.docx
