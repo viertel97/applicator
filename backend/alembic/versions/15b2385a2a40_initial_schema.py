@@ -139,4 +139,6 @@ def downgrade() -> None:
     op.drop_table('cv_variant')
     op.drop_table('anschreiben_variant')
     op.drop_table('user')
+    for type_name in ('applicationstatus', 'jobstate', 'interviewkind', 'interviewoutcome', 'chatrole'):
+        sa.Enum(name=type_name).drop(op.get_bind(), checkfirst=True)
     # ### end Alembic commands ###
