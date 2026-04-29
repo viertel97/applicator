@@ -9,7 +9,7 @@ class MSConfig:
     client_id: str
     client_secret: str
     redirect_uri: str
-    scopes: tuple[str, ...] = ("User.Read", "offline_access")
+    scopes: tuple[str, ...] = ("User.Read",)
 
 
 def authorize_url(cfg: MSConfig, state: str) -> str:
