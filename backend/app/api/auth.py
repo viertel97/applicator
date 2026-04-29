@@ -147,7 +147,7 @@ def callback(
             user.ms_refresh_token_encrypted = refresh_enc
         db.commit()
     sid = create_session(db, user.id)
-    redirect = RedirectResponse(url=settings.frontend_origin + "/applications")
+    redirect = RedirectResponse(url="/applications")
     redirect.set_cookie(
         settings.session_cookie_name, sid,
         httponly=True, secure=settings.session_cookie_secure, samesite="lax", path="/",
