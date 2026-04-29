@@ -5,6 +5,7 @@ from app.api import applications as applications_api
 from app.api import auth as auth_api
 from app.api import chat as chat_api
 from app.api import documents as documents_api
+from app.api import interviews as interviews_api
 from app.config import get_settings
 
 
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_api.router)
     app.include_router(applications_api.router)
     app.include_router(chat_api.router)
+    app.include_router(interviews_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
