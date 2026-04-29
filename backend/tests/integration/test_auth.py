@@ -1,30 +1,6 @@
-import pytest
-from fastapi.testclient import TestClient
-
-from app.api.deps import db_dep
 from app.auth.session import create_session
 from app.db.models import Session as SessionRow
 from app.db.models import User
-
-
-@pytest.fixture
-def app_client(db_session, monkeypatch):
-    # Required env for Settings()
-    monkeypatch.setenv("APP_SECRET_KEY", "k" * 44)
-    monkeypatch.setenv("MS_TENANT_ID", "t")
-    monkeypatch.setenv("MS_CLIENT_ID", "c")
-    monkeypatch.setenv("MS_CLIENT_SECRET", "s")
-    monkeypatch.setenv("MS_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
-    monkeypatch.setenv("LLM_API_KEY", "k")
-    from app.main import create_app
-    app = create_app()
-    def override_db():
-        yield db_session
-
-    app.dependency_overrides[db_dep] = override_db
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
 
 
 def test_me_unauthenticated(app_client):

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth as auth_api
+from app.api import documents as documents_api
 from app.config import get_settings
 
 
@@ -16,6 +17,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(auth_api.router)
+    app.include_router(documents_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
