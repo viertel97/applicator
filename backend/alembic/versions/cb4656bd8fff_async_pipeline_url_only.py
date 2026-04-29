@@ -52,10 +52,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Safety prelude: clean up data states introduced by upgrade so the
+    # NOT NULL re-tightening and pre-migration enum invariants hold.
+    op.execute(
+        "UPDATE application SET job_state = 'pending' WHERE job_state = 'extracted'"
+    )
+    op.execute("DELETE FROM application WHERE cv_variant_id IS NULL OR anschreiben_variant_id IS NULL")
+
     op.drop_column("application", "job_posting_dirty")
     op.drop_column("application", "failed_stage")
     sa.Enum(name="failedstage").drop(op.get_bind(), checkfirst=True)
-    # Note: Postgres cannot drop a single enum value; jobstate retains 'extracted' on downgrade.
+    # Note: Postgres cannot drop a single enum value; jobstate retains 'extracted' on downgrade,
+    # but the prelude above resets such rows to 'pending' so the app's pre-migration enum holds.
     op.alter_column(
         "application", "anschreiben_variant_id", existing_type=sa.UUID(), nullable=False
     )
