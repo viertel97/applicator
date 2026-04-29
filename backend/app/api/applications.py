@@ -292,6 +292,7 @@ def generate_endpoint(
     db.commit()
     db.refresh(app_row)
     _start_generate(app_row.id)
+    db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)
 
 
