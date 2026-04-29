@@ -27,7 +27,7 @@ def test_groq_plain():
 def test_groq_json_schema():
     client = GroqClient(api_key="k", model="gpt-oss", base_url="https://api.groq.com/openai/v1")
     with respx.mock(base_url="https://api.groq.com/openai/v1") as mock:
-        mock.post("/chat/completions").mock(
+        route = mock.post("/chat/completions").mock(
             return_value=httpx.Response(
                 200,
                 json={"choices": [{"message": {"content": '{"a":1}'}}]},
@@ -38,3 +38,10 @@ def test_groq_json_schema():
             json_schema={"type": "object", "properties": {"a": {"type": "integer"}}},
         )
     assert out == '{"a":1}'
+    body = json.loads(route.calls.last.request.content)
+    assert body["response_format"]["type"] == "json_schema"
+    assert body["response_format"]["json_schema"]["strict"] is True
+    assert body["response_format"]["json_schema"]["schema"] == {
+        "type": "object",
+        "properties": {"a": {"type": "integer"}},
+    }
