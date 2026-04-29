@@ -195,6 +195,8 @@ def retry(
     app_row = db.get(Application, aid)
     if not app_row or app_row.user_id != user.id:
         raise HTTPException(404, "not found")
+    if app_row.job_state not in (JobState.ready, JobState.failed):
+        raise HTTPException(409, "pipeline already running")
     if app_row.job_posting:
         db.delete(app_row.job_posting)
     app_row.generated_md = None
