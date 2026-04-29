@@ -2,6 +2,11 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.crawler.url_guard import validate_public_url
+
+_MAX_BODY_BYTES = 5 * 1024 * 1024  # 5 MB
+_MAX_REDIRECTS = 5
+
 
 @dataclass
 class FetchResult:
@@ -29,11 +34,39 @@ class HttpxFetcher:
         self.timeout = timeout
 
     def fetch(self, url: str) -> FetchResult:
+        # Validate before any network activity (SSRF guard)
+        validate_public_url(url)
+
+        current_url = url
+        hops = 0
+
         with httpx.Client(
-            timeout=self.timeout, follow_redirects=True, headers={"User-Agent": _USER_AGENT}
+            timeout=self.timeout,
+            follow_redirects=False,
+            headers={"User-Agent": _USER_AGENT},
         ) as client:
-            r = client.get(url)
-            r.raise_for_status()
+            while True:
+                r = client.get(current_url)
+                if r.is_redirect:
+                    hops += 1
+                    if hops > _MAX_REDIRECTS:
+                        raise ValueError(f"Too many redirects (>{_MAX_REDIRECTS}) for {url}")
+                    next_url = r.headers.get("location", "")
+                    # Re-validate each redirect destination
+                    validate_public_url(next_url)
+                    current_url = next_url
+                    continue
+                break
+
+        r.raise_for_status()
+
+        # Enforce max body size (read already-buffered content)
+        if len(r.content) > _MAX_BODY_BYTES:
+            raise ValueError(
+                f"Response body exceeds {_MAX_BODY_BYTES // (1024 * 1024)} MB limit for {url}"
+            )
+
+        html = r.text
         return FetchResult(
-            url=url, status_code=r.status_code, html=r.text, text=_html_to_text(r.text)
+            url=current_url, status_code=r.status_code, html=html, text=_html_to_text(html)
         )
