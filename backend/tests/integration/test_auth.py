@@ -7,7 +7,7 @@ from app.auth.session import create_session
 from app.db.models import Session as SessionRow
 from app.db.models import User
 
-_SECRET = "k" * 44  # same as conftest
+_SECRET = "tfCTeAU_0mgpv_WhKykdY0HAXhHRinLOumXAM7HtEMM="  # same as conftest
 
 
 def test_me_unauthenticated(app_client):

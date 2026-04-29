@@ -1,3 +1,5 @@
+from cryptography.fernet import Fernet, InvalidToken
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +20,25 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:5173"
     session_cookie_name: str = "applicator_session"
     session_cookie_secure: bool = False
+
+    @field_validator("app_secret_key")
+    @classmethod
+    def _validate_fernet_key(cls, v: str) -> str:
+        """Fail fast at startup if the key is not a valid Fernet key.
+
+        A valid Fernet key is a URL-safe base64-encoded 32-byte value (44 chars).
+        Generate one with:
+            python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+        """
+        try:
+            Fernet(v.encode())
+        except (ValueError, InvalidToken, Exception) as exc:
+            raise ValueError(
+                f"APP_SECRET_KEY is not a valid Fernet key: {exc}. "
+                "Generate one with: "
+                'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+            ) from exc
+        return v
 
 
 def get_settings() -> Settings:

@@ -21,7 +21,7 @@ from tests.fakes.llm import FakeLLM
 
 @pytest.fixture
 def settings(tmp_path, monkeypatch):
-    monkeypatch.setenv("APP_SECRET_KEY", "k")
+    monkeypatch.setenv("APP_SECRET_KEY", "tfCTeAU_0mgpv_WhKykdY0HAXhHRinLOumXAM7HtEMM=")
     monkeypatch.setenv("MS_TENANT_ID", "t")
     monkeypatch.setenv("MS_CLIENT_ID", "c")
     monkeypatch.setenv("MS_CLIENT_SECRET", "s")

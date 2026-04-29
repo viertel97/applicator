@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(monkeypatch) -> TestClient:
-    monkeypatch.setenv("APP_SECRET_KEY", "k" * 44)
+    monkeypatch.setenv("APP_SECRET_KEY", "tfCTeAU_0mgpv_WhKykdY0HAXhHRinLOumXAM7HtEMM=")
     monkeypatch.setenv("MS_TENANT_ID", "t")
     monkeypatch.setenv("MS_CLIENT_ID", "c")
     monkeypatch.setenv("MS_CLIENT_SECRET", "s")
