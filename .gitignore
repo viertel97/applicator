@@ -11,3 +11,4 @@ build/
 data/
 *.docx
 !backend/app/renderer/template.docx
+.history

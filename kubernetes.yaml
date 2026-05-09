@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forwarding
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: applicator-forward
+  namespace: forwarding
+  labels:
+    app: applicator
+spec:
+  containers:
+    - name: forward
+      image: alpine/socat:1.7.4.4
+      command:
+        - socat
+        - TCP-LISTEN:8080,fork,reuseaddr
+        - TCP:192.168.178.110:8080
+      ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: applicator-service
+  namespace: forwarding
+spec:
+  selector:
+    app: applicator
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: applicator-ingress
+  namespace: forwarding
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - applicator.viertel-it.de
+      secretName: tls.applicator
+  rules:
+    - host: applicator.viertel-it.de
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: applicator-service
+                port:
+                  number: 80

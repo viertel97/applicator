@@ -3,6 +3,18 @@ from typing import Any
 import httpx
 
 
+def _enforce_strict(schema: Any) -> Any:
+    if isinstance(schema, dict):
+        out = {k: _enforce_strict(v) for k, v in schema.items()}
+        if out.get("type") == "object" and isinstance(out.get("properties"), dict):
+            out.setdefault("additionalProperties", False)
+            out["required"] = list(out["properties"].keys())
+        return out
+    if isinstance(schema, list):
+        return [_enforce_strict(v) for v in schema]
+    return schema
+
+
 class GroqClient:
     def __init__(self, api_key: str, model: str, base_url: str, timeout: float = 60.0):
         self.api_key = api_key
@@ -25,7 +37,11 @@ class GroqClient:
         if json_schema is not None:
             payload["response_format"] = {
                 "type": "json_schema",
-                "json_schema": {"name": "schema", "schema": json_schema, "strict": True},
+                "json_schema": {
+                    "name": "schema",
+                    "schema": _enforce_strict(json_schema),
+                    "strict": True,
+                },
             }
         with httpx.Client(timeout=self.timeout) as client:
             r = client.post(
@@ -33,6 +49,11 @@ class GroqClient:
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json=payload,
             )
-            r.raise_for_status()
+            if r.is_error:
+                raise httpx.HTTPStatusError(
+                    f"{r.status_code} {r.reason_phrase}: {r.text}",
+                    request=r.request,
+                    response=r,
+                )
             data = r.json()
         return data["choices"][0]["message"]["content"]
