@@ -9,6 +9,8 @@ build/
 .pytest_cache/
 .mypy_cache/
 data/
+pgdata/
 *.docx
 !backend/app/renderer/template.docx
 .history
+.worktrees/
