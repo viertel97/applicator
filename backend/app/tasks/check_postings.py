@@ -122,7 +122,7 @@ def check_postings_task() -> dict:
         )
 
     checked = skipped = 0
-    for app in apps:
+    for i, app in enumerate(apps):
         checked_at = app.posting_checked_at
         if checked_at is not None:
             if checked_at.tzinfo is None:
@@ -133,14 +133,16 @@ def check_postings_task() -> dict:
 
         online = _check_one(app.url, llm)
 
-        with _db() as db:
-            fresh = db.get(Application, app.id)
-            if fresh is not None:
-                fresh.posting_online = online
-                fresh.posting_checked_at = datetime.now(timezone.utc)
-                db.commit()
+        if online is not None:
+            with _db() as db:
+                fresh = db.get(Application, app.id)
+                if fresh is not None:
+                    fresh.posting_online = online
+                    fresh.posting_checked_at = datetime.now(timezone.utc)
+                    db.commit()
 
         checked += 1
-        time.sleep(_RATE_LIMIT_SLEEP)
+        if i < len(apps) - 1:
+            time.sleep(_RATE_LIMIT_SLEEP)
 
     return {"checked": checked, "skipped": skipped}
