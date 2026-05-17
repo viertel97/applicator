@@ -19,6 +19,7 @@ from app.db.models import (
     FailedStage,
     JobPosting,
     JobState,
+    Label as LabelModel,
     User,
 )
 from app.pipeline import url_hash
@@ -191,7 +192,6 @@ def list_apps(
     user: Annotated[User, Depends(current_user)],
     label_ids: list[uuid.UUID] | None = Query(default=None),
 ):
-    from app.db.models import Label as LabelModel
     q = db.query(Application).filter_by(user_id=user.id)
     if label_ids:
         q = q.filter(Application.labels.any(LabelModel.id.in_(label_ids)))
@@ -363,7 +363,6 @@ def assign_label(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
-    from app.db.models import Label as LabelModel
     app_row = _load_owned(db, aid, user)
     label = db.get(LabelModel, label_id)
     if label is None:
@@ -371,7 +370,7 @@ def assign_label(
     if label not in app_row.labels:
         app_row.labels.append(label)
         db.commit()
-        db.refresh(app_row)
+    db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)
 
 
@@ -382,7 +381,6 @@ def remove_label(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
-    from app.db.models import Label as LabelModel
     app_row = _load_owned(db, aid, user)
     label = db.get(LabelModel, label_id)
     if label and label in app_row.labels:

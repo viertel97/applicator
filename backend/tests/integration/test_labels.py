@@ -1,14 +1,3 @@
-import pytest
-
-
-@pytest.fixture(autouse=True)
-def no_celery(monkeypatch):
-    """Prevent Celery task dispatch so tests don't need a running Redis."""
-    import app.api.applications as apps_module
-    monkeypatch.setattr(apps_module, "_start_crawl_chain", lambda app_id: None)
-    monkeypatch.setattr(apps_module, "_start_generate", lambda app_id: None)
-
-
 def test_list_labels_empty(auth_user):
     client, _ = auth_user
     r = client.get("/api/labels")
@@ -34,7 +23,7 @@ def test_create_duplicate_label_returns_409(auth_user):
     assert r.status_code == 409
 
 
-def test_assign_and_list_label_on_application(auth_user):
+def test_assign_and_list_label_on_application(auth_user, no_celery):
     client, _ = auth_user
 
     label_r = client.post("/api/labels", json={"name": "Finance", "color": "#f59e0b"})
@@ -50,7 +39,7 @@ def test_assign_and_list_label_on_application(auth_user):
     assert any(lbl["id"] == label_id for lbl in data["labels"])
 
 
-def test_remove_label_from_application(auth_user):
+def test_remove_label_from_application(auth_user, no_celery):
     client, _ = auth_user
 
     label_r = client.post("/api/labels", json={"name": "Remote", "color": "#10b981"})
@@ -65,7 +54,7 @@ def test_remove_label_from_application(auth_user):
     assert not any(lbl["id"] == label_id for lbl in r.json()["labels"])
 
 
-def test_filter_applications_by_label(auth_user):
+def test_filter_applications_by_label(auth_user, no_celery):
     client, _ = auth_user
 
     label_r = client.post("/api/labels", json={"name": "Agency", "color": "#8b5cf6"})

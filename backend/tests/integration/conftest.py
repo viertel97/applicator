@@ -73,3 +73,10 @@ def auth_user(db_session, app_client):
     sid = create_session(db_session, u.id)
     app_client.cookies.set("applicator_session", sid)
     return app_client, u
+
+
+@pytest.fixture
+def no_celery(monkeypatch):
+    from app.api import applications as apps_module
+    monkeypatch.setattr(apps_module, "_start_crawl_chain", lambda app_id: None)
+    monkeypatch.setattr(apps_module, "_start_generate", lambda app_id: None)
