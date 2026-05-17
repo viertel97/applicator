@@ -15,6 +15,7 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
+    event,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -99,9 +100,10 @@ class Label(Base):
     is_auto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    def __init__(self, **kw: object) -> None:
-        kw.setdefault("is_auto", False)
-        super().__init__(**kw)
+
+@event.listens_for(Label, "init")
+def _label_init(target: Label, args: tuple, kwargs: dict) -> None:
+    kwargs.setdefault("is_auto", False)
 
 
 class User(Base):
