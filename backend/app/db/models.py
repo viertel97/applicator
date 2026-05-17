@@ -7,10 +7,12 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     Boolean,
+    Column,
     DateTime,
     Enum,
     ForeignKey,
     String,
+    Table,
     Text,
     UniqueConstraint,
     func,
@@ -69,6 +71,37 @@ class ChatRole(str, enum.Enum):
 
 def _uuid() -> uuid.UUID:
     return uuid.uuid4()
+
+
+application_label = Table(
+    "application_label",
+    Base.metadata,
+    Column(
+        "application_id",
+        UUID(as_uuid=True),
+        ForeignKey("application.id"),
+        primary_key=True,
+    ),
+    Column(
+        "label_id",
+        UUID(as_uuid=True),
+        ForeignKey("label.id"),
+        primary_key=True,
+    ),
+)
+
+
+class Label(Base):
+    __tablename__ = "label"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    color: Mapped[str] = mapped_column(String(7))
+    is_auto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    def __init__(self, **kw: object) -> None:
+        kw.setdefault("is_auto", False)
+        super().__init__(**kw)
 
 
 class User(Base):
@@ -130,6 +163,8 @@ class Application(Base):
     job_posting_dirty: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
+    posting_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    posting_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -137,6 +172,9 @@ class Application(Base):
 
     job_posting: Mapped[JobPosting | None] = relationship(
         "JobPosting", uselist=False, back_populates="application"
+    )
+    labels: Mapped[list[Label]] = relationship(
+        "Label", secondary=application_label, lazy="selectin"
     )
 
 
@@ -162,6 +200,7 @@ class JobPosting(Base):
     work_mode: Mapped[str | None] = mapped_column(Text, nullable=True)
     benefits: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     language: Mapped[str | None] = mapped_column(Text, nullable=True)
+    required_documents: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     extracted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     application: Mapped[Application] = relationship("Application", back_populates="job_posting")
