@@ -52,7 +52,7 @@ def run_extract(
         work_mode=job.work_mode,
         benefits=job.benefits,
         language=job.language,
-        required_documents=job.required_documents or None,
+        required_documents=job.required_documents,
     )
     app.language = job.language
     db.add(jp)

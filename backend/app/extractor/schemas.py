@@ -19,7 +19,7 @@ class ExtractedJobPosting(BaseModel):
     salary: str | None = None
     tech_stack: list[str] = Field(default_factory=list)
     seniority: str | None = None
-    work_mode: str | None = None
+    work_mode: str | None = None  # remote | hybrid | onsite
     benefits: list[str] = Field(default_factory=list)
     language: str = Field(description="ISO 639-1 of the posting body, e.g. 'de' or 'en'")
     required_documents: list[str] = Field(
