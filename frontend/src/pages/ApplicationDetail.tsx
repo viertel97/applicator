@@ -8,7 +8,8 @@ import { JobPostingPanel } from "../components/JobPostingPanel";
 import { AnschreibenEditor } from "../components/AnschreibenEditor";
 import { ChatPanel } from "../components/ChatPanel";
 import { InterviewsList } from "../components/InterviewsList";
-import { JobStateBadge, StatusBadge } from "../components/StatusBadge";
+import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
+import { LabelEditor } from "../components/LabelEditor";
 
 const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn"];
 
@@ -68,12 +69,27 @@ export default function ApplicationDetail() {
   return (
     <div className="p-6 grid grid-cols-2 gap-6 max-w-7xl mx-auto">
       <div>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-1">
           <h1 className="text-xl font-semibold flex-1 truncate">
             {a.job_posting?.title ?? a.url}
           </h1>
+          <OnlineBadge online={a.posting_online} />
           <JobStateBadge state={a.job_state} failedStage={a.failed_stage} />
           <StatusBadge status={a.status} />
+        </div>
+        <div className="mb-3">
+          <a
+            href={a.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+          >
+            View original posting ↗
+          </a>
+        </div>
+        <div className="mb-3">
+          <div className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Labels</div>
+          <LabelEditor appId={a.id} assigned={a.labels} />
         </div>
 
         {a.job_state === "failed" && (

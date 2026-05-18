@@ -48,3 +48,16 @@ export function JobStateBadge({
       : JOB_STATE_LABEL[state];
   return <span className={`px-2 py-0.5 rounded text-xs ${cls}`}>{label}</span>;
 }
+
+export function OnlineBadge({ online }: { online: boolean | null }) {
+  if (online === null || online === undefined) return null;
+  return (
+    <span
+      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+        online ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+      }`}
+    >
+      {online ? "Online" : "Offline"}
+    </span>
+  );
+}

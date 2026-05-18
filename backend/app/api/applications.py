@@ -3,12 +3,13 @@ from pathlib import Path
 from typing import Annotated
 
 from celery import chain
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep, settings_dep
+from app.api.labels import LabelOut
 from app.config import Settings
 from app.db.models import (
     AnschreibenVariant,
@@ -18,6 +19,7 @@ from app.db.models import (
     FailedStage,
     JobPosting,
     JobState,
+    Label as LabelModel,
     User,
 )
 from app.pipeline import url_hash
@@ -60,6 +62,7 @@ class JobPostingOut(BaseModel):
     work_mode: str | None = None
     benefits: list[str] | None = None
     language: str | None = None
+    required_documents: list[str] | None = None
 
     model_config = {"from_attributes": True}
 
@@ -101,6 +104,8 @@ class ApplicationOut(BaseModel):
     cv_variant_id: uuid.UUID | None
     anschreiben_variant_id: uuid.UUID | None
     job_posting_dirty: bool
+    posting_online: bool | None
+    labels: list[LabelOut]
     job_posting: JobPostingOut | None
 
     @classmethod
@@ -118,6 +123,8 @@ class ApplicationOut(BaseModel):
             cv_variant_id=app.cv_variant_id,
             anschreiben_variant_id=app.anschreiben_variant_id,
             job_posting_dirty=app.job_posting_dirty,
+            posting_online=app.posting_online,
+            labels=[LabelOut.model_validate(lbl) for lbl in app.labels],
             job_posting=(
                 JobPostingOut.model_validate(app.job_posting) if app.job_posting else None
             ),
@@ -183,13 +190,12 @@ def create(
 def list_apps(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
+    label_ids: list[uuid.UUID] | None = Query(default=None),
 ):
-    rows = (
-        db.query(Application)
-        .filter_by(user_id=user.id)
-        .order_by(Application.created_at.desc())
-        .all()
-    )
+    q = db.query(Application).filter_by(user_id=user.id)
+    if label_ids:
+        q = q.filter(Application.labels.any(LabelModel.id.in_(label_ids)))
+    rows = q.order_by(Application.created_at.desc()).all()
     return [ApplicationOut.from_orm_row(r) for r in rows]
 
 
@@ -348,3 +354,37 @@ def download_docx(
         ),
         filename="anschreiben.docx",
     )
+
+
+@router.post("/{aid}/labels/{label_id}", response_model=ApplicationOut)
+def assign_label(
+    aid: uuid.UUID,
+    label_id: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    label = db.get(LabelModel, label_id)
+    if label is None:
+        raise HTTPException(404, "label not found")
+    if label not in app_row.labels:
+        app_row.labels.append(label)
+        db.commit()
+    db.refresh(app_row)
+    return ApplicationOut.from_orm_row(app_row)
+
+
+@router.delete("/{aid}/labels/{label_id}", response_model=ApplicationOut)
+def remove_label(
+    aid: uuid.UUID,
+    label_id: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    label = db.get(LabelModel, label_id)
+    if label and label in app_row.labels:
+        app_row.labels.remove(label)
+        db.commit()
+        db.refresh(app_row)
+    return ApplicationOut.from_orm_row(app_row)
