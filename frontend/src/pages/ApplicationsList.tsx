@@ -1,34 +1,83 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import type { Application } from "../api/applications";
 import { applications } from "../api/applications";
+import { labels as labelsApi } from "../api/labels";
 import { AddApplicationForm } from "../components/AddApplicationForm";
-import { JobStateBadge, StatusBadge } from "../components/StatusBadge";
+import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
+import { LabelChip } from "../components/LabelChip";
 
 export default function ApplicationsList() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["applications"],
-    queryFn: applications.list,
+  const [filterLabelIds, setFilterLabelIds] = useState<string[]>([]);
+
+  const allLabels = useQuery({ queryKey: ["labels"], queryFn: labelsApi.list });
+
+  const { data, isLoading } = useQuery<Application[]>({
+    queryKey: ["applications", filterLabelIds],
+    queryFn: () => applications.list(filterLabelIds),
     refetchInterval: (q) => {
       const arr = q.state.data;
       if (!arr) return false;
-      const inFlight = arr.some(
-        (a) => !["ready", "failed"].includes(a.job_state),
-      );
-      return inFlight ? 2000 : false;
+      return arr.some((a) => !["ready", "failed"].includes(a.job_state)) ? 2000 : false;
     },
   });
+
+  const toggleLabel = (id: string) =>
+    setFilterLabelIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Applications</h1>
       <AddApplicationForm />
+      {(allLabels.data ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {(allLabels.data ?? []).map((lbl) => (
+            <button
+              key={lbl.id}
+              onClick={() => toggleLabel(lbl.id)}
+              className={`rounded-full transition-shadow ${
+                filterLabelIds.includes(lbl.id) ? "ring-2 ring-offset-1 ring-slate-700" : ""
+              }`}
+            >
+              <LabelChip label={lbl} />
+            </button>
+          ))}
+        </div>
+      )}
       {isLoading && <div>Loading…</div>}
       <ul className="divide-y border rounded bg-white">
-        {(data ?? []).map((a) => (
+        {(data ?? []).map((a: Application) => (
           <li key={a.id} className="p-3 flex items-center gap-3 hover:bg-slate-50">
-            <Link to={`/applications/${a.id}`} className="flex-1 truncate">
-              <div className="font-medium">{a.job_posting?.title ?? a.url}</div>
-              <div className="text-sm text-slate-500">{a.job_posting?.company}</div>
+            <Link to={`/applications/${a.id}`} className="flex-1 truncate min-w-0">
+              <div className="font-medium truncate">{a.job_posting?.title ?? a.url}</div>
+              <div className="text-sm text-slate-500 flex items-center gap-1">
+                {a.job_posting?.company}
+                {a.job_posting?.location && (
+                  <span className="text-slate-400">· {a.job_posting.location}</span>
+                )}
+              </div>
+              {a.labels.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {a.labels.map((lbl) => (
+                    <LabelChip key={lbl.id} label={lbl} />
+                  ))}
+                </div>
+              )}
             </Link>
+            <a
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+              title="Open original posting"
+            >
+              ↗
+            </a>
+            <OnlineBadge online={a.posting_online} />
             <JobStateBadge state={a.job_state} />
             <StatusBadge status={a.status} />
           </li>
