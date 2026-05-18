@@ -101,6 +101,23 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
           />
         </div>
       ))}
+      {jp?.required_documents && jp.required_documents.length > 0 && (
+        <div className="mt-3">
+          <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+            Required documents
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {jp.required_documents.map((doc) => (
+              <span
+                key={doc}
+                className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full capitalize"
+              >
+                {doc.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <button
         type="button"
         disabled={!dirty || disabled || save.isPending}
