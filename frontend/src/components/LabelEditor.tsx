@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { labels as labelsApi } from "../api/labels";
 import type { Label } from "../api/applications";
@@ -19,6 +19,19 @@ export function LabelEditor({ appId, assigned }: Props) {
   const [search, setSearch] = useState("");
   const [colorPick, setColorPick] = useState(DEFAULT_COLORS[0]);
   const [creating, setCreating] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setSearch("");
+        setCreating(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   const allLabels = useQuery({ queryKey: ["labels"], queryFn: labelsApi.list });
 
@@ -27,7 +40,9 @@ export function LabelEditor({ appId, assigned }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["application", appId] });
       setSearch("");
+      setAssignError(null);
     },
+    onError: () => setAssignError("Failed to assign label"),
   });
 
   const remove = useMutation({
@@ -56,7 +71,7 @@ export function LabelEditor({ appId, assigned }: Props) {
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" ref={containerRef}>
       <div className="flex flex-wrap gap-1">
         {assigned.map((lbl) => (
           <LabelChip
@@ -126,6 +141,9 @@ export function LabelEditor({ appId, assigned }: Props) {
             Cancel
           </button>
         </div>
+      )}
+      {assignError && (
+        <p className="text-xs text-red-600">{assignError}</p>
       )}
     </div>
   );
