@@ -11,6 +11,13 @@ export type JobState =
   | "failed";
 export type FailedStage = "crawl" | "extract" | "generate";
 
+export type Label = {
+  id: string;
+  name: string;
+  color: string;
+  is_auto: boolean;
+};
+
 export type JobPosting = {
   title: string | null;
   company: string | null;
@@ -26,6 +33,7 @@ export type JobPosting = {
   work_mode: string | null;
   benefits: string[] | null;
   language: string | null;
+  required_documents: string[] | null;
 };
 
 export type Application = {
@@ -41,6 +49,8 @@ export type Application = {
   cv_variant_id: string | null;
   anschreiben_variant_id: string | null;
   job_posting_dirty: boolean;
+  posting_online: boolean | null;
+  labels: Label[];
   job_posting: JobPosting | null;
 };
 
@@ -58,7 +68,12 @@ export type VariantsPatchBody = {
 };
 
 export const applications = {
-  list: () => api<Application[]>("/api/applications"),
+  list: (labelIds?: string[]) => {
+    const params = labelIds?.length
+      ? "?" + labelIds.map((id) => `label_ids=${id}`).join("&")
+      : "";
+    return api<Application[]>(`/api/applications${params}`);
+  },
   get: (id: string) => api<Application>(`/api/applications/${id}`),
   create: (body: CreateApplicationBody) =>
     api<Application>("/api/applications", { method: "POST", body: JSON.stringify(body) }),
