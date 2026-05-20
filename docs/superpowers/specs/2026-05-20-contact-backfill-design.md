@@ -209,7 +209,47 @@ Pydantic. No new endpoints. No manual backfill trigger in this iteration.
 
 ---
 
-## 7. Out of Scope
+## 7. Application Deletion (Soft Delete)
+
+### Data model
+
+`Application` gains one column:
+```
+deleted_at   DateTime  nullable  -- null = active, non-null = soft-deleted
+```
+
+Single Alembic migration adds this column. No cascade changes — related
+`JobPosting`, `application_label`, and raw HTML files stay on disk and in
+the DB. They are not surfaced because the parent is filtered out.
+
+### Query filter
+
+All read endpoints that list or fetch applications filter
+`deleted_at IS NULL` by default. No `?include_deleted` toggle in this
+iteration.
+
+### API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `DELETE` | `/api/applications/{id}` | Soft delete: set `deleted_at = now()`. Idempotent — returns 204 even if already deleted. Returns 404 only if id never existed. |
+
+No restore endpoint. No hard-delete endpoint.
+
+### Frontend
+
+- **List row:** small trash icon at the end of the row. Click opens a
+  confirmation modal ("Delete application to {company}? This hides it
+  from your list."). Confirm → `DELETE /api/applications/{id}` → remove
+  row from list state.
+- **Detail panel:** "Delete" button in the panel header area. Same
+  confirm modal. On success → navigate back to list.
+
+Modal text identical in both places. Single shared component.
+
+---
+
+## 8. Out of Scope
 
 - Manual "backfill now" button in UI
 - Backfill of `title` / `company` / `location` / `language`
@@ -217,10 +257,13 @@ Pydantic. No new endpoints. No manual backfill trigger in this iteration.
 - Per-application backfill scheduling / cadence beyond startup
 - Notification when contact info appears after a backfill run
 - Cross-posting deduplication of contacts
+- Restore of soft-deleted applications
+- Hard-delete endpoint or admin tooling
+- Cascade cleanup of orphaned `JobPosting`, labels, raw HTML on delete
 
 ---
 
-## 8. Testing
+## 9. Testing
 
 - Unit: `extract_fields` with a fixture posting returns expected partial dict.
 - Unit: backfill scan picks correct rows (missing field + not in attempts).
@@ -230,3 +273,7 @@ Pydantic. No new endpoints. No manual backfill trigger in this iteration.
   `contact.name`, old `application_email` → `contact.email`).
 - E2E: posting with structured contact line is extracted end-to-end and
   rendered in detail view.
+- Unit: `DELETE /api/applications/{id}` sets `deleted_at`, list endpoint
+  no longer returns the row, second DELETE is still 204.
+- E2E: delete from list row hides it; delete from detail navigates back
+  to list with the row gone.
