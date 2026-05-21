@@ -7,7 +7,7 @@ from testcontainers.postgres import PostgresContainer
 from app.api.deps import db_dep
 from app.auth.session import create_session
 from app.db import models  # noqa: F401 — register all ORM models with Base
-from app.db.models import AnschreibenVariant, CVVariant, User
+from app.db.models import AnschreibenVariant, Application, CVVariant, User
 from app.db.session import Base
 
 
@@ -80,3 +80,23 @@ def no_celery(monkeypatch):
     from app.api import applications as apps_module
     monkeypatch.setattr(apps_module, "_start_crawl_chain", lambda app_id: None)
     monkeypatch.setattr(apps_module, "_start_generate", lambda app_id: None)
+
+
+@pytest.fixture
+def client(auth_user):
+    c, _ = auth_user
+    return c
+
+
+@pytest.fixture
+def sample_application(auth_user, db_session):
+    _, user = auth_user
+    app_row = Application(
+        user_id=user.id,
+        url="https://x.test/sample",
+        url_hash="s" * 64,
+    )
+    db_session.add(app_row)
+    db_session.commit()
+    db_session.refresh(app_row)
+    return str(app_row.id)
