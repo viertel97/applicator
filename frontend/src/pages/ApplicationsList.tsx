@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import type { Application } from "../api/applications";
 import { applications } from "../api/applications";
@@ -7,9 +7,19 @@ import { labels as labelsApi } from "../api/labels";
 import { AddApplicationForm } from "../components/AddApplicationForm";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
 import { LabelChip } from "../components/LabelChip";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 export default function ApplicationsList() {
   const [filterLabelIds, setFilterLabelIds] = useState<string[]>([]);
+  const qc = useQueryClient();
+  const [pendingDelete, setPendingDelete] = useState<Application | null>(null);
+  const remove = useMutation({
+    mutationFn: (id: string) => applications.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["applications"] });
+      setPendingDelete(null);
+    },
+  });
 
   const allLabels = useQuery({ queryKey: ["labels"], queryFn: labelsApi.list });
 
@@ -85,9 +95,30 @@ export default function ApplicationsList() {
             <OnlineBadge online={a.posting_online} />
             <JobStateBadge state={a.job_state} />
             <StatusBadge status={a.status} />
+            <button
+              type="button"
+              className="text-slate-400 hover:text-rose-600 px-2"
+              onClick={(e) => { e.stopPropagation(); setPendingDelete(a); }}
+              aria-label="delete"
+              data-testid="delete-button"
+            >
+              🗑
+            </button>
           </li>
         ))}
       </ul>
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete application"
+        body={
+          pendingDelete
+            ? `Delete application to ${pendingDelete.job_posting?.company ?? "this company"}? This hides it from your list.`
+            : ""
+        }
+        busy={remove.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => pendingDelete && remove.mutate(pendingDelete.id)}
+      />
     </div>
   );
 }

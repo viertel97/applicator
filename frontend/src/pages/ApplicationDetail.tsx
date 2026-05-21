@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applications } from "../api/applications";
 import type { AppStatus } from "../api/applications";
@@ -10,12 +10,15 @@ import { ChatPanel } from "../components/ChatPanel";
 import { InterviewsList } from "../components/InterviewsList";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
 import { LabelEditor } from "../components/LabelEditor";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn"];
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const q = useQuery({
     queryKey: ["application", id],
     queryFn: () => applications.get(id!),
@@ -54,6 +57,13 @@ export default function ApplicationDetail() {
     mutationFn: () => applications.generate(id!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["application", id] }),
   });
+  const remove = useMutation({
+    mutationFn: () => applications.remove(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["applications"] });
+      navigate("/applications");
+    },
+  });
 
   if (q.isLoading || !q.data) return <div className="p-6">Loading…</div>;
   const a = q.data;
@@ -79,6 +89,13 @@ export default function ApplicationDetail() {
           <OnlineBadge online={a.posting_online} />
           <JobStateBadge state={a.job_state} failedStage={a.failed_stage} />
           <StatusBadge status={a.status} />
+          <button
+            type="button"
+            className="text-rose-600 border border-rose-300 rounded px-2 py-1 text-sm"
+            onClick={() => setConfirmOpen(true)}
+          >
+            Delete
+          </button>
         </div>
         <div className="mb-3">
           <a
@@ -211,6 +228,14 @@ export default function ApplicationDetail() {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete application"
+        body={`Delete application to ${a.job_posting?.company ?? "this company"}? This hides it from your list.`}
+        busy={remove.isPending}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => remove.mutate()}
+      />
     </div>
   );
 }
