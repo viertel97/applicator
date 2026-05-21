@@ -175,6 +175,7 @@ class Application(Base):
     )
     posting_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     posting_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -201,8 +202,10 @@ class JobPosting(Base):
     location: Mapped[str | None] = mapped_column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
-    contact_person: Mapped[str | None] = mapped_column(Text, nullable=True)
-    application_email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    backfill_attempts: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
     deadline: Mapped[str | None] = mapped_column(Text, nullable=True)
     salary: Mapped[str | None] = mapped_column(Text, nullable=True)
     tech_stack: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
