@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,11 +11,24 @@ from app.api import documents as documents_api
 from app.api import interviews as interviews_api
 from app.api import labels as labels_api
 from app.config import get_settings
+from app.tasks.backfill import backfill_missing_task
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        backfill_missing_task.apply_async()
+        logger.info("backfill_missing enqueued on startup")
+    except Exception as exc:
+        logger.warning("failed to enqueue backfill on startup: %s", exc)
+    yield
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Applicator", version="0.1.0")
+    app = FastAPI(title="Applicator", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],
