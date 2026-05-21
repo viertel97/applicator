@@ -18,3 +18,47 @@ def test_contact_info_all_optional():
 def test_extracted_job_posting_contact_default_none():
     j = ExtractedJobPosting(language="de")
     assert j.contact is None
+
+
+import json
+from unittest.mock import MagicMock
+
+from app.extractor import extract_fields
+
+
+def _fake_llm(payload: dict) -> MagicMock:
+    llm = MagicMock()
+    llm.complete.return_value = json.dumps(payload)
+    return llm
+
+
+def test_extract_fields_returns_only_requested_keys():
+    llm = _fake_llm({"salary": "60-70k", "deadline": "2026-06-01"})
+    result = extract_fields("posting text", ["salary", "deadline"], llm)
+    assert set(result.keys()) == {"salary", "deadline"}
+    assert result["salary"] == "60-70k"
+    assert result["deadline"] == "2026-06-01"
+
+
+def test_extract_fields_nested_contact():
+    llm = _fake_llm({"contact": {"name": "Jane", "email": "j@x.com"}})
+    result = extract_fields("posting text", ["contact"], llm)
+    assert result["contact"] == {
+        "name": "Jane",
+        "role": None,
+        "email": "j@x.com",
+        "phone": None,
+    }
+
+
+def test_extract_fields_missing_returns_none():
+    llm = _fake_llm({})
+    result = extract_fields("posting text", ["salary"], llm)
+    assert result == {"salary": None}
+
+
+def test_extract_fields_empty_list_raises():
+    import pytest
+
+    with pytest.raises(ValueError):
+        extract_fields("text", [], _fake_llm({}))
