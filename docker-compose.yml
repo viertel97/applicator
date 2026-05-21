@@ -5,7 +5,7 @@ services:
       POSTGRES_DB: applicator
       POSTGRES_USER: applicator
       POSTGRES_PASSWORD: applicator
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    volumes: ["./pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U applicator -d applicator"]
       interval: 2s
@@ -63,5 +63,3 @@ services:
     depends_on: [api]
     ports: ["8080:80"]
 
-volumes:
-  pgdata:
