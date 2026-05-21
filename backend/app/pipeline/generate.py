@@ -13,6 +13,15 @@ from app.extractor.schemas import ExtractedJobPosting
 from app.generator import generate
 from app.llm.base import LLMClient
 from app.renderer.docx import to_docx
+from app.util.slug import slugify
+
+
+def _build_folder_name(display_id: int, company: str | None, title: str | None) -> str:
+    company_slug = slugify(company)
+    title_slug = slugify(title)
+    parts = [p for p in (company_slug, title_slug) if p]
+    suffix = "_".join(parts) if parts else "unnamed"
+    return f"{display_id:04d}_{suffix}"
 
 
 def run_generate(
@@ -53,10 +62,11 @@ def run_generate(
     md = generate(job, cv.source_md, an.source_md, jp.language, llm)
     app.generated_md = md
 
+    folder_name = _build_folder_name(app.display_id, jp.company, jp.title)
     docx_path = (
         Path(settings.data_dir)
         / str(app.user_id)
-        / str(app.id)
+        / folder_name
         / "anschreiben.docx"
     )
     to_docx(md, docx_path)

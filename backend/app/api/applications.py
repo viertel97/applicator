@@ -93,6 +93,7 @@ class VariantsPatch(BaseModel):
 
 class ApplicationOut(BaseModel):
     id: uuid.UUID
+    display_id: int
     url: str
     status: ApplicationStatus
     job_state: JobState
@@ -112,6 +113,7 @@ class ApplicationOut(BaseModel):
     def from_orm_row(cls, app: Application) -> "ApplicationOut":
         return cls(
             id=app.id,
+            display_id=app.display_id,
             url=app.url,
             status=app.status,
             job_state=app.job_state,

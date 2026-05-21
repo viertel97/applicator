@@ -38,6 +38,7 @@ export type JobPosting = {
 
 export type Application = {
   id: string;
+  display_id: number;
   url: string;
   status: AppStatus;
   job_state: JobState;

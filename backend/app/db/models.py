@@ -11,6 +11,8 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
+    Sequence as SASequence,
     String,
     Table,
     Text,
@@ -142,6 +144,12 @@ class Application(Base):
     __table_args__ = (UniqueConstraint("user_id", "url_hash", name="uq_user_url_hash"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    display_id: Mapped[int] = mapped_column(
+        Integer,
+        SASequence("application_display_id_seq"),
+        unique=True,
+        nullable=False,
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     url: Mapped[str] = mapped_column(Text)
     url_hash: Mapped[str] = mapped_column(String(64))

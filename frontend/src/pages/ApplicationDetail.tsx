@@ -71,6 +71,9 @@ export default function ApplicationDetail() {
       <div>
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-xl font-semibold flex-1 truncate">
+            <span className="text-slate-400 font-mono mr-2">
+              #{String(a.display_id).padStart(4, "0")}
+            </span>
             {a.job_posting?.title ?? a.url}
           </h1>
           <OnlineBadge online={a.posting_online} />

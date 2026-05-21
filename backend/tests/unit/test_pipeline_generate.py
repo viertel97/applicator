@@ -18,6 +18,7 @@ def test_run_generate_writes_md_and_docx(tmp_path):
     db = MagicMock()
     app = Application(url="u", url_hash="h" * 64)
     app.id = uuid.uuid4()
+    app.display_id = 42
     app.user_id = uuid.uuid4()
     app.job_state = JobState.extracted
     cv_id, an_id = uuid.uuid4(), uuid.uuid4()
@@ -28,6 +29,7 @@ def test_run_generate_writes_md_and_docx(tmp_path):
         application_id=app.id,
         raw_text="x",
         title="Dev",
+        company="Acme Corp",
         language="en",
     )
     cv = CVVariant(id=cv_id, name="cv", source_md="cv md")
@@ -48,5 +50,6 @@ def test_run_generate_writes_md_and_docx(tmp_path):
     assert app.job_state == JobState.ready
     assert app.generated_md.startswith("# Dear")
     assert Path(app.generated_docx_path).exists()
+    assert "0042_acme-corp_dev" in app.generated_docx_path
     assert app.job_posting_dirty is False
     assert app.failed_stage is None

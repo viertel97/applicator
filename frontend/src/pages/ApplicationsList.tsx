@@ -52,7 +52,12 @@ export default function ApplicationsList() {
         {(data ?? []).map((a: Application) => (
           <li key={a.id} className="p-3 flex items-center gap-3 hover:bg-slate-50">
             <Link to={`/applications/${a.id}`} className="flex-1 truncate min-w-0">
-              <div className="font-medium truncate">{a.job_posting?.title ?? a.url}</div>
+              <div className="font-medium truncate">
+                <span className="text-slate-400 font-mono mr-2">
+                  #{String(a.display_id).padStart(4, "0")}
+                </span>
+                {a.job_posting?.title ?? a.url}
+              </div>
               <div className="text-sm text-slate-500 flex items-center gap-1">
                 {a.job_posting?.company}
                 {a.job_posting?.location && (
