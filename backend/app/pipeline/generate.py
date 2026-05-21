@@ -9,7 +9,7 @@ from app.db.models import (
     CVVariant,
     JobState,
 )
-from app.extractor.schemas import ExtractedJobPosting
+from app.extractor.schemas import ContactInfo, ExtractedJobPosting
 from app.generator import generate
 from app.llm.base import LLMClient
 from app.renderer.docx import to_docx
@@ -49,8 +49,7 @@ def run_generate(
         location=jp.location,
         description=jp.description,
         requirements=jp.requirements,
-        contact_person=jp.contact_person,
-        application_email=jp.application_email,
+        contact=ContactInfo(**jp.contact) if jp.contact else None,
         deadline=jp.deadline,
         salary=jp.salary,
         tech_stack=jp.tech_stack or [],

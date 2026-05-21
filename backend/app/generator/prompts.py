@@ -15,13 +15,19 @@ def user_prompt(
     anschreiben_md: str,
     language: str,
 ) -> str:
+    c = job.contact
+    contact_line = (
+        f"Contact: {c.name or '-'} ({c.role or '-'}), "
+        f"email: {c.email or '-'}, phone: {c.phone or '-'}"
+        if c else "Contact: -"
+    )
     return (
         f"Target language: {language}\n\n"
         f"=== JOB POSTING ===\n"
         f"Title: {job.title}\nCompany: {job.company}\nLocation: {job.location}\n"
         f"Description:\n{job.description}\nRequirements:\n{job.requirements}\n"
         f"Tech stack: {', '.join(job.tech_stack)}\n"
-        f"Contact person: {job.contact_person}\n\n"
+        f"{contact_line}\n\n"
         f"=== CANDIDATE CV (Markdown) ===\n{cv_md}\n\n"
         f"=== DEFAULT ANSCHREIBEN TEMPLATE (Markdown) ===\n{anschreiben_md}\n\n"
         f"Now produce the tailored Anschreiben in Markdown, in {language}."
