@@ -9,7 +9,7 @@ def make_celery() -> Celery:
         "applicator",
         broker=settings.celery_broker_url,
         backend=settings.celery_result_backend,
-        include=["app.tasks.pipeline", "app.tasks.check_postings"],
+        include=["app.tasks.pipeline", "app.tasks.check_postings", "app.tasks.backfill"],
     )
     app.conf.task_acks_late = True
     app.conf.task_reject_on_worker_lost = True
