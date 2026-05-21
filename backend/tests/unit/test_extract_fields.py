@@ -62,3 +62,10 @@ def test_extract_fields_empty_list_raises():
 
     with pytest.raises(ValueError):
         extract_fields("text", [], _fake_llm({}))
+
+
+def test_extract_fields_unknown_field_raises():
+    import pytest
+
+    with pytest.raises(ValueError, match="unknown fields"):
+        extract_fields("text", ["nonexistent"], _fake_llm({}))

@@ -30,6 +30,12 @@ def extract_fields(
     Returns a dict whose keys are exactly `fields`; values may be None when
     the LLM did not find the field. Nested models (currently only
     `contact`) are returned as plain dicts.
+
+    Fields that are required in `ExtractedJobPosting` (e.g. `language`)
+    remain required here — if the LLM omits them validation will fail.
+    The backfill caller only requests nullable fields, so this is fine
+    in practice; callers should not request required fields they cannot
+    guarantee the LLM will produce.
     """
     if not fields:
         raise ValueError("fields must be non-empty")
