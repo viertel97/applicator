@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { JobPosting } from "../api/applications";
 import { applications } from "../api/applications";
+import { ContactBlock } from "./ContactBlock";
 
 type Props = {
   appId: string;
@@ -17,8 +18,6 @@ const TEXT_FIELDS: Array<{ key: keyof JobPosting; label: string; multiline?: boo
   { key: "seniority", label: "Seniority" },
   { key: "salary", label: "Salary" },
   { key: "deadline", label: "Deadline" },
-  { key: "contact_person", label: "Contact" },
-  { key: "application_email", label: "Email" },
   { key: "language", label: "Language" },
   { key: "requirements", label: "Requirements", multiline: true },
   { key: "description", label: "Description", multiline: true },
@@ -62,6 +61,7 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
 
   return (
     <div>
+      <ContactBlock contact={jp.contact} />
       {TEXT_FIELDS.map((f) => (
         <div className="mb-3" key={f.key}>
           <label className="block text-xs uppercase text-slate-500">{f.label}</label>
