@@ -8,10 +8,10 @@ class Settings(BaseSettings):
 
     database_url: str
     app_secret_key: str
-    ms_tenant_id: str
-    ms_client_id: str
-    ms_client_secret: str
-    ms_redirect_uri: str
+    ms_tenant_id: str = ""
+    ms_client_id: str = ""
+    ms_client_secret: str = ""
+    ms_redirect_uri: str = "http://localhost:8000/api/auth/callback"
     llm_provider: str = "groq"
     llm_model: str = "gpt-oss"
     llm_api_key: str
@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None
+
+    @property
+    def oauth_enabled(self) -> bool:
+        return bool(self.ms_tenant_id and self.ms_client_id and self.ms_client_secret)
 
     @field_validator("celery_broker_url", mode="before")
     @classmethod

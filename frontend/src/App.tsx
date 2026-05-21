@@ -9,6 +9,7 @@ import { useAuth } from "./hooks/useAuth";
 
 function Nav() {
   const loc = useLocation();
+  const { data: authData } = useAuth();
   const item = (to: string, label: string) => (
     <Link
       key={to}
@@ -25,9 +26,11 @@ function Nav() {
       {item("/settings/cv", "CV")}
       {item("/settings/anschreiben", "Anschreiben")}
       {item("/settings/llm", "LLM")}
-      <form action="/api/auth/logout" method="post" className="ml-auto">
-        <button className="text-sm text-slate-600">Logout</button>
-      </form>
+      {authData?.oauth_enabled && (
+        <form action="/api/auth/logout" method="post" className="ml-auto">
+          <button className="text-sm text-slate-600">Logout</button>
+        </form>
+      )}
     </nav>
   );
 }

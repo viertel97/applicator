@@ -97,8 +97,31 @@ def _ms_config(s: Settings) -> MSConfig:
     )
 
 
+_DEV_OID = "dev"
+_DEV_EMAIL = "dev@local"
+_DEV_NAME = "Dev User"
+
+
 @router.get("/login")
-def login(settings: Annotated[Settings, Depends(settings_dep)]) -> RedirectResponse:
+def login(
+    response: Response,
+    db: Annotated[Session, Depends(db_dep)],
+    settings: Annotated[Settings, Depends(settings_dep)],
+) -> RedirectResponse:
+    if not settings.oauth_enabled:
+        user = db.query(User).filter_by(ms_oid=_DEV_OID).first()
+        if user is None:
+            user = User(ms_oid=_DEV_OID, email=_DEV_EMAIL, display_name=_DEV_NAME)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        sid = create_session(db, user.id)
+        redirect = RedirectResponse(url="/applications")
+        redirect.set_cookie(
+            settings.session_cookie_name, sid,
+            httponly=True, secure=settings.session_cookie_secure, samesite="lax", path="/",
+        )
+        return redirect
     state = generate_oauth_state(settings.app_secret_key)
     url = authorize_url(_ms_config(settings), state)
     return RedirectResponse(url=url)
@@ -169,6 +192,19 @@ def logout(
     return {"ok": True}
 
 
+@router.get("/mode")
+def mode(settings: Annotated[Settings, Depends(settings_dep)]) -> dict:
+    return {"oauth_enabled": settings.oauth_enabled}
+
+
 @router.get("/me")
-def me(user: Annotated[User, Depends(current_user)]) -> dict:
-    return {"id": str(user.id), "email": user.email, "display_name": user.display_name}
+def me(
+    user: Annotated[User, Depends(current_user)],
+    settings: Annotated[Settings, Depends(settings_dep)],
+) -> dict:
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "display_name": user.display_name,
+        "oauth_enabled": settings.oauth_enabled,
+    }
