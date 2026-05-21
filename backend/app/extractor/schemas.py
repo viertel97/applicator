@@ -1,8 +1,8 @@
 from pydantic import BaseModel, Field
 
 _LABEL_CANDIDATES = (
-    "Startup, Konzern, Remote, Hybrid, Finance, Tech, "
-    "Agency, Consulting, NGO, Public Sector"
+    "Startup (<50), KMU (50-500), Mittelstand (500-5000), Konzern (5000+), "
+    "Remote, Hybrid, Finance, Tech, Agency, Consulting, NGO, Public Sector"
 )
 _DOC_VOCAB = "cv, cover_letter, portfolio, references, certificates, other"
 
@@ -32,6 +32,9 @@ class ExtractedJobPosting(BaseModel):
         default_factory=list,
         description=(
             f"Labels from this set that apply to the company/role: {_LABEL_CANDIDATES}. "
-            "Return only values from this set."
+            "Return only values from this set. "
+            "Pick exactly one size bucket (Startup/KMU/Mittelstand/Konzern) using "
+            "explicit headcount in the posting if mentioned, otherwise general "
+            "knowledge of the named company. Omit size only if truly unknown."
         ),
     )
