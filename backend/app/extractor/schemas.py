@@ -7,14 +7,20 @@ _LABEL_CANDIDATES = (
 _DOC_VOCAB = "cv, cover_letter, portfolio, references, certificates, other"
 
 
+class ContactInfo(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    email: str | None = None
+    phone: str | None = None
+
+
 class ExtractedJobPosting(BaseModel):
     title: str | None = None
     company: str | None = None
     location: str | None = None
     description: str | None = None
     requirements: str | None = None
-    contact_person: str | None = None
-    application_email: str | None = None
+    contact: ContactInfo | None = None
     deadline: str | None = None
     salary: str | None = None
     tech_stack: list[str] = Field(default_factory=list)
