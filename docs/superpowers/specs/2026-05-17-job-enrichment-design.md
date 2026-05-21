@@ -88,7 +88,7 @@ Applications where `status NOT IN ('withdrawn', 'rejected')`.
 | `POST` | `/api/applications/{id}/labels/{label_id}` | Assign label to application |
 | `DELETE` | `/api/applications/{id}/labels/{label_id}` | Remove label from application |
 
-`GET /api/applications` gains optional query param `?label_ids=uuid,uuid,...` — returns only applications that have ALL specified labels.
+`GET /api/applications` gains optional query param `?label_ids=uuid,uuid,...` — returns applications that have ANY of the specified labels (OR logic).
 
 `ApplicationOut` response shape gains `labels: list[LabelOut]`.
 
