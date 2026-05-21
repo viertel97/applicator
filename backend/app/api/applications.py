@@ -53,8 +53,7 @@ class JobPostingOut(BaseModel):
     location: str | None = None
     description: str | None = None
     requirements: str | None = None
-    contact_person: str | None = None
-    application_email: str | None = None
+    contact: dict | None = None
     deadline: str | None = None
     salary: str | None = None
     tech_stack: list[str] | None = None
@@ -73,8 +72,7 @@ class JobPostingPatch(BaseModel):
     location: str | None = None
     description: str | None = None
     requirements: str | None = None
-    contact_person: str | None = None
-    application_email: str | None = None
+    contact: dict | None = None
     deadline: str | None = None
     salary: str | None = None
     tech_stack: list[str] | None = None
