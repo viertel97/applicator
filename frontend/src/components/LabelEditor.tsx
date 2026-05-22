@@ -51,7 +51,7 @@ export function LabelEditor({ appId, assigned }: Props) {
   });
 
   const create = useMutation({
-    mutationFn: (name: string) => labelsApi.create({ name, color: colorPick }),
+    mutationFn: (name: string) => labelsApi.create({ name, color: colorPick, category: "other" }),
     onSuccess: (newLabel) => {
       qc.invalidateQueries({ queryKey: ["labels"] });
       assign.mutate(newLabel.id);
