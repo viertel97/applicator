@@ -18,5 +18,5 @@ def test_label_category_members_exact():
 
 
 def test_label_category_string_backed():
-    assert LabelCategory.tech.value == "tech"
-    assert str(LabelCategory.tech) == "LabelCategory.tech"
+    assert LabelCategory.tech == "tech"
+    assert isinstance(LabelCategory.tech, str)
