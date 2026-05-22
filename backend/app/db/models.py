@@ -72,6 +72,19 @@ class ChatRole(str, enum.Enum):
     system = "system"
 
 
+class LabelCategory(str, enum.Enum):
+    role = "role"
+    tech = "tech"
+    domain = "domain"
+    seniority = "seniority"
+    work_mode = "work_mode"
+    location = "location"
+    company_size = "company_size"
+    language = "language"
+    company = "company"
+    other = "other"
+
+
 def _uuid() -> uuid.UUID:
     return uuid.uuid4()
 
