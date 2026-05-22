@@ -5,6 +5,7 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import SettingsCV from "./pages/SettingsCV";
 import SettingsAnschreiben from "./pages/SettingsAnschreiben";
 import SettingsLLM from "./pages/SettingsLLM";
+import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
 import { useAuth } from "./hooks/useAuth";
 
 function Nav() {
@@ -26,6 +27,7 @@ function Nav() {
       {item("/settings/cv", "CV")}
       {item("/settings/anschreiben", "Anschreiben")}
       {item("/settings/llm", "LLM")}
+      {item("/settings/inquiry-prompt", "Inquiry prompt")}
       {authData?.oauth_enabled && (
         <form action="/api/auth/logout" method="post" className="ml-auto">
           <button className="text-sm text-slate-600">Logout</button>
@@ -88,6 +90,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <SettingsLLM />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/settings/inquiry-prompt"
+        element={
+          <ProtectedShell>
+            <SettingsInquiryPrompt />
           </ProtectedShell>
         }
       />
