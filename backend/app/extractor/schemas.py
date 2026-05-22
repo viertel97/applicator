@@ -46,3 +46,21 @@ class ExtractedJobPosting(BaseModel):
         ),
     )
     suggested_labels: LabelSuggestions = Field(default_factory=LabelSuggestions)
+    mentions_home_office_policy: bool = Field(
+        default=False,
+        description=(
+            "True iff the posting explicitly states a home office / remote / "
+            "hybrid policy with frequency or percentage (e.g. 'Homeoffice "
+            "möglich', '2 Tage pro Woche remote', 'fully remote', "
+            "'hybrid 60/40'). False if home office is not mentioned at all "
+            "or only vaguely implied."
+        ),
+    )
+    mentions_part_time: bool = Field(
+        default=False,
+        description=(
+            "True iff the posting explicitly mentions part-time availability "
+            "(e.g. 'Teilzeit möglich', '80%', 'part-time'). False if only "
+            "Vollzeit / full-time is mentioned or nothing is said about it."
+        ),
+    )
