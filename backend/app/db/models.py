@@ -235,6 +235,7 @@ class JobPosting(Base):
     benefits: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     language: Mapped[str | None] = mapped_column(Text, nullable=True)
     required_documents: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    reference_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     mentions_home_office_policy: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     mentions_part_time: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     backfill_attempts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")

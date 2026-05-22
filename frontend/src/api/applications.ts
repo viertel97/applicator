@@ -44,6 +44,7 @@ export type JobPosting = {
   benefits: string[] | null;
   language: string | null;
   required_documents: string[] | null;
+  reference_number: string | null;
   mentions_home_office_policy: boolean | null;
   mentions_part_time: boolean | null;
 };

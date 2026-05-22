@@ -45,6 +45,13 @@ class ExtractedJobPosting(BaseModel):
             f"Documents required to apply. Only use values from: {_DOC_VOCAB}"
         ),
     )
+    reference_number: str | None = Field(
+        default=None,
+        description=(
+            "Job reference / Referenznummer as printed in the posting "
+            "(e.g. 'Ref. 12345', 'Kennziffer AB-2025-042'). Null if absent."
+        ),
+    )
     suggested_labels: LabelSuggestions = Field(default_factory=LabelSuggestions)
     mentions_home_office_policy: bool = Field(
         default=False,

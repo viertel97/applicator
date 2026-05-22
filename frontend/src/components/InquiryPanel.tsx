@@ -6,10 +6,7 @@ import type { Application } from "../api/applications";
 type Props = { app: Application };
 
 function mailto(to: string | null, subject: string, body: string): string {
-  const params = new URLSearchParams();
-  params.set("subject", subject);
-  params.set("body", body);
-  return `mailto:${to ?? ""}?${params.toString()}`;
+  return `mailto:${to ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 export function InquiryPanel({ app }: Props) {

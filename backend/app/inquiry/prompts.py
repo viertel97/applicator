@@ -12,7 +12,10 @@ DEFAULT_TEMPLATE = (
     "- Höflicher, professioneller Ton; keine Selbstvermarktung, kein CV-Pitch.\n"
     "- Am Ende fragen, ob eine Bewerbung unter diesen Bedingungen willkommen "
     "  ist.\n"
-    "- Antwort als JSON {\"subject\": \"...\", \"body\": \"...\"}.\n"
+    "- Antwort als JSON {\"subject\": \"...\", \"body\": \"...\"}. "
+    "Absätze im body mit \\n\\n trennen, keine HTML-Tags. "
+    "Falls eine Referenznummer angegeben ist, diese im Subject verwenden "
+    "(z.B. 'Vorab-Anfrage – Stelle XY (Ref. 12345)').\n"
     "- Sprache exakt an die im Nutzer-Prompt angegebene Zielsprache anpassen "
     "  (z.B. 'de' oder 'en')."
 )
@@ -54,9 +57,13 @@ def user_prompt(
     topics = _topic_lines(language, ask_home_office, ask_part_time)
     bullet_block = "\n".join(f"- {t}" for t in topics)
     contact_name = job.contact.name if job.contact and job.contact.name else "unbekannt"
+    ref_line = (
+        f"Referenznummer: {job.reference_number}\n" if job.reference_number else ""
+    )
     return (
         f"Zielsprache: {language}\n"
         f"Stelle: {job.title or 'unbekannt'} bei {job.company or 'unbekannt'}\n"
+        f"{ref_line}"
         f"Ansprechpartner: {contact_name}\n\n"
         f"Fragen, die in der Mail vorkommen MUESSEN (in dieser Reihenfolge):\n"
         f"{bullet_block}"

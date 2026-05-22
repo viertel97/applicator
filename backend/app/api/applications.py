@@ -64,6 +64,7 @@ class JobPostingOut(BaseModel):
     benefits: list[str] | None = None
     language: str | None = None
     required_documents: list[str] | None = None
+    reference_number: str | None = None
     mentions_home_office_policy: bool | None = None
     mentions_part_time: bool | None = None
 
@@ -467,6 +468,7 @@ def _build_inquiry_job(app_row: Application):
         location=jp.location,
         language=jp.language or "de",
         contact=ContactInfo(**contact_data) if contact_data else None,
+        reference_number=jp.reference_number,
     )
 
 
