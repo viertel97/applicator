@@ -7,8 +7,71 @@ from testcontainers.postgres import PostgresContainer
 from app.api.deps import db_dep
 from app.auth.session import create_session
 from app.db import models  # noqa: F401 — register all ORM models with Base
-from app.db.models import AnschreibenVariant, CVVariant, User
+from app.db.models import AnschreibenVariant, Application, CVVariant, User
 from app.db.session import Base
+
+
+class _FakeLock:
+    """Minimal lock compatible with redis-py Lock API."""
+
+    def __init__(self):
+        self._held = False
+
+    def acquire(self, blocking=True):
+        if self._held:
+            return False
+        self._held = True
+        return True
+
+    def release(self):
+        self._held = False
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *_):
+        self.release()
+
+
+class _FakeRedis:
+    """Minimal Redis stub that supports .lock()."""
+
+    def __init__(self):
+        self._locks: dict = {}
+
+    def lock(self, name, timeout=None, blocking_timeout=None):
+        if name not in self._locks:
+            self._locks[name] = _FakeLock()
+        return self._locks[name]
+
+
+@pytest.fixture(autouse=True)
+def fake_redis_client(monkeypatch):
+    """Replace redis.Redis.from_url with an in-process stub."""
+    fake = _FakeRedis()
+    monkeypatch.setattr("redis.Redis.from_url", lambda *args, **kwargs: fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def reset_db_session_singletons():
+    """Reset the SQLAlchemy engine/session singletons between tests.
+
+    The task module uses get_session_factory() which caches a module-level
+    engine. After each test drops and recreates tables (including enum types),
+    the cached engine's psycopg type cache becomes stale and causes
+    'cache lookup failed for type' errors on the next test.
+    """
+    import app.db.session as sess_mod
+    yield
+    if sess_mod._engine is not None:
+        try:
+            sess_mod._engine.dispose()
+        except Exception:
+            pass
+    sess_mod._engine = None
+    sess_mod._SessionLocal = None
 
 
 @pytest.fixture(scope="session")
@@ -76,7 +139,34 @@ def auth_user(db_session, app_client):
 
 
 @pytest.fixture
+def client(auth_user):
+    """Authenticated TestClient for tests that use client + db_session separately."""
+    app_client, _ = auth_user
+    return app_client
+
+
+@pytest.fixture
 def no_celery(monkeypatch):
     from app.api import applications as apps_module
     monkeypatch.setattr(apps_module, "_start_crawl_chain", lambda app_id: None)
     monkeypatch.setattr(apps_module, "_start_generate", lambda app_id: None)
+
+
+@pytest.fixture
+def client(auth_user):
+    c, _ = auth_user
+    return c
+
+
+@pytest.fixture
+def sample_application(auth_user, db_session):
+    _, user = auth_user
+    app_row = Application(
+        user_id=user.id,
+        url="https://x.test/sample",
+        url_hash="s" * 64,
+    )
+    db_session.add(app_row)
+    db_session.commit()
+    db_session.refresh(app_row)
+    return str(app_row.id)

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
@@ -53,8 +54,7 @@ class JobPostingOut(BaseModel):
     location: str | None = None
     description: str | None = None
     requirements: str | None = None
-    contact_person: str | None = None
-    application_email: str | None = None
+    contact: dict | None = None
     deadline: str | None = None
     salary: str | None = None
     tech_stack: list[str] | None = None
@@ -73,8 +73,7 @@ class JobPostingPatch(BaseModel):
     location: str | None = None
     description: str | None = None
     requirements: str | None = None
-    contact_person: str | None = None
-    application_email: str | None = None
+    contact: dict | None = None
     deadline: str | None = None
     salary: str | None = None
     tech_stack: list[str] | None = None
@@ -154,7 +153,7 @@ def _start_generate(app_id: uuid.UUID) -> None:
 
 def _load_owned(db: Session, aid: uuid.UUID, user: User) -> Application:
     app = db.get(Application, aid)
-    if not app or app.user_id != user.id:
+    if not app or app.user_id != user.id or app.deleted_at is not None:
         raise HTTPException(404, "not found")
     return app
 
@@ -194,7 +193,10 @@ def list_apps(
     user: Annotated[User, Depends(current_user)],
     label_ids: list[uuid.UUID] | None = Query(default=None),
 ):
-    q = db.query(Application).filter_by(user_id=user.id)
+    q = db.query(Application).filter(
+        Application.user_id == user.id,
+        Application.deleted_at.is_(None),
+    )
     if label_ids:
         q = q.filter(Application.labels.any(LabelModel.id.in_(label_ids)))
     rows = q.order_by(Application.created_at.desc()).all()
@@ -226,6 +228,21 @@ def update_status(
     db.commit()
     db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)
+
+
+@router.delete("/{aid}", status_code=204)
+def delete_application(
+    aid: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = db.get(Application, aid)
+    if not app_row or app_row.user_id != user.id:
+        raise HTTPException(404, "not found")
+    if app_row.deleted_at is None:
+        app_row.deleted_at = datetime.now(timezone.utc)
+        db.commit()
+    return None
 
 
 @router.patch("/{aid}/job-posting", response_model=ApplicationOut)

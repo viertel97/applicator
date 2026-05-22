@@ -72,6 +72,19 @@ class ChatRole(str, enum.Enum):
     system = "system"
 
 
+class LabelCategory(str, enum.Enum):
+    role = "role"
+    tech = "tech"
+    domain = "domain"
+    seniority = "seniority"
+    work_mode = "work_mode"
+    location = "location"
+    company_size = "company_size"
+    language = "language"
+    company = "company"
+    other = "other"
+
+
 def _uuid() -> uuid.UUID:
     return uuid.uuid4()
 
@@ -100,6 +113,12 @@ class Label(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     color: Mapped[str] = mapped_column(String(7))
     is_auto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    category: Mapped["LabelCategory"] = mapped_column(
+        Enum(LabelCategory, name="labelcategory"),
+        nullable=False,
+        default=LabelCategory.other,
+        server_default=LabelCategory.other.value,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
@@ -175,6 +194,7 @@ class Application(Base):
     )
     posting_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     posting_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -203,6 +223,7 @@ class JobPosting(Base):
     requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
     contact_person: Mapped[str | None] = mapped_column(Text, nullable=True)
     application_email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     deadline: Mapped[str | None] = mapped_column(Text, nullable=True)
     salary: Mapped[str | None] = mapped_column(Text, nullable=True)
     tech_stack: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
@@ -211,6 +232,7 @@ class JobPosting(Base):
     benefits: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     language: Mapped[str | None] = mapped_column(Text, nullable=True)
     required_documents: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    backfill_attempts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
     extracted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     application: Mapped[Application] = relationship("Application", back_populates="job_posting")

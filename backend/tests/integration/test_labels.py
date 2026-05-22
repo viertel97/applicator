@@ -7,7 +7,7 @@ def test_list_labels_empty(auth_user):
 
 def test_create_label(auth_user):
     client, _ = auth_user
-    r = client.post("/api/labels", json={"name": "Startup", "color": "#6366f1"})
+    r = client.post("/api/labels", json={"name": "Startup", "color": "#6366f1", "category": "other"})
     assert r.status_code == 201
     data = r.json()
     assert data["name"] == "Startup"
@@ -18,15 +18,15 @@ def test_create_label(auth_user):
 
 def test_create_duplicate_label_returns_409(auth_user):
     client, _ = auth_user
-    client.post("/api/labels", json={"name": "Tech", "color": "#3b82f6"})
-    r = client.post("/api/labels", json={"name": "Tech", "color": "#ef4444"})
+    client.post("/api/labels", json={"name": "Tech", "color": "#3b82f6", "category": "tech"})
+    r = client.post("/api/labels", json={"name": "Tech", "color": "#ef4444", "category": "tech"})
     assert r.status_code == 409
 
 
 def test_assign_and_list_label_on_application(auth_user, no_celery):
     client, _ = auth_user
 
-    label_r = client.post("/api/labels", json={"name": "Finance", "color": "#f59e0b"})
+    label_r = client.post("/api/labels", json={"name": "Finance", "color": "#f59e0b", "category": "other"})
     label_id = label_r.json()["id"]
 
     app_r = client.post("/api/applications", json={"url": "https://example.com/job/label-test"})
@@ -42,7 +42,7 @@ def test_assign_and_list_label_on_application(auth_user, no_celery):
 def test_remove_label_from_application(auth_user, no_celery):
     client, _ = auth_user
 
-    label_r = client.post("/api/labels", json={"name": "Remote", "color": "#10b981"})
+    label_r = client.post("/api/labels", json={"name": "Remote", "color": "#10b981", "category": "work_mode"})
     label_id = label_r.json()["id"]
 
     app_r = client.post("/api/applications", json={"url": "https://example.com/job/remove-test"})
@@ -57,7 +57,7 @@ def test_remove_label_from_application(auth_user, no_celery):
 def test_filter_applications_by_label(auth_user, no_celery):
     client, _ = auth_user
 
-    label_r = client.post("/api/labels", json={"name": "Agency", "color": "#8b5cf6"})
+    label_r = client.post("/api/labels", json={"name": "Agency", "color": "#8b5cf6", "category": "other"})
     label_id = label_r.json()["id"]
 
     r1 = client.post("/api/applications", json={"url": "https://example.com/job/filter-a"})

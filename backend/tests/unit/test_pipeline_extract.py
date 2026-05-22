@@ -47,7 +47,7 @@ def test_run_extract_stores_required_documents_and_auto_labels():
         "company": "Acme",
         "language": "en",
         "required_documents": ["cv", "cover_letter"],
-        "suggested_labels": ["Startup", "Tech"],
+        "suggested_labels": {"company_size": ["Startup"], "tech": ["Tech"]},
     }
     db = MagicMock()
     app = Application(url="u", url_hash="h" * 64)

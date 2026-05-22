@@ -2,23 +2,11 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Application, JobPosting, JobState, Label
+from app.db.models import Application, JobPosting, JobState
 from app.extractor import extract
 from app.extractor.schemas import ExtractedJobPosting
+from app.labels.upsert import upsert_and_assign_labels
 from app.llm.base import LLMClient
-
-_AUTO_LABEL_COLOR = "#6366f1"
-
-
-def _upsert_and_assign_labels(db: Session, app: Application, names: list[str]) -> None:
-    for name in names:
-        label = db.query(Label).filter_by(name=name).first()
-        if label is None:
-            label = Label(name=name, color=_AUTO_LABEL_COLOR, is_auto=True)
-            db.add(label)
-            db.flush()
-        if label not in app.labels:
-            app.labels.append(label)
 
 
 def run_extract(
@@ -43,8 +31,7 @@ def run_extract(
         location=job.location,
         description=job.description,
         requirements=job.requirements,
-        contact_person=job.contact_person,
-        application_email=job.application_email,
+        contact=job.contact.model_dump() if job.contact else None,
         deadline=job.deadline,
         salary=job.salary,
         tech_stack=job.tech_stack,
@@ -56,6 +43,6 @@ def run_extract(
     )
     app.language = job.language
     db.add(jp)
-    _upsert_and_assign_labels(db, app, job.suggested_labels)
+    upsert_and_assign_labels(db, app, job.suggested_labels)
     app.job_state = JobState.extracted
     db.commit()

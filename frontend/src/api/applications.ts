@@ -11,11 +11,17 @@ export type JobState =
   | "failed";
 export type FailedStage = "crawl" | "extract" | "generate";
 
+export type LabelCategory =
+  | "role" | "tech" | "domain" | "seniority"
+  | "work_mode" | "location" | "company_size"
+  | "language" | "company" | "other";
+
 export type Label = {
   id: string;
   name: string;
   color: string;
   is_auto: boolean;
+  category: LabelCategory;
 };
 
 export type JobPosting = {
@@ -24,8 +30,12 @@ export type JobPosting = {
   location: string | null;
   description: string | null;
   requirements: string | null;
-  contact_person: string | null;
-  application_email: string | null;
+  contact: {
+    name: string | null;
+    role: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
   deadline: string | null;
   salary: string | null;
   tech_stack: string[] | null;
@@ -83,6 +93,8 @@ export const applications = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  remove: (id: string) =>
+    api<void>(`/api/applications/${id}`, { method: "DELETE" }),
   patchJobPosting: (id: string, fields: Partial<JobPosting>) =>
     api<Application>(`/api/applications/${id}/job-posting`, {
       method: "PATCH",
