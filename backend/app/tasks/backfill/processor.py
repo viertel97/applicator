@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import JobPosting
 from app.extractor import extract_fields
-from app.pipeline.extract import _upsert_and_assign_labels
+from app.labels.upsert import upsert_and_assign_labels
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ def process_row(
         new_value = result.get(field)
         if field == SUGGESTED_LABELS:
             if not _is_empty(new_value):
-                _upsert_and_assign_labels(db, jp.application, new_value)
+                upsert_and_assign_labels(db, jp.application, new_value)
         elif not _is_empty(new_value) and _is_empty(getattr(jp, field)):
             setattr(jp, field, new_value)
         attempts[field] = now_iso
