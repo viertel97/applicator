@@ -1,7 +1,5 @@
 """On-startup backfill: fills empty JobPosting fields and auto-labels via Groq."""
 
-import time  # re-exported so tests can monkeypatch backfill.time.sleep
-
 from .pacing import _adaptive_sleep
 from .processor import (
     ELIGIBLE_FIELDS,
@@ -18,5 +16,4 @@ __all__ = [
     "backfill_missing_task",
     "pick_missing",
     "process_row",
-    "time",
 ]
