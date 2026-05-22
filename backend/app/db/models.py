@@ -194,6 +194,9 @@ class Application(Base):
     )
     posting_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     posting_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    inquiry_subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    inquiry_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    inquiry_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -232,6 +235,8 @@ class JobPosting(Base):
     benefits: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     language: Mapped[str | None] = mapped_column(Text, nullable=True)
     required_documents: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    mentions_home_office_policy: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    mentions_part_time: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     backfill_attempts: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict, server_default="{}")
     extracted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -266,3 +271,14 @@ class Session(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class InquiryPromptTemplate(Base):
+    __tablename__ = "inquiry_prompt_template"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), unique=True)
+    source_md: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
