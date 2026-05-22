@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep, settings_dep
 from app.api.labels import LabelOut
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.db.models import (
     AnschreibenVariant,
     Application,
@@ -63,6 +63,8 @@ class JobPostingOut(BaseModel):
     benefits: list[str] | None = None
     language: str | None = None
     required_documents: list[str] | None = None
+    mentions_home_office_policy: bool | None = None
+    mentions_part_time: bool | None = None
 
     model_config = {"from_attributes": True}
 
@@ -107,6 +109,9 @@ class ApplicationOut(BaseModel):
     posting_online: bool | None
     labels: list[LabelOut]
     job_posting: JobPostingOut | None
+    inquiry_subject: str | None
+    inquiry_body: str | None
+    inquiry_sent_at: datetime | None
 
     @classmethod
     def from_orm_row(cls, app: Application) -> "ApplicationOut":
@@ -129,6 +134,9 @@ class ApplicationOut(BaseModel):
             job_posting=(
                 JobPostingOut.model_validate(app.job_posting) if app.job_posting else None
             ),
+            inquiry_subject=app.inquiry_subject,
+            inquiry_body=app.inquiry_body,
+            inquiry_sent_at=app.inquiry_sent_at,
         )
 
 
@@ -407,3 +415,127 @@ def remove_label(
         db.commit()
         db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)
+
+
+# ---------------------------------------------------------------------------
+# Inquiry endpoints
+# ---------------------------------------------------------------------------
+
+def _inquiry_llm():
+    from app.llm.groq import GroqClient
+    s = get_settings()
+    return GroqClient(api_key=s.llm_api_key, model=s.llm_model, base_url=s.llm_base_url)
+
+
+class InquiryPatch(BaseModel):
+    subject: str
+    body: str
+
+
+class InquiryDraftOut(BaseModel):
+    subject: str
+    body: str
+    recipient: str | None
+    sent_at: datetime | None = None
+
+
+class InquiryMarkSentOut(BaseModel):
+    sent_at: datetime
+
+
+def _build_inquiry_job(app_row: Application):
+    from app.extractor.schemas import ExtractedJobPosting
+    jp = app_row.job_posting
+    return ExtractedJobPosting(
+        title=jp.title,
+        company=jp.company,
+        location=jp.location,
+        language=jp.language or "de",
+    )
+
+
+def _ensure_inquiry_prompt(db: Session, user: User) -> str:
+    from app.db.models import InquiryPromptTemplate
+    from app.inquiry.prompts import DEFAULT_TEMPLATE
+    row = db.query(InquiryPromptTemplate).filter_by(user_id=user.id).first()
+    if row is None:
+        row = InquiryPromptTemplate(user_id=user.id, source_md=DEFAULT_TEMPLATE)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return row.source_md
+
+
+@router.post("/{aid}/inquiry/draft", response_model=InquiryDraftOut)
+def draft_inquiry(
+    aid: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    if app_row.job_posting is None:
+        raise HTTPException(400, "no job posting yet")
+    ask_ho = not bool(app_row.job_posting.mentions_home_office_policy)
+    ask_pt = not bool(app_row.job_posting.mentions_part_time)
+    if not ask_ho and not ask_pt:
+        raise HTTPException(400, "Posting covers both topics.")
+    system_md = _ensure_inquiry_prompt(db, user)
+    from app.inquiry import draft as inquiry_draft
+    try:
+        email = inquiry_draft(
+            job=_build_inquiry_job(app_row),
+            language=app_row.job_posting.language or app_row.language or "de",
+            ask_home_office=ask_ho,
+            ask_part_time=ask_pt,
+            system_md=system_md,
+            llm=_inquiry_llm(),
+        )
+    except Exception as exc:
+        raise HTTPException(502, f"draft failed: {exc}") from exc
+    app_row.inquiry_subject = email.subject
+    app_row.inquiry_body = email.body
+    db.commit()
+    db.refresh(app_row)
+    jp = app_row.job_posting
+    recipient = getattr(jp, "application_email", None)
+    return InquiryDraftOut(
+        subject=email.subject,
+        body=email.body,
+        recipient=recipient,
+        sent_at=app_row.inquiry_sent_at,
+    )
+
+
+@router.patch("/{aid}/inquiry", response_model=InquiryDraftOut)
+def patch_inquiry(
+    aid: uuid.UUID,
+    body: InquiryPatch,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    app_row.inquiry_subject = body.subject
+    app_row.inquiry_body = body.body
+    db.commit()
+    db.refresh(app_row)
+    jp = app_row.job_posting
+    recipient = getattr(jp, "application_email", None)
+    return InquiryDraftOut(
+        subject=app_row.inquiry_subject or "",
+        body=app_row.inquiry_body or "",
+        recipient=recipient,
+        sent_at=app_row.inquiry_sent_at,
+    )
+
+
+@router.post("/{aid}/inquiry/mark-sent", response_model=InquiryMarkSentOut)
+def mark_inquiry_sent(
+    aid: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    app_row.inquiry_sent_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(app_row)
+    return InquiryMarkSentOut(sent_at=app_row.inquiry_sent_at)
