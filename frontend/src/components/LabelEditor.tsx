@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { labels as labelsApi } from "../api/labels";
 import type { Label, LabelCategory } from "../api/applications";
-import { LabelChip } from "./LabelChip";
+import { LabelChipGroups } from "./LabelChipGroups";
 
 const CATEGORIES: { value: LabelCategory; label: string }[] = [
   { value: "role", label: "Role" },
@@ -88,15 +88,7 @@ export function LabelEditor({ appId, assigned }: Props) {
 
   return (
     <div className="space-y-2" ref={containerRef}>
-      <div className="flex flex-wrap gap-1">
-        {assigned.map((lbl) => (
-          <LabelChip
-            key={lbl.id}
-            label={lbl}
-            onRemove={() => remove.mutate(lbl.id)}
-          />
-        ))}
-      </div>
+      <LabelChipGroups labels={assigned} onRemove={(id) => remove.mutate(id)} />
       <div className="relative">
         <input
           type="text"
