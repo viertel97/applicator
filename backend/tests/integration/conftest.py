@@ -139,6 +139,13 @@ def auth_user(db_session, app_client):
 
 
 @pytest.fixture
+def client(auth_user):
+    """Authenticated TestClient for tests that use client + db_session separately."""
+    app_client, _ = auth_user
+    return app_client
+
+
+@pytest.fixture
 def no_celery(monkeypatch):
     from app.api import applications as apps_module
     monkeypatch.setattr(apps_module, "_start_crawl_chain", lambda app_id: None)
