@@ -1,9 +1,5 @@
 from pydantic import BaseModel, Field
 
-_LABEL_CANDIDATES = (
-    "Startup (<50), KMU (50-500), Mittelstand (500-5000), Konzern (5000+), "
-    "Remote, Hybrid, Finance, Tech, Agency, Consulting, NGO, Public Sector"
-)
 _DOC_VOCAB = "cv, cover_letter, portfolio, references, certificates, other"
 
 
@@ -12,6 +8,21 @@ class ContactInfo(BaseModel):
     role: str | None = None
     email: str | None = None
     phone: str | None = None
+
+
+class LabelSuggestions(BaseModel):
+    role: list[str] = Field(default_factory=list)
+    tech: list[str] = Field(default_factory=list)
+    domain: list[str] = Field(default_factory=list)
+    seniority: list[str] = Field(default_factory=list)
+    work_mode: list[str] = Field(default_factory=list)
+    location: list[str] = Field(default_factory=list)
+    company_size: list[str] = Field(
+        default_factory=list,
+        description="Exactly one of Startup, KMU, Mittelstand, Konzern when determinable.",
+    )
+    language: list[str] = Field(default_factory=list)
+    company: list[str] = Field(default_factory=list)
 
 
 class ExtractedJobPosting(BaseModel):
@@ -34,13 +45,4 @@ class ExtractedJobPosting(BaseModel):
             f"Documents required to apply. Only use values from: {_DOC_VOCAB}"
         ),
     )
-    suggested_labels: list[str] = Field(
-        default_factory=list,
-        description=(
-            f"Labels from this set that apply to the company/role: {_LABEL_CANDIDATES}. "
-            "Return only values from this set. "
-            "Pick exactly one size bucket (Startup/KMU/Mittelstand/Konzern) using "
-            "explicit headcount in the posting if mentioned, otherwise general "
-            "knowledge of the named company. Omit size only if truly unknown."
-        ),
-    )
+    suggested_labels: LabelSuggestions = Field(default_factory=LabelSuggestions)

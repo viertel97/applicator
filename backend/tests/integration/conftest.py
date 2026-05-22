@@ -11,6 +11,69 @@ from app.db.models import AnschreibenVariant, Application, CVVariant, User
 from app.db.session import Base
 
 
+class _FakeLock:
+    """Minimal lock compatible with redis-py Lock API."""
+
+    def __init__(self):
+        self._held = False
+
+    def acquire(self, blocking=True):
+        if self._held:
+            return False
+        self._held = True
+        return True
+
+    def release(self):
+        self._held = False
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *_):
+        self.release()
+
+
+class _FakeRedis:
+    """Minimal Redis stub that supports .lock()."""
+
+    def __init__(self):
+        self._locks: dict = {}
+
+    def lock(self, name, timeout=None, blocking_timeout=None):
+        if name not in self._locks:
+            self._locks[name] = _FakeLock()
+        return self._locks[name]
+
+
+@pytest.fixture(autouse=True)
+def fake_redis_client(monkeypatch):
+    """Replace redis.Redis.from_url with an in-process stub."""
+    fake = _FakeRedis()
+    monkeypatch.setattr("redis.Redis.from_url", lambda *args, **kwargs: fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def reset_db_session_singletons():
+    """Reset the SQLAlchemy engine/session singletons between tests.
+
+    The task module uses get_session_factory() which caches a module-level
+    engine. After each test drops and recreates tables (including enum types),
+    the cached engine's psycopg type cache becomes stale and causes
+    'cache lookup failed for type' errors on the next test.
+    """
+    import app.db.session as sess_mod
+    yield
+    if sess_mod._engine is not None:
+        try:
+            sess_mod._engine.dispose()
+        except Exception:
+            pass
+    sess_mod._engine = None
+    sess_mod._SessionLocal = None
+
+
 @pytest.fixture(scope="session")
 def pg_container():
     with PostgresContainer("postgres:16") as pg:
@@ -73,6 +136,13 @@ def auth_user(db_session, app_client):
     sid = create_session(db_session, u.id)
     app_client.cookies.set("applicator_session", sid)
     return app_client, u
+
+
+@pytest.fixture
+def client(auth_user):
+    """Authenticated TestClient for tests that use client + db_session separately."""
+    app_client, _ = auth_user
+    return app_client
 
 
 @pytest.fixture

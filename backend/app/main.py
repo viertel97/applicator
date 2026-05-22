@@ -12,6 +12,7 @@ from app.api import interviews as interviews_api
 from app.api import labels as labels_api
 from app.config import get_settings
 from app.tasks.backfill import backfill_missing_task
+from app.tasks.categorize_labels import categorize_existing_labels_task
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,11 @@ async def lifespan(app: FastAPI):
         logger.info("backfill_missing enqueued on startup")
     except Exception as exc:
         logger.warning("failed to enqueue backfill on startup: %s", exc)
+    try:
+        categorize_existing_labels_task.apply_async()
+        logger.info("categorize_existing_labels enqueued on startup")
+    except Exception as exc:
+        logger.warning("failed to enqueue categorize on startup: %s", exc)
     yield
 
 

@@ -11,11 +11,17 @@ export type JobState =
   | "failed";
 export type FailedStage = "crawl" | "extract" | "generate";
 
+export type LabelCategory =
+  | "role" | "tech" | "domain" | "seniority"
+  | "work_mode" | "location" | "company_size"
+  | "language" | "company" | "other";
+
 export type Label = {
   id: string;
   name: string;
   color: string;
   is_auto: boolean;
+  category: LabelCategory;
 };
 
 export type JobPosting = {

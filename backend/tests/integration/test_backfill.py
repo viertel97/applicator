@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from app.db.models import Application, JobPosting, User
+from app.db.models import Application, JobPosting, LabelCategory, User
 from app.tasks.backfill import (
     ELIGIBLE_FIELDS,
     pick_missing,
@@ -135,7 +135,11 @@ def test_process_row_upserts_labels_from_extract(db_session):
     from app.db.models import Label
     jp = _row(db)
     fake_extract = MagicMock(return_value={
-        "suggested_labels": ["Tech", "Startup"],
+        "suggested_labels": {
+            "role": ["AI Engineer"],
+            "tech": ["Python"],
+            "company_size": ["Konzern"],
+        },
         "contact": None,
         "salary": None,
         "deadline": None,
@@ -149,11 +153,13 @@ def test_process_row_upserts_labels_from_extract(db_session):
     })
     process_row(db, jp, MagicMock(), extract_fn=fake_extract)
     db.refresh(jp.application)
-    names = {lab.name for lab in jp.application.labels}
-    assert names == {"Tech", "Startup"}
+    by_name = {lab.name: lab for lab in jp.application.labels}
+    assert by_name["AI Engineer"].category == LabelCategory.role
+    assert by_name["Python"].category == LabelCategory.tech
+    assert by_name["Konzern"].category == LabelCategory.company_size
     assert "suggested_labels" in jp.backfill_attempts
     # Re-running should not duplicate
-    db.query(Label).count() == 2
+    db.query(Label).count() == 3
 
 
 def test_adaptive_sleep_triggers_when_remaining_below_threshold(monkeypatch):
