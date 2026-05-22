@@ -11,6 +11,7 @@ import { InterviewsList } from "../components/InterviewsList";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
 import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { InquiryPanel } from "../components/InquiryPanel";
 
 const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn"];
 
@@ -213,6 +214,7 @@ export default function ApplicationDetail() {
         </div>
 
         <InterviewsList appId={a.id} />
+        <InquiryPanel app={a} />
       </div>
       <div>
         {a.generated_md != null ? (
