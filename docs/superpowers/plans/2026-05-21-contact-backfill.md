@@ -54,7 +54,7 @@
 - Modify: `backend/app/extractor/schemas.py`
 - Test: `backend/tests/unit/test_extract_fields.py`
 
-- [ ] **Step 1: Write the failing test for the new schema shape**
+- [x] **Step 1: Write the failing test for the new schema shape**
 
 Create `backend/tests/unit/test_extract_fields.py`:
 
@@ -81,14 +81,14 @@ def test_extracted_job_posting_contact_default_none():
     assert j.contact is None
 ```
 
-- [ ] **Step 2: Run test, verify failure**
+- [x] **Step 2: Run test, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_extract_fields.py -v
 ```
 Expected: FAIL with `AssertionError: assert 'contact' in fields` (or import error if `ContactInfo` missing).
 
-- [ ] **Step 3: Update the schema**
+- [x] **Step 3: Update the schema**
 
 Edit `backend/app/extractor/schemas.py`:
 
@@ -141,7 +141,7 @@ class ExtractedJobPosting(BaseModel):
     )
 ```
 
-- [ ] **Step 4: Update extractor SYSTEM prompt**
+- [x] **Step 4: Update extractor SYSTEM prompt**
 
 Edit `backend/app/extractor/prompts.py`:
 
@@ -171,14 +171,14 @@ def user_prompt(raw_text: str) -> str:
     return f"Job posting raw text follows.\n\n---\n{raw_text}\n---"
 ```
 
-- [ ] **Step 5: Run tests, verify pass**
+- [x] **Step 5: Run tests, verify pass**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_extract_fields.py -v
 ```
 Expected: 3 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/extractor/schemas.py backend/app/extractor/prompts.py backend/tests/unit/test_extract_fields.py
@@ -193,7 +193,7 @@ git commit -m "feat(extractor): structured contact block in ExtractedJobPosting"
 - Modify: `backend/app/extractor/__init__.py`
 - Test: `backend/tests/unit/test_extract_fields.py` (extend)
 
-- [ ] **Step 1: Add failing tests for partial extraction**
+- [x] **Step 1: Add failing tests for partial extraction**
 
 Append to `backend/tests/unit/test_extract_fields.py`:
 
@@ -242,14 +242,14 @@ def test_extract_fields_empty_list_raises():
         extract_fields("text", [], _fake_llm({}))
 ```
 
-- [ ] **Step 2: Run, verify failure**
+- [x] **Step 2: Run, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_extract_fields.py -v
 ```
 Expected: ImportError for `extract_fields` (function not yet defined).
 
-- [ ] **Step 3: Implement `extract_fields`**
+- [x] **Step 3: Implement `extract_fields`**
 
 Replace `backend/app/extractor/__init__.py` with:
 
@@ -321,14 +321,14 @@ def extract_fields(
     return result
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_extract_fields.py -v
 ```
 Expected: all tests passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/extractor/__init__.py backend/tests/unit/test_extract_fields.py
@@ -342,7 +342,7 @@ git commit -m "feat(extractor): add extract_fields for partial re-extraction"
 **Files:**
 - Modify: `backend/app/db/models.py`
 
-- [ ] **Step 1: Add failing test for model attributes**
+- [x] **Step 1: Add failing test for model attributes**
 
 Create `backend/tests/unit/test_models_shape.py`:
 
@@ -363,14 +363,14 @@ def test_application_has_deleted_at():
     assert "deleted_at" in cols
 ```
 
-- [ ] **Step 2: Run, verify failure**
+- [x] **Step 2: Run, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_models_shape.py -v
 ```
 Expected: FAIL — old columns still present, new ones absent.
 
-- [ ] **Step 3: Edit `backend/app/db/models.py`**
+- [x] **Step 3: Edit `backend/app/db/models.py`**
 
 In `class JobPosting`, remove these two lines (around lines 204-205):
 
@@ -394,14 +394,14 @@ In `class Application`, after `posting_checked_at`, add:
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 ```
 
-- [ ] **Step 4: Run, verify pass**
+- [x] **Step 4: Run, verify pass**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_models_shape.py -v
 ```
 Expected: 2 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/db/models.py backend/tests/unit/test_models_shape.py
@@ -416,7 +416,7 @@ git commit -m "feat(db): contact JSON + backfill_attempts + deleted_at columns"
 - Create: `backend/alembic/versions/c1d2e3f4a5b6_contact_struct_backfill_softdelete.py`
 - Test: `backend/tests/unit/test_contact_migration.py`
 
-- [ ] **Step 1: Generate migration file**
+- [x] **Step 1: Generate migration file**
 
 Find current head:
 
@@ -425,7 +425,7 @@ cd backend && uv run alembic heads
 ```
 Expected: `f9e1b2c3d4a5`.
 
-- [ ] **Step 2: Write the migration**
+- [x] **Step 2: Write the migration**
 
 Create `backend/alembic/versions/c1d2e3f4a5b6_contact_struct_backfill_softdelete.py`:
 
@@ -517,7 +517,7 @@ def downgrade() -> None:
     op.drop_column("application", "deleted_at")
 ```
 
-- [ ] **Step 3: Apply migration to test DB and verify roundtrip**
+- [x] **Step 3: Apply migration to test DB and verify roundtrip**
 
 ```bash
 cd backend && uv run alembic upgrade head
@@ -526,7 +526,7 @@ uv run alembic upgrade head
 ```
 Expected: each command completes without errors.
 
-- [ ] **Step 4: Write contact-copy unit test**
+- [x] **Step 4: Write contact-copy unit test**
 
 Create `backend/tests/unit/test_contact_migration.py`:
 
@@ -583,14 +583,14 @@ def test_contact_copy_handles_only_name(db: Session):
 
 This relies on the existing `db` fixture in `backend/tests/integration/conftest.py`. Move the file there if needed.
 
-- [ ] **Step 5: Run migration + tests**
+- [x] **Step 5: Run migration + tests**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_models_shape.py tests/integration/test_contact_migration.py -v
 ```
 Expected: passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/alembic/versions/c1d2e3f4a5b6_contact_struct_backfill_softdelete.py backend/tests/integration/test_contact_migration.py
@@ -604,7 +604,7 @@ git commit -m "feat(db): migration for contact struct, backfill_attempts, delete
 **Files:**
 - Modify: `backend/app/pipeline/extract.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/tests/integration/test_pipeline_contact.py`:
 
@@ -640,14 +640,14 @@ def test_run_extract_writes_contact_block(db, monkeypatch):
     }
 ```
 
-- [ ] **Step 2: Run, verify failure**
+- [x] **Step 2: Run, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_pipeline_contact.py -v
 ```
 Expected: FAIL — `JobPosting` constructor no longer accepts `contact_person`/`application_email`, but current `run_extract` still passes them.
 
-- [ ] **Step 3: Update `backend/app/pipeline/extract.py`**
+- [x] **Step 3: Update `backend/app/pipeline/extract.py`**
 
 Replace the `JobPosting(...)` construction with:
 
@@ -673,14 +673,14 @@ Replace the `JobPosting(...)` construction with:
     )
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_pipeline_contact.py tests/integration/test_pipeline.py -v
 ```
 Expected: passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/pipeline/extract.py backend/tests/integration/test_pipeline_contact.py
@@ -694,7 +694,7 @@ git commit -m "feat(pipeline): write structured contact in run_extract"
 **Files:**
 - Modify: `backend/app/pipeline/generate.py`, `backend/app/generator/prompts.py`
 
-- [ ] **Step 1: Update `backend/app/pipeline/generate.py`**
+- [x] **Step 1: Update `backend/app/pipeline/generate.py`**
 
 Replace lines 46-61 (`job = ExtractedJobPosting(...)`) with:
 
@@ -718,7 +718,7 @@ Replace lines 46-61 (`job = ExtractedJobPosting(...)`) with:
     )
 ```
 
-- [ ] **Step 2: Update `backend/app/generator/prompts.py`**
+- [x] **Step 2: Update `backend/app/generator/prompts.py`**
 
 Replace the `Contact person:` line with a contact block:
 
@@ -748,14 +748,14 @@ def user_prompt(
     )
 ```
 
-- [ ] **Step 3: Run existing generator tests**
+- [x] **Step 3: Run existing generator tests**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_pipeline.py -v
 ```
 Expected: passed.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/app/pipeline/generate.py backend/app/generator/prompts.py
@@ -769,7 +769,7 @@ git commit -m "feat(generator): consume structured contact in prompt"
 **Files:**
 - Modify: `backend/app/api/applications.py`
 
-- [ ] **Step 1: Add failing API test**
+- [x] **Step 1: Add failing API test**
 
 Create `backend/tests/integration/test_application_contact_api.py`:
 
@@ -787,7 +787,7 @@ def test_application_response_exposes_contact_block(client, sample_app_with_cont
 
 Add a `sample_app_with_contact` fixture in `backend/tests/integration/conftest.py` that creates an Application + JobPosting with `contact={"name": "Jane", "email": "j@x.com"}` and returns the app id (follow the pattern of any existing application fixture).
 
-- [ ] **Step 2: Update `JobPostingOut` and `JobPostingPatch`**
+- [x] **Step 2: Update `JobPostingOut` and `JobPostingPatch`**
 
 In `backend/app/api/applications.py`, replace:
 
@@ -806,14 +806,14 @@ The pydantic `dict | None` field passes through the JSON as stored.
 
 For `JobPostingPatch`, no special handling needed beyond using `dict | None`.
 
-- [ ] **Step 3: Run tests**
+- [x] **Step 3: Run tests**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_application_contact_api.py -v
 ```
 Expected: passed.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/app/api/applications.py backend/tests/integration/test_application_contact_api.py backend/tests/integration/conftest.py
@@ -828,7 +828,7 @@ git commit -m "feat(api): expose contact block on JobPostingOut/Patch"
 - Modify: `backend/app/api/applications.py`
 - Test: `backend/tests/integration/test_delete_application.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `backend/tests/integration/test_delete_application.py`:
 
@@ -869,14 +869,14 @@ def test_delete_unknown_id_returns_404(client):
 
 Use existing `sample_application` fixture or add one if absent (mirror the contact fixture pattern, no contact needed).
 
-- [ ] **Step 2: Run, verify failure**
+- [x] **Step 2: Run, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_delete_application.py -v
 ```
 Expected: FAIL — DELETE route does not exist (405 / 404).
 
-- [ ] **Step 3: Update `_load_owned` to filter soft-deleted**
+- [x] **Step 3: Update `_load_owned` to filter soft-deleted**
 
 In `backend/app/api/applications.py`, change `_load_owned`:
 
@@ -888,7 +888,7 @@ def _load_owned(db: Session, aid: uuid.UUID, user: User) -> Application:
     return app
 ```
 
-- [ ] **Step 4: Filter list endpoint**
+- [x] **Step 4: Filter list endpoint**
 
 In `list_apps`, change the base query to:
 
@@ -899,7 +899,7 @@ In `list_apps`, change the base query to:
     )
 ```
 
-- [ ] **Step 5: Add DELETE endpoint**
+- [x] **Step 5: Add DELETE endpoint**
 
 Append to `backend/app/api/applications.py`:
 
@@ -924,14 +924,14 @@ def delete_application(
 
 (Move the `from datetime ...` import to the existing import block at the top of the file.)
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_delete_application.py -v
 ```
 Expected: all 5 passed.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/app/api/applications.py backend/tests/integration/test_delete_application.py
@@ -947,7 +947,7 @@ git commit -m "feat(api): soft-delete applications with deleted_at filter"
 - Modify: `backend/app/tasks/celery_app.py`, `backend/app/config.py` (if `redis_url` not present)
 - Test: `backend/tests/unit/test_backfill.py`
 
-- [ ] **Step 1: Verify Redis URL is in settings**
+- [x] **Step 1: Verify Redis URL is in settings**
 
 ```bash
 cd backend && uv run python -c "from app.config import get_settings; print(get_settings().model_dump())"
@@ -958,7 +958,7 @@ Look for a `redis_url` or equivalent. If absent, add to `backend/app/config.py`:
     redis_url: str = "redis://localhost:6379/0"
 ```
 
-- [ ] **Step 2: Write failing unit test**
+- [x] **Step 2: Write failing unit test**
 
 Create `backend/tests/unit/test_backfill.py`:
 
@@ -1052,14 +1052,14 @@ def test_process_row_skips_when_no_missing(db):
     fake_extract.assert_not_called()
 ```
 
-- [ ] **Step 3: Run, verify failure**
+- [x] **Step 3: Run, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_backfill.py -v
 ```
 Expected: ImportError — module does not exist.
 
-- [ ] **Step 4: Implement `backend/app/tasks/backfill.py`**
+- [x] **Step 4: Implement `backend/app/tasks/backfill.py`**
 
 ```python
 """On-startup backfill task: fills empty JobPosting fields from raw_text
@@ -1209,7 +1209,7 @@ def backfill_missing_task() -> dict:
             logger.warning("backfill_missing: failed to release lock")
 ```
 
-- [ ] **Step 5: Register task module in celery_app**
+- [x] **Step 5: Register task module in celery_app**
 
 Edit `backend/app/tasks/celery_app.py`:
 
@@ -1217,14 +1217,14 @@ Edit `backend/app/tasks/celery_app.py`:
         include=["app.tasks.pipeline", "app.tasks.check_postings", "app.tasks.backfill"],
 ```
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_backfill.py -v
 ```
 Expected: all tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/app/tasks/backfill.py backend/app/tasks/celery_app.py backend/app/config.py backend/tests/unit/test_backfill.py
@@ -1238,7 +1238,7 @@ git commit -m "feat(tasks): backfill_missing task with Redis lock and per-field 
 **Files:**
 - Modify: `backend/app/main.py`
 
-- [ ] **Step 1: Add failing test**
+- [x] **Step 1: Add failing test**
 
 Create `backend/tests/unit/test_lifespan.py`:
 
@@ -1258,14 +1258,14 @@ def test_startup_enqueues_backfill():
         task.apply_async.assert_called_once()
 ```
 
-- [ ] **Step 2: Run, verify failure**
+- [x] **Step 2: Run, verify failure**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_lifespan.py -v
 ```
 Expected: AttributeError / ImportError — symbol not in `app.main`.
 
-- [ ] **Step 3: Wire `lifespan` in `backend/app/main.py`**
+- [x] **Step 3: Wire `lifespan` in `backend/app/main.py`**
 
 Replace contents with:
 
@@ -1325,14 +1325,14 @@ def create_app() -> FastAPI:
 app = create_app()
 ```
 
-- [ ] **Step 4: Run test**
+- [x] **Step 4: Run test**
 
 ```bash
 cd backend && uv run pytest tests/unit/test_lifespan.py -v
 ```
 Expected: passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/main.py backend/tests/unit/test_lifespan.py
@@ -1346,7 +1346,7 @@ git commit -m "feat(main): enqueue backfill_missing on FastAPI startup via lifes
 **Files:**
 - Modify: `frontend/src/api/applications.ts`
 
-- [ ] **Step 1: Update type and add `remove` method**
+- [x] **Step 1: Update type and add `remove` method**
 
 In `frontend/src/api/applications.ts`:
 
@@ -1377,14 +1377,14 @@ Inside the `applications` object literal, add (place near `setStatus`):
 
 (If the existing `api()` helper rejects non-JSON responses, ensure it tolerates 204; adjust if necessary — check `frontend/src/api/client.ts`.)
 
-- [ ] **Step 2: Run frontend type-check / build**
+- [x] **Step 2: Run frontend type-check / build**
 
 ```bash
 cd frontend && npm run typecheck
 ```
 Expected: type-check passes (TS may flag old usages — fix them in following tasks).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/api/applications.ts
@@ -1399,7 +1399,7 @@ git commit -m "feat(fe): contact type + remove API"
 - Create: `frontend/src/components/ContactBlock.tsx`
 - Modify: `frontend/src/components/JobPostingPanel.tsx`
 
-- [ ] **Step 1: Create `ContactBlock.tsx`**
+- [x] **Step 1: Create `ContactBlock.tsx`**
 
 ```tsx
 import type { JobPosting } from "../api/applications";
@@ -1439,7 +1439,7 @@ export function ContactBlock({ contact }: Props) {
 }
 ```
 
-- [ ] **Step 2: Edit `JobPostingPanel.tsx`**
+- [x] **Step 2: Edit `JobPostingPanel.tsx`**
 
 Remove these two entries from `TEXT_FIELDS`:
 
@@ -1456,21 +1456,21 @@ import { ContactBlock } from "./ContactBlock";
 
 Insert `<ContactBlock contact={jp.contact} />` immediately above the `{TEXT_FIELDS.map(...)}` block.
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 ```bash
 cd frontend && npm run typecheck
 ```
 Expected: passes.
 
-- [ ] **Step 4: Manual smoke test**
+- [x] **Step 4: Manual smoke test**
 
 ```bash
 cd frontend && npm run dev
 ```
 Open an application detail with a contact and verify name/role/email(mailto)/phone(tel) render. Hide entire section when contact is null.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/components/ContactBlock.tsx frontend/src/components/JobPostingPanel.tsx
@@ -1485,7 +1485,7 @@ git commit -m "feat(fe): structured contact block in job posting panel"
 - Create: `frontend/src/components/ConfirmDialog.tsx`
 - Modify: application list page and detail page
 
-- [ ] **Step 1: Create `ConfirmDialog.tsx`**
+- [x] **Step 1: Create `ConfirmDialog.tsx`**
 
 ```tsx
 type Props = {
@@ -1531,14 +1531,14 @@ export function ConfirmDialog({
 }
 ```
 
-- [ ] **Step 2: Locate list and detail page files**
+- [x] **Step 2: Locate list and detail page files**
 
 ```bash
 cd frontend && rg -l "applications\.(list|get)\b" src
 ```
 Identify the list component (renders rows) and detail component (renders single application). Names may be `Applications.tsx` / `Application.tsx` / `pages/Index.tsx` — adapt below.
 
-- [ ] **Step 3: Add trash icon + confirm flow in list row**
+- [x] **Step 3: Add trash icon + confirm flow in list row**
 
 In the list component, import:
 
@@ -1595,7 +1595,7 @@ Render the dialog at the bottom of the component (still inside the root element)
 
 Replace `Application` with the imported type name used in the file.
 
-- [ ] **Step 4: Add Delete button in detail page**
+- [x] **Step 4: Add Delete button in detail page**
 
 In the detail component, import the same ConfirmDialog + applications API + react-router navigate (or whatever navigation mechanism the project uses — check existing imports).
 
@@ -1638,21 +1638,21 @@ Render the dialog:
 />
 ```
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 ```bash
 cd frontend && npm run typecheck
 ```
 Expected: passes.
 
-- [ ] **Step 6: Manual smoke**
+- [x] **Step 6: Manual smoke**
 
 ```bash
 cd frontend && npm run dev
 ```
 Verify both list-row and detail Delete flows: confirm modal appears, cancel does nothing, confirm hides row / navigates back, refresh keeps it hidden.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add frontend/src/components/ConfirmDialog.tsx frontend/src/pages
@@ -1666,7 +1666,7 @@ git commit -m "feat(fe): delete application from list and detail with confirm mo
 **Files:**
 - Modify: `frontend/tests/e2e.spec.ts`
 
-- [ ] **Step 1: Add an e2e block for delete flow**
+- [x] **Step 1: Add an e2e block for delete flow**
 
 Append to `frontend/tests/e2e.spec.ts`:
 
@@ -1684,7 +1684,7 @@ test("delete from list row removes the application", async ({ page }) => {
 
 Adjust selectors to match what already exists in the list component. Add `data-testid="app-row"` and `data-testid="app-company"` where needed in the list component.
 
-- [ ] **Step 2: Add an e2e block for contact display**
+- [x] **Step 2: Add an e2e block for contact display**
 
 ```ts
 test("contact block renders mailto and tel links when present", async ({ page }) => {
@@ -1697,14 +1697,14 @@ test("contact block renders mailto and tel links when present", async ({ page })
 
 Adapt the URL / seeding to whatever the project's e2e fixtures use.
 
-- [ ] **Step 3: Run e2e**
+- [x] **Step 3: Run e2e**
 
 ```bash
 cd frontend && npm run test:e2e
 ```
 Expected: green.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/tests/e2e.spec.ts frontend/src
@@ -1715,21 +1715,21 @@ git commit -m "test(fe): e2e coverage for delete + contact block"
 
 ## Task 15: Full backend + frontend regression run
 
-- [ ] **Step 1: Backend full suite**
+- [x] **Step 1: Backend full suite**
 
 ```bash
 cd backend && uv run pytest
 ```
 Expected: all green.
 
-- [ ] **Step 2: Frontend typecheck + tests**
+- [x] **Step 2: Frontend typecheck + tests**
 
 ```bash
 cd frontend && npm run typecheck && npm test
 ```
 Expected: green.
 
-- [ ] **Step 3: Boot the docker stack and observe one backfill cycle**
+- [x] **Step 3: Boot the docker stack and observe one backfill cycle**
 
 ```bash
 docker compose up -d
@@ -1737,14 +1737,14 @@ docker compose logs -f backend worker | head -50
 ```
 Expected: backend log "backfill_missing enqueued on startup"; worker log shows `tasks.backfill_missing` executed and a summary dict.
 
-- [ ] **Step 4: Manual verification**
+- [x] **Step 4: Manual verification**
 
 In a browser:
 - Open an application that previously had `contact_person`: now renders structured contact block.
 - Open an older application that was missing required_documents: after backfill cycle and reload, badges appear (if the LLM identified any).
 - Delete an application from the list; verify it disappears and is gone after reload.
 
-- [ ] **Step 5: Final commit / branch wrap-up**
+- [x] **Step 5: Final commit / branch wrap-up**
 
 If there are stray changes:
 
