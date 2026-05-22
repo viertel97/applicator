@@ -1,6 +1,6 @@
 import { api } from "./client";
 
-export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn";
+export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn" | "discarded";
 export type JobState =
   | "pending"
   | "crawling"
@@ -65,6 +65,8 @@ export type Application = {
   posting_online: boolean | null;
   labels: Label[];
   job_posting: JobPosting | null;
+  folder_name: string;
+  discard_reason: string | null;
   inquiry_subject: string | null;
   inquiry_body: string | null;
   inquiry_sent_at: string | null;
@@ -93,10 +95,10 @@ export const applications = {
   get: (id: string) => api<Application>(`/api/applications/${id}`),
   create: (body: CreateApplicationBody) =>
     api<Application>("/api/applications", { method: "POST", body: JSON.stringify(body) }),
-  setStatus: (id: string, status: AppStatus) =>
+  setStatus: (id: string, status: AppStatus, discard_reason?: string) =>
     api<Application>(`/api/applications/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, discard_reason: discard_reason ?? null }),
     }),
   remove: (id: string) =>
     api<void>(`/api/applications/${id}`, { method: "DELETE" }),

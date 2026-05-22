@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, db_dep, settings_dep
 from app.api.labels import LabelOut
 from app.config import Settings, get_settings
+from app.pipeline.generate import _build_folder_name
 from app.db.models import (
     AnschreibenVariant,
     Application,
@@ -109,6 +110,8 @@ class ApplicationOut(BaseModel):
     posting_online: bool | None
     labels: list[LabelOut]
     job_posting: JobPostingOut | None
+    folder_name: str
+    discard_reason: str | None
     inquiry_subject: str | None
     inquiry_body: str | None
     inquiry_sent_at: datetime | None
@@ -134,6 +137,12 @@ class ApplicationOut(BaseModel):
             job_posting=(
                 JobPostingOut.model_validate(app.job_posting) if app.job_posting else None
             ),
+            folder_name=_build_folder_name(
+                app.display_id,
+                app.job_posting.company if app.job_posting else None,
+                app.job_posting.title if app.job_posting else None,
+            ),
+            discard_reason=app.discard_reason,
             inquiry_subject=app.inquiry_subject,
             inquiry_body=app.inquiry_body,
             inquiry_sent_at=app.inquiry_sent_at,
@@ -222,6 +231,7 @@ def get_app(
 
 class StatusUpdate(BaseModel):
     status: ApplicationStatus
+    discard_reason: str | None = None
 
 
 @router.patch("/{aid}", response_model=ApplicationOut)
@@ -233,6 +243,10 @@ def update_status(
 ):
     app_row = _load_owned(db, aid, user)
     app_row.status = body.status
+    if body.status == ApplicationStatus.discarded:
+        app_row.discard_reason = body.discard_reason or None
+    else:
+        app_row.discard_reason = None
     db.commit()
     db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)

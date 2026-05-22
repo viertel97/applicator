@@ -33,6 +33,7 @@ class ApplicationStatus(str, enum.Enum):
     rejected = "rejected"
     accepted = "accepted"
     withdrawn = "withdrawn"
+    discarded = "discarded"
 
 
 class JobState(str, enum.Enum):
@@ -197,6 +198,7 @@ class Application(Base):
     inquiry_subject: Mapped[str | None] = mapped_column(Text, nullable=True)
     inquiry_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     inquiry_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    discard_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

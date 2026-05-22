@@ -7,6 +7,7 @@ const STATUS_CLASS: Record<AppStatus, string> = {
   rejected: "bg-rose-100 text-rose-700",
   accepted: "bg-green-200 text-green-800",
   withdrawn: "bg-slate-300 text-slate-600",
+  discarded: "bg-orange-100 text-orange-700",
 };
 
 export function StatusBadge({ status }: { status: AppStatus }) {

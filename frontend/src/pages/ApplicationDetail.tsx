@@ -13,7 +13,7 @@ import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { InquiryPanel } from "../components/InquiryPanel";
 
-const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn"];
+const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded"];
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,8 +40,12 @@ export default function ApplicationDetail() {
     if (q.data?.generated_md != null) setMd(q.data.generated_md);
   }, [q.data?.generated_md]);
 
+  const [discardReason, setDiscardReason] = useState("");
+  const [showDiscard, setShowDiscard] = useState(false);
+
   const setStatus = useMutation({
-    mutationFn: (s: AppStatus) => applications.setStatus(id!, s),
+    mutationFn: ({ status, reason }: { status: AppStatus; reason?: string }) =>
+      applications.setStatus(id!, status, reason),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["application", id] }),
   });
   const retry = useMutation({
@@ -107,6 +111,10 @@ export default function ApplicationDetail() {
           >
             View original posting ↗
           </a>
+        </div>
+        <div className="mb-3">
+          <span className="text-xs text-slate-500 font-medium uppercase tracking-wide mr-2">Folder</span>
+          <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded select-all">{a.folder_name}</code>
         </div>
         <div className="mb-3">
           <div className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Labels</div>
@@ -200,18 +208,73 @@ export default function ApplicationDetail() {
           </button>
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <span>Status:</span>
           <select
             value={a.status}
-            onChange={(e) => setStatus.mutate(e.target.value as AppStatus)}
+            onChange={(e) => {
+              const s = e.target.value as AppStatus;
+              if (s !== "discarded") {
+                setDiscardReason("");
+                setStatus.mutate({ status: s });
+              }
+            }}
             className="border rounded px-2 py-1"
           >
             {STATUSES.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+          {a.status !== "discarded" && (
+            <button
+              type="button"
+              className="text-orange-600 border border-orange-300 rounded px-2 py-1 text-sm"
+              onClick={() => { setDiscardReason(""); setShowDiscard(true); }}
+            >
+              Discard…
+            </button>
+          )}
         </div>
+        {(showDiscard || a.status === "discarded") && (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Reason for discarding…"
+              defaultValue={a.discard_reason ?? ""}
+              onChange={(e) => setDiscardReason(e.target.value)}
+              className="border rounded px-2 py-1 text-sm flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter")
+                  setStatus.mutate({ status: "discarded", reason: discardReason });
+              }}
+            />
+            <button
+              type="button"
+              className="bg-orange-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50"
+              disabled={setStatus.isPending}
+              onClick={() => setStatus.mutate({ status: "discarded", reason: discardReason })}
+            >
+              {a.status === "discarded" ? "Update" : "Confirm discard"}
+            </button>
+            {a.status === "discarded" ? (
+              <button
+                type="button"
+                className="border rounded px-2 py-1 text-sm text-slate-600"
+                onClick={() => { setShowDiscard(false); setStatus.mutate({ status: "draft" }); }}
+              >
+                Restore
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="border rounded px-2 py-1 text-sm text-slate-500"
+                onClick={() => setShowDiscard(false)}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
 
         <InterviewsList appId={a.id} />
         <InquiryPanel app={a} />
