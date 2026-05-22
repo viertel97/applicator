@@ -77,3 +77,7 @@ def test_migration_downgrade_drops_column(fresh_db):
             ))
         }
         assert "category" not in cols
+        type_exists = conn.execute(sa.text(
+            "SELECT 1 FROM pg_type WHERE typname = 'labelcategory'"
+        )).fetchone()
+        assert type_exists is None

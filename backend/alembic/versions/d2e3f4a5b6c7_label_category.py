@@ -17,6 +17,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# Deliberately inlined — migrations must not import application code.
 _LABEL_CATEGORY_VALUES = (
     "role",
     "tech",
@@ -40,7 +41,7 @@ def upgrade() -> None:
             "category",
             label_category,
             nullable=False,
-            server_default="other",
+            server_default=sa.text("'other'"),
         ),
     )
 
