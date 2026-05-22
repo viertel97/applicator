@@ -44,6 +44,8 @@ export type JobPosting = {
   benefits: string[] | null;
   language: string | null;
   required_documents: string[] | null;
+  mentions_home_office_policy: boolean | null;
+  mentions_part_time: boolean | null;
 };
 
 export type Application = {
@@ -63,6 +65,9 @@ export type Application = {
   posting_online: boolean | null;
   labels: Label[];
   job_posting: JobPosting | null;
+  inquiry_subject: string | null;
+  inquiry_body: string | null;
+  inquiry_sent_at: string | null;
 };
 
 export type CreateApplicationBody = {
@@ -110,4 +115,19 @@ export const applications = {
   retry: (id: string) =>
     api<Application>(`/api/applications/${id}/retry`, { method: "POST" }),
   docxUrl: (id: string) => `/api/applications/${id}/docx`,
+  draftInquiry: (id: string) =>
+    api<{ subject: string; body: string; recipient: string | null; sent_at: string | null }>(
+      `/api/applications/${id}/inquiry/draft`,
+      { method: "POST" },
+    ),
+  patchInquiry: (id: string, body: { subject: string; body: string }) =>
+    api<{ subject: string; body: string; recipient: string | null; sent_at: string | null }>(
+      `/api/applications/${id}/inquiry`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+  markInquirySent: (id: string) =>
+    api<{ sent_at: string }>(
+      `/api/applications/${id}/inquiry/mark-sent`,
+      { method: "POST" },
+    ),
 };
