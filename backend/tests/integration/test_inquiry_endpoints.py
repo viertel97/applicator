@@ -5,7 +5,7 @@ from app.db.models import Application, JobPosting, JobState
 from app.inquiry.prompts import DEFAULT_TEMPLATE
 
 
-def _make_app(db_session, user, *, ho=False, pt=False, email="hr@acme.test"):
+def _make_app(db_session, user, *, ho=False, pt=False):
     a = Application(
         user_id=user.id,
         url="https://x.test/u",
@@ -21,7 +21,7 @@ def _make_app(db_session, user, *, ho=False, pt=False, email="hr@acme.test"):
         title="Dev",
         company="Acme",
         language="de",
-        application_email=email,
+        contact={"email": "hr@acme.test", "name": None, "role": None, "phone": None},
         mentions_home_office_policy=ho,
         mentions_part_time=pt,
     )

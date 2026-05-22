@@ -153,12 +153,6 @@ def no_celery(monkeypatch):
 
 
 @pytest.fixture
-def client(auth_user):
-    c, _ = auth_user
-    return c
-
-
-@pytest.fixture
 def sample_application(auth_user, db_session):
     _, user = auth_user
     app_row = Application(

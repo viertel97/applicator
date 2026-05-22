@@ -71,6 +71,7 @@ export function InquiryPanel({ app }: Props) {
   }
 
   const recipient = jp.contact?.email ?? null;
+  const isSent = app.inquiry_sent_at != null;
 
   const onDraft = () => {
     if (hasDraft && !confirm("Overwrite the current draft?")) return;
@@ -103,6 +104,7 @@ export function InquiryPanel({ app }: Props) {
           <input
             className="border rounded px-2 py-1 w-full"
             value={subject}
+            readOnly={isSent}
             onChange={(e) => {
               setSubject(e.target.value);
               setDirty(true);
@@ -113,6 +115,7 @@ export function InquiryPanel({ app }: Props) {
             className="border rounded px-2 py-1 w-full font-mono text-sm"
             rows={10}
             value={body}
+            readOnly={isSent}
             onChange={(e) => {
               setBody(e.target.value);
               setDirty(true);
@@ -122,7 +125,7 @@ export function InquiryPanel({ app }: Props) {
             <button
               type="button"
               className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
-              disabled={!dirty || save.isPending}
+              disabled={isSent || !dirty || save.isPending}
               onClick={() => save.mutate()}
             >
               Save
@@ -147,7 +150,7 @@ export function InquiryPanel({ app }: Props) {
             <button
               type="button"
               className="bg-slate-200 text-slate-800 px-3 py-1 rounded disabled:opacity-50"
-              disabled={draft.isPending}
+              disabled={isSent || draft.isPending}
               onClick={onDraft}
             >
               Regenerate

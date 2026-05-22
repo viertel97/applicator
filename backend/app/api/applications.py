@@ -444,13 +444,15 @@ class InquiryMarkSentOut(BaseModel):
 
 
 def _build_inquiry_job(app_row: Application):
-    from app.extractor.schemas import ExtractedJobPosting
+    from app.extractor.schemas import ContactInfo, ExtractedJobPosting
     jp = app_row.job_posting
+    contact_data = jp.contact if isinstance(jp.contact, dict) else None
     return ExtractedJobPosting(
         title=jp.title,
         company=jp.company,
         location=jp.location,
         language=jp.language or "de",
+        contact=ContactInfo(**contact_data) if contact_data else None,
     )
 
 
@@ -497,7 +499,8 @@ def draft_inquiry(
     db.commit()
     db.refresh(app_row)
     jp = app_row.job_posting
-    recipient = getattr(jp, "application_email", None)
+    _contact = jp.contact if isinstance(jp.contact, dict) else {}
+    recipient = _contact.get("email")
     return InquiryDraftOut(
         subject=email.subject,
         body=email.body,
@@ -519,7 +522,8 @@ def patch_inquiry(
     db.commit()
     db.refresh(app_row)
     jp = app_row.job_posting
-    recipient = getattr(jp, "application_email", None)
+    _contact = jp.contact if isinstance(jp.contact, dict) else {}
+    recipient = _contact.get("email")
     return InquiryDraftOut(
         subject=app_row.inquiry_subject or "",
         body=app_row.inquiry_body or "",
