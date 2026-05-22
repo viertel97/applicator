@@ -74,3 +74,34 @@ def test_run_extract_stores_required_documents_and_auto_labels():
     assert len(app.labels) == 2
     label_names = {lbl.name for lbl in app.labels}
     assert label_names == {"Startup", "Tech"}
+
+
+def test_run_extract_persists_inquiry_flags():
+    payload = {
+        "title": "Dev",
+        "company": "Acme",
+        "language": "de",
+        "mentions_home_office_policy": True,
+        "mentions_part_time": False,
+    }
+    db = MagicMock()
+    db.query.return_value.filter_by.return_value.first.return_value = None
+    app = Application(url="u", url_hash="h" * 64)
+    app.id = uuid.uuid4()
+    app.user_id = uuid.uuid4()
+    app.job_state = JobState.crawling
+    app.labels = []
+
+    captured = {}
+
+    def add(obj):
+        if isinstance(obj, JobPosting):
+            captured["jp"] = obj
+
+    db.add.side_effect = add
+    llm = FakeLLM(handler=lambda m, s: json.dumps(payload))
+
+    run_extract(db, app, "x" * 1000, "/tmp/raw.html", llm)
+
+    assert captured["jp"].mentions_home_office_policy is True
+    assert captured["jp"].mentions_part_time is False

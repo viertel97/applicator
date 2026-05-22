@@ -40,6 +40,8 @@ def run_extract(
         benefits=job.benefits,
         language=job.language,
         required_documents=job.required_documents,
+        mentions_home_office_policy=job.mentions_home_office_policy,
+        mentions_part_time=job.mentions_part_time,
     )
     app.language = job.language
     db.add(jp)
