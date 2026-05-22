@@ -1,8 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { labels as labelsApi } from "../api/labels";
-import type { Label } from "../api/applications";
+import type { Label, LabelCategory } from "../api/applications";
 import { LabelChip } from "./LabelChip";
+
+const CATEGORIES: { value: LabelCategory; label: string }[] = [
+  { value: "role", label: "Role" },
+  { value: "tech", label: "Tech" },
+  { value: "domain", label: "Domain" },
+  { value: "seniority", label: "Seniority" },
+  { value: "work_mode", label: "Work mode" },
+  { value: "location", label: "Location" },
+  { value: "company_size", label: "Company size" },
+  { value: "language", label: "Language" },
+  { value: "company", label: "Company" },
+  { value: "other", label: "Other" },
+];
 
 const DEFAULT_COLORS = [
   "#6366f1", "#3b82f6", "#10b981", "#f59e0b",
@@ -18,6 +31,7 @@ export function LabelEditor({ appId, assigned }: Props) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [colorPick, setColorPick] = useState(DEFAULT_COLORS[0]);
+  const [newCategory, setNewCategory] = useState<LabelCategory | "">("");
   const [creating, setCreating] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,12 +65,14 @@ export function LabelEditor({ appId, assigned }: Props) {
   });
 
   const create = useMutation({
-    mutationFn: (name: string) => labelsApi.create({ name, color: colorPick, category: "other" }),
+    mutationFn: (body: { name: string; color: string; category: LabelCategory }) =>
+      labelsApi.create(body),
     onSuccess: (newLabel) => {
       qc.invalidateQueries({ queryKey: ["labels"] });
       assign.mutate(newLabel.id);
       setCreating(false);
       setSearch("");
+      setNewCategory("");
     },
   });
 
@@ -127,9 +143,19 @@ export function LabelEditor({ appId, assigned }: Props) {
               aria-label={c}
             />
           ))}
+          <select
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value as LabelCategory)}
+            className="border rounded px-1 py-0.5 text-sm"
+          >
+            <option value="">Category…</option>
+            {CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
           <button
-            onClick={() => create.mutate(search.trim())}
-            disabled={create.isPending}
+            onClick={() => create.mutate({ name: search.trim(), color: colorPick, category: newCategory as LabelCategory })}
+            disabled={!search.trim() || !newCategory || create.isPending}
             className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
           >
             Create
