@@ -224,8 +224,6 @@ class JobPosting(Base):
     location: Mapped[str | None] = mapped_column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
-    contact_person: Mapped[str | None] = mapped_column(Text, nullable=True)
-    application_email: Mapped[str | None] = mapped_column(Text, nullable=True)
     contact: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     deadline: Mapped[str | None] = mapped_column(Text, nullable=True)
     salary: Mapped[str | None] = mapped_column(Text, nullable=True)
