@@ -164,41 +164,44 @@ def test_process_row_upserts_labels_from_extract(db_session):
 
 def test_adaptive_sleep_triggers_when_remaining_below_threshold(monkeypatch):
     from app.llm.base import RateLimit
-    from app.tasks import backfill as bf
+    from app.tasks.backfill import pacing as pacing_mod
+    from app.tasks.backfill import _adaptive_sleep
 
     sleeps: list[float] = []
-    monkeypatch.setattr(bf.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(pacing_mod.time, "sleep", lambda s: sleeps.append(s))
 
     llm = MagicMock()
     llm.last_rate_limit.return_value = RateLimit(
         limit_tokens=8000, remaining_tokens=200, reset_tokens_s=3.0,
     )
-    bf._adaptive_sleep(llm)
+    _adaptive_sleep(llm)
     assert sleeps == [3.5]
 
 
 def test_adaptive_sleep_noop_when_remaining_high(monkeypatch):
     from app.llm.base import RateLimit
-    from app.tasks import backfill as bf
+    from app.tasks.backfill import pacing as pacing_mod
+    from app.tasks.backfill import _adaptive_sleep
 
     sleeps: list[float] = []
-    monkeypatch.setattr(bf.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(pacing_mod.time, "sleep", lambda s: sleeps.append(s))
 
     llm = MagicMock()
     llm.last_rate_limit.return_value = RateLimit(
         limit_tokens=8000, remaining_tokens=7000, reset_tokens_s=3.0,
     )
-    bf._adaptive_sleep(llm)
+    _adaptive_sleep(llm)
     assert sleeps == []
 
 
 def test_adaptive_sleep_noop_when_provider_has_no_rate_limit(monkeypatch):
-    from app.tasks import backfill as bf
+    from app.tasks.backfill import pacing as pacing_mod
+    from app.tasks.backfill import _adaptive_sleep
 
     sleeps: list[float] = []
-    monkeypatch.setattr(bf.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(pacing_mod.time, "sleep", lambda s: sleeps.append(s))
 
     llm = MagicMock()
     llm.last_rate_limit.return_value = None
-    bf._adaptive_sleep(llm)
+    _adaptive_sleep(llm)
     assert sleeps == []
