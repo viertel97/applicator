@@ -8,6 +8,8 @@ const STATUS_CLASS: Record<AppStatus, string> = {
   accepted: "bg-green-200 text-green-800",
   withdrawn: "bg-slate-300 text-slate-600",
   discarded: "bg-orange-100 text-orange-700",
+  need_call: "bg-purple-100 text-purple-700",
+  apply_direct: "bg-teal-100 text-teal-700",
 };
 
 export function StatusBadge({ status }: { status: AppStatus }) {

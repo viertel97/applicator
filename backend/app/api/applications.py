@@ -25,7 +25,7 @@ from app.db.models import (
     User,
 )
 from app.pipeline import url_hash
-from app.tasks.pipeline import crawl_task, extract_task, generate_task
+from app.tasks.pipeline import crawl_task, extract_task, extract_from_text_task, generate_task
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -167,6 +167,10 @@ def _start_crawl_chain(app_id: uuid.UUID) -> None:
 
 def _start_generate(app_id: uuid.UUID) -> None:
     generate_task.apply_async(args=[str(app_id)])
+
+
+def _start_extract_from_text(app_id: uuid.UUID, raw_text: str) -> None:
+    extract_from_text_task.apply_async(args=[str(app_id), raw_text])
 
 
 def _load_owned(db: Session, aid: uuid.UUID, user: User) -> Application:
@@ -380,6 +384,29 @@ def retry(
     return ApplicationOut.from_orm_row(app_row)
 
 
+class ExtractFromTextBody(BaseModel):
+    raw_text: str
+
+
+@router.post("/{aid}/extract-from-text", response_model=ApplicationOut)
+def extract_from_text(
+    aid: uuid.UUID,
+    body: ExtractFromTextBody,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    if app_row.job_state in _BUSY_STATES:
+        raise HTTPException(409, "pipeline already running")
+    if not body.raw_text.strip():
+        raise HTTPException(400, "raw_text is empty")
+    _reset_for_crawl(db, app_row)
+    db.commit()
+    db.refresh(app_row)
+    _start_extract_from_text(app_row.id, body.raw_text)
+    return ApplicationOut.from_orm_row(app_row)
+
+
 @router.get("/{aid}/docx")
 def download_docx(
     aid: uuid.UUID,
@@ -472,7 +499,10 @@ def _build_inquiry_job(app_row: Application):
     )
 
 
-def _ensure_inquiry_prompt(db: Session, user: User) -> str:
+_OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Vorab-Mail")
+
+
+def _ensure_inquiry_prompt(db: Session, user: User):
     from app.db.models import InquiryPromptTemplate
     from app.inquiry.prompts import DEFAULT_TEMPLATE
     row = db.query(InquiryPromptTemplate).filter_by(user_id=user.id).first()
@@ -481,7 +511,11 @@ def _ensure_inquiry_prompt(db: Session, user: User) -> str:
         db.add(row)
         db.commit()
         db.refresh(row)
-    return row.source_md
+    elif any(row.source_md.startswith(p) for p in _OLD_TEMPLATE_PREFIXES):
+        row.source_md = DEFAULT_TEMPLATE
+        db.commit()
+        db.refresh(row)
+    return row
 
 
 @router.post("/{aid}/inquiry/draft", response_model=InquiryDraftOut)
@@ -493,11 +527,9 @@ def draft_inquiry(
     app_row = _load_owned(db, aid, user)
     if app_row.job_posting is None:
         raise HTTPException(400, "no job posting yet")
-    ask_ho = not bool(app_row.job_posting.mentions_home_office_policy)
-    ask_pt = not bool(app_row.job_posting.mentions_part_time)
-    if not ask_ho and not ask_pt:
-        raise HTTPException(400, "Posting covers both topics.")
-    system_md = _ensure_inquiry_prompt(db, user)
+    ask_ho = True
+    ask_pt = True
+    prompt_row = _ensure_inquiry_prompt(db, user)
     from app.inquiry import draft as inquiry_draft
     try:
         email = inquiry_draft(
@@ -505,8 +537,13 @@ def draft_inquiry(
             language=app_row.job_posting.language or app_row.language or "de",
             ask_home_office=ask_ho,
             ask_part_time=ask_pt,
-            system_md=system_md,
+            system_md=prompt_row.source_md,
             llm=_inquiry_llm(),
+            user_prompt_template=prompt_row.user_prompt_md,
+            ho_de=prompt_row.question_home_office_de,
+            ho_en=prompt_row.question_home_office_en,
+            pt_de=prompt_row.question_part_time_de,
+            pt_en=prompt_row.question_part_time_en,
         )
     except Exception as exc:
         raise HTTPException(502, f"draft failed: {exc}") from exc

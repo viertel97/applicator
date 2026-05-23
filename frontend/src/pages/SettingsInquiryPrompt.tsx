@@ -1,6 +1,48 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { inquiryPrompt } from "../api/inquiry";
+import { inquiryPrompt, type InquiryPrompt } from "../api/inquiry";
+
+const DEFAULT_USER_PROMPT =
+  "Zielsprache: {language}\n" +
+  "Stelle: {title} bei {company}\n" +
+  "{ref_line}" +
+  "Ansprechpartner: {contact}\n\n" +
+  "Fragen, die in der Mail vorkommen MUESSEN (in dieser Reihenfolge):\n" +
+  "{questions}";
+
+const DEFAULT_HO_DE =
+  "Wie viele Tage Home Office pro Woche sind möglich, unter der Voraussetzung, dass Kundenprojekte und sonstige Anforderungen erfüllt sind?";
+const DEFAULT_HO_EN =
+  "How many days of home office per week are possible, assuming customer projects and other requirements are met?";
+const DEFAULT_PT_DE = "Wäre eine 80%-Stelle (Montag bis Donnerstag) grundsätzlich denkbar?";
+const DEFAULT_PT_EN = "Would an 80% position (Monday to Thursday) be possible in principle?";
+
+function Field({
+  label,
+  placeholder,
+  value,
+  rows,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  rows?: number;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <textarea
+        className="border rounded p-2 w-full font-mono text-sm"
+        rows={rows ?? 3}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
 
 export default function SettingsInquiryPrompt() {
   const qc = useQueryClient();
@@ -8,15 +50,28 @@ export default function SettingsInquiryPrompt() {
     queryKey: ["inquiry-prompt"],
     queryFn: () => inquiryPrompt.get(),
   });
-  const [draft, setDraft] = useState("");
+
+  const [draft, setDraft] = useState<InquiryPrompt>({
+    source_md: "",
+    user_prompt_md: null,
+    question_home_office_de: null,
+    question_home_office_en: null,
+    question_part_time_de: null,
+    question_part_time_en: null,
+  });
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    if (q.data && !dirty) setDraft(q.data.source_md);
+    if (q.data && !dirty) setDraft(q.data);
   }, [q.data, dirty]);
 
+  function set<K extends keyof InquiryPrompt>(key: K, value: string) {
+    setDraft((prev) => ({ ...prev, [key]: value || null }));
+    setDirty(true);
+  }
+
   const save = useMutation({
-    mutationFn: (s: string) => inquiryPrompt.put(s),
+    mutationFn: (s: InquiryPrompt) => inquiryPrompt.put(s),
     onSuccess: () => {
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["inquiry-prompt"] });
@@ -24,24 +79,87 @@ export default function SettingsInquiryPrompt() {
   });
 
   if (q.isLoading) return <div className="p-6">Loading…</div>;
+
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-xl font-semibold mb-2">Pre-application inquiry prompt</h1>
-      <p className="text-sm text-slate-500 mb-3">
-        System prompt used when drafting the pre-application email. The body of
-        the email is built automatically and only includes the topics not
-        already covered by the posting (home office, 80% Mon–Thu).
-      </p>
-      <textarea
-        className="border rounded p-2 w-full font-mono text-sm"
-        rows={18}
-        value={draft}
-        onChange={(e) => {
-          setDraft(e.target.value);
-          setDirty(true);
-        }}
-      />
-      <div className="mt-2 flex gap-2">
+    <div className="p-6 max-w-3xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-xl font-semibold mb-2">Pre-application inquiry prompt</h1>
+        <p className="text-sm text-slate-500 mb-4">
+          Configure the full prompt sent to the LLM when drafting inquiry emails. Questions
+          are only included when not already covered by the job posting.
+        </p>
+      </div>
+
+      <section className="space-y-3">
+        <h2 className="font-medium text-slate-800">System prompt</h2>
+        <p className="text-xs text-slate-500">
+          High-level instructions: tone, format, output rules.
+        </p>
+        <textarea
+          className="border rounded p-2 w-full font-mono text-sm"
+          rows={14}
+          value={draft.source_md}
+          onChange={(e) => set("source_md", e.target.value)}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium text-slate-800">User prompt template</h2>
+        <p className="text-xs text-slate-500">
+          The message sent as the user turn. Available placeholders:{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{language}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{title}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{company}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{contact}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{ref_line}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{reference_number}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{questions}"}</code>
+          . Leave blank to use the default.
+        </p>
+        <textarea
+          className="border rounded p-2 w-full font-mono text-sm"
+          rows={8}
+          value={draft.user_prompt_md ?? ""}
+          placeholder={DEFAULT_USER_PROMPT}
+          onChange={(e) => set("user_prompt_md", e.target.value)}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium text-slate-800">Question texts</h2>
+        <p className="text-xs text-slate-500">
+          Overrides for the question texts injected into <code className="bg-slate-100 px-1 rounded">{"{questions}"}</code>.
+          Leave blank to use the default wording.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field
+            label="Home office — DE"
+            placeholder={DEFAULT_HO_DE}
+            value={draft.question_home_office_de ?? ""}
+            onChange={(v) => set("question_home_office_de", v)}
+          />
+          <Field
+            label="Home office — EN"
+            placeholder={DEFAULT_HO_EN}
+            value={draft.question_home_office_en ?? ""}
+            onChange={(v) => set("question_home_office_en", v)}
+          />
+          <Field
+            label="Part-time — DE"
+            placeholder={DEFAULT_PT_DE}
+            value={draft.question_part_time_de ?? ""}
+            onChange={(v) => set("question_part_time_de", v)}
+          />
+          <Field
+            label="Part-time — EN"
+            placeholder={DEFAULT_PT_EN}
+            value={draft.question_part_time_en ?? ""}
+            onChange={(v) => set("question_part_time_en", v)}
+          />
+        </div>
+      </section>
+
+      <div className="flex gap-2 items-center">
         <button
           type="button"
           className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
@@ -51,9 +169,7 @@ export default function SettingsInquiryPrompt() {
           Save
         </button>
         {save.isError && (
-          <span className="text-rose-600 text-sm">
-            {(save.error as Error).message}
-          </span>
+          <span className="text-rose-600 text-sm">{(save.error as Error).message}</span>
         )}
       </div>
     </div>

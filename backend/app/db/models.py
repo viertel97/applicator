@@ -34,6 +34,8 @@ class ApplicationStatus(str, enum.Enum):
     accepted = "accepted"
     withdrawn = "withdrawn"
     discarded = "discarded"
+    need_call = "need_call"
+    apply_direct = "apply_direct"
 
 
 class JobState(str, enum.Enum):
@@ -279,6 +281,11 @@ class InquiryPromptTemplate(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), unique=True)
     source_md: Mapped[str] = mapped_column(Text)
+    user_prompt_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    question_home_office_de: Mapped[str | None] = mapped_column(Text, nullable=True)
+    question_home_office_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    question_part_time_de: Mapped[str | None] = mapped_column(Text, nullable=True)
+    question_part_time_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

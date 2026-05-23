@@ -6,15 +6,15 @@ import type { Application } from "../api/applications";
 type Props = { app: Application };
 
 function mailto(to: string | null, subject: string, body: string): string {
-  return `mailto:${to ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // normalize literal \n (2 chars) → real newline, then use CRLF per RFC 6068
+  const normalized = body.replace(/\\n/g, "\n");
+  const crlfBody = normalized.replace(/\r?\n/g, "\r\n");
+  return `mailto:${to ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(crlfBody)}`;
 }
 
 export function InquiryPanel({ app }: Props) {
   const qc = useQueryClient();
   const jp = app.job_posting;
-  const ho = jp?.mentions_home_office_policy === true;
-  const pt = jp?.mentions_part_time === true;
-  const bothCovered = ho && pt;
   const pipelineReady = (["extracted", "ready"] as Application["job_state"][]).includes(app.job_state);
   const hasDraft = app.inquiry_subject != null || app.inquiry_body != null;
 
@@ -55,14 +55,6 @@ export function InquiryPanel({ app }: Props) {
     return (
       <div className="bg-white border rounded p-3 mt-4 text-slate-500 text-sm">
         Pre-application inquiry will appear after extraction.
-      </div>
-    );
-  }
-
-  if (bothCovered && !hasDraft) {
-    return (
-      <div className="bg-white border rounded p-3 mt-4 text-slate-500 text-sm">
-        Posting covers home office and part-time — no inquiry needed.
       </div>
     );
   }

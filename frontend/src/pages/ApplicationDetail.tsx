@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applications } from "../api/applications";
@@ -13,7 +13,7 @@ import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { InquiryPanel } from "../components/InquiryPanel";
 
-const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded"];
+const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,8 +40,21 @@ export default function ApplicationDetail() {
     if (q.data?.generated_md != null) setMd(q.data.generated_md);
   }, [q.data?.generated_md]);
 
+  const prevTitle = useRef(document.title);
+  useEffect(() => {
+    const prev = prevTitle.current;
+    if (q.data) {
+      const jp = q.data.job_posting;
+      const parts = [jp?.company, jp?.title].filter(Boolean);
+      document.title = parts.length > 0 ? `${parts.join(" – ")} | Applicator` : "Applicator";
+    }
+    return () => { document.title = prev; };
+  }, [q.data]);
+
   const [discardReason, setDiscardReason] = useState("");
   const [showDiscard, setShowDiscard] = useState(false);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState("");
 
   const setStatus = useMutation({
     mutationFn: ({ status, reason }: { status: AppStatus; reason?: string }) =>
@@ -51,6 +64,14 @@ export default function ApplicationDetail() {
   const retry = useMutation({
     mutationFn: () => applications.retry(id!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["application", id] }),
+  });
+  const extractFromText = useMutation({
+    mutationFn: (raw_text: string) => applications.extractFromText(id!, raw_text),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["application", id] });
+      setShowPaste(false);
+      setPasteText("");
+    },
   });
   const setVariants = useMutation({
     mutationFn: (b: { cv_variant_id?: string; clear_cv?: boolean;
@@ -102,7 +123,7 @@ export default function ApplicationDetail() {
             Delete
           </button>
         </div>
-        <div className="mb-3">
+        <div className="mb-3 flex items-center gap-2 flex-wrap">
           <a
             href={a.url}
             target="_blank"
@@ -111,7 +132,72 @@ export default function ApplicationDetail() {
           >
             View original posting ↗
           </a>
+          <span className="text-slate-300">|</span>
+          <select
+            value={a.status}
+            onChange={(e) => {
+              const s = e.target.value as AppStatus;
+              if (s !== "discarded") {
+                setDiscardReason("");
+                setStatus.mutate({ status: s });
+              }
+            }}
+            className="border rounded px-2 py-1 text-sm"
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          {a.status !== "discarded" && (
+            <button
+              type="button"
+              className="text-orange-600 border border-orange-300 rounded px-2 py-0.5 text-sm"
+              onClick={() => { setDiscardReason(""); setShowDiscard(true); }}
+            >
+              Discard…
+            </button>
+          )}
         </div>
+        {(showDiscard || a.status === "discarded") && (
+          <div className="mb-3 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Reason for discarding…"
+              defaultValue={a.discard_reason ?? ""}
+              onChange={(e) => setDiscardReason(e.target.value)}
+              className="border rounded px-2 py-1 text-sm flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter")
+                  setStatus.mutate({ status: "discarded", reason: discardReason });
+              }}
+            />
+            <button
+              type="button"
+              className="bg-orange-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50"
+              disabled={setStatus.isPending}
+              onClick={() => setStatus.mutate({ status: "discarded", reason: discardReason })}
+            >
+              {a.status === "discarded" ? "Update" : "Confirm discard"}
+            </button>
+            {a.status === "discarded" ? (
+              <button
+                type="button"
+                className="border rounded px-2 py-1 text-sm text-slate-600"
+                onClick={() => { setShowDiscard(false); setStatus.mutate({ status: "draft" }); }}
+              >
+                Restore
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="border rounded px-2 py-1 text-sm text-slate-500"
+                onClick={() => setShowDiscard(false)}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
         <div className="mb-3">
           <span className="text-xs text-slate-500 font-medium uppercase tracking-wide mr-2">Folder</span>
           <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded select-all">{a.folder_name}</code>
@@ -126,12 +212,70 @@ export default function ApplicationDetail() {
             <div className="text-rose-700 text-sm mb-2">
               Failed at {a.failed_stage}: {a.job_error}
             </div>
-            <button
-              onClick={() => retry.mutate()}
-              className="bg-rose-600 text-white px-3 py-1 rounded"
-            >
-              Retry
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => retry.mutate()}
+                className="bg-rose-600 text-white px-3 py-1 rounded"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPaste((v) => !v)}
+                className="border border-rose-300 text-rose-700 px-3 py-1 rounded text-sm"
+              >
+                Paste content
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!running && (
+          <div className="mb-3">
+            {!showPaste ? (
+              a.job_state !== "failed" && (
+                <button
+                  type="button"
+                  onClick={() => setShowPaste(true)}
+                  className="text-xs text-slate-400 hover:text-slate-600"
+                >
+                  + Paste page content manually
+                </button>
+              )
+            ) : (
+              <div className="border rounded p-3 bg-slate-50">
+                <div className="text-sm font-medium text-slate-700 mb-1">Paste page content</div>
+                <textarea
+                  className="w-full border rounded px-2 py-1 font-mono text-xs"
+                  rows={8}
+                  placeholder="Paste the raw text or HTML of the job posting here…"
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    disabled={!pasteText.trim() || extractFromText.isPending}
+                    onClick={() => extractFromText.mutate(pasteText)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+                  >
+                    {extractFromText.isPending ? "Extracting…" : "Extract"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowPaste(false); setPasteText(""); }}
+                    className="border rounded px-3 py-1 text-sm text-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {extractFromText.isError && (
+                  <div className="text-rose-600 text-xs mt-1">
+                    {(extractFromText.error as Error)?.message}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -207,74 +351,6 @@ export default function ApplicationDetail() {
             {a.generated_md ? "Regenerate Anschreiben" : "Generate Anschreiben"}
           </button>
         </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span>Status:</span>
-          <select
-            value={a.status}
-            onChange={(e) => {
-              const s = e.target.value as AppStatus;
-              if (s !== "discarded") {
-                setDiscardReason("");
-                setStatus.mutate({ status: s });
-              }
-            }}
-            className="border rounded px-2 py-1"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          {a.status !== "discarded" && (
-            <button
-              type="button"
-              className="text-orange-600 border border-orange-300 rounded px-2 py-1 text-sm"
-              onClick={() => { setDiscardReason(""); setShowDiscard(true); }}
-            >
-              Discard…
-            </button>
-          )}
-        </div>
-        {(showDiscard || a.status === "discarded") && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Reason for discarding…"
-              defaultValue={a.discard_reason ?? ""}
-              onChange={(e) => setDiscardReason(e.target.value)}
-              className="border rounded px-2 py-1 text-sm flex-1"
-              onKeyDown={(e) => {
-                if (e.key === "Enter")
-                  setStatus.mutate({ status: "discarded", reason: discardReason });
-              }}
-            />
-            <button
-              type="button"
-              className="bg-orange-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50"
-              disabled={setStatus.isPending}
-              onClick={() => setStatus.mutate({ status: "discarded", reason: discardReason })}
-            >
-              {a.status === "discarded" ? "Update" : "Confirm discard"}
-            </button>
-            {a.status === "discarded" ? (
-              <button
-                type="button"
-                className="border rounded px-2 py-1 text-sm text-slate-600"
-                onClick={() => { setShowDiscard(false); setStatus.mutate({ status: "draft" }); }}
-              >
-                Restore
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="border rounded px-2 py-1 text-sm text-slate-500"
-                onClick={() => setShowDiscard(false)}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        )}
 
         <InterviewsList appId={a.id} />
         <InquiryPanel app={a} />

@@ -1,6 +1,6 @@
 import { api } from "./client";
 
-export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn" | "discarded";
+export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn" | "discarded" | "need_call" | "apply_direct";
 export type JobState =
   | "pending"
   | "crawling"
@@ -133,4 +133,9 @@ export const applications = {
       `/api/applications/${id}/inquiry/mark-sent`,
       { method: "POST" },
     ),
+  extractFromText: (id: string, raw_text: string) =>
+    api<Application>(`/api/applications/${id}/extract-from-text`, {
+      method: "POST",
+      body: JSON.stringify({ raw_text }),
+    }),
 };

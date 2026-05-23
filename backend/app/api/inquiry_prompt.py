@@ -13,10 +13,23 @@ router = APIRouter(prefix="/api/settings/inquiry-prompt", tags=["inquiry-prompt"
 
 class InquiryPromptOut(BaseModel):
     source_md: str
+    user_prompt_md: str | None = None
+    question_home_office_de: str | None = None
+    question_home_office_en: str | None = None
+    question_part_time_de: str | None = None
+    question_part_time_en: str | None = None
 
 
 class InquiryPromptPut(BaseModel):
     source_md: str
+    user_prompt_md: str | None = None
+    question_home_office_de: str | None = None
+    question_home_office_en: str | None = None
+    question_part_time_de: str | None = None
+    question_part_time_en: str | None = None
+
+
+_OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Vorab-Mail")
 
 
 def _get_or_seed(db: Session, user: User) -> InquiryPromptTemplate:
@@ -26,7 +39,22 @@ def _get_or_seed(db: Session, user: User) -> InquiryPromptTemplate:
         db.add(row)
         db.commit()
         db.refresh(row)
+    elif any(row.source_md.startswith(p) for p in _OLD_TEMPLATE_PREFIXES):
+        row.source_md = DEFAULT_TEMPLATE
+        db.commit()
+        db.refresh(row)
     return row
+
+
+def _row_to_out(row: InquiryPromptTemplate) -> InquiryPromptOut:
+    return InquiryPromptOut(
+        source_md=row.source_md,
+        user_prompt_md=row.user_prompt_md,
+        question_home_office_de=row.question_home_office_de,
+        question_home_office_en=row.question_home_office_en,
+        question_part_time_de=row.question_part_time_de,
+        question_part_time_en=row.question_part_time_en,
+    )
 
 
 @router.get("", response_model=InquiryPromptOut)
@@ -34,8 +62,7 @@ def get_prompt(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
-    row = _get_or_seed(db, user)
-    return InquiryPromptOut(source_md=row.source_md)
+    return _row_to_out(_get_or_seed(db, user))
 
 
 @router.put("", response_model=InquiryPromptOut)
@@ -46,6 +73,11 @@ def put_prompt(
 ):
     row = _get_or_seed(db, user)
     row.source_md = body.source_md
+    row.user_prompt_md = body.user_prompt_md or None
+    row.question_home_office_de = body.question_home_office_de or None
+    row.question_home_office_en = body.question_home_office_en or None
+    row.question_part_time_de = body.question_part_time_de or None
+    row.question_part_time_en = body.question_part_time_en or None
     db.commit()
     db.refresh(row)
-    return InquiryPromptOut(source_md=row.source_md)
+    return _row_to_out(row)

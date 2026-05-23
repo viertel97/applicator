@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import type { Application, LabelCategory } from "../api/applications";
+import type { Application, AppStatus, LabelCategory } from "../api/applications";
 import { applications } from "../api/applications";
 import { labels as labelsApi } from "../api/labels";
 import { AddApplicationForm } from "../components/AddApplicationForm";
@@ -9,7 +9,36 @@ import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBad
 import { LabelChip } from "../components/LabelChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
-const FILTER_OPEN_KEY = "applicator.labelFilter.openCategories";
+const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
+const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
+const MAIL_SENT_FILTER_KEY = "applicator.statusFilter.showMailSent";
+const DOCS_FILTER_KEY = "applicator.docsFilter.required";
+
+const ALL_DOCS = ["cv", "cover_letter", "portfolio", "references", "certificates", "other"] as const;
+type RequiredDoc = typeof ALL_DOCS[number];
+const DOC_LABEL: Record<RequiredDoc, string> = {
+  cv: "CV",
+  cover_letter: "Cover letter",
+  portfolio: "Portfolio",
+  references: "References",
+  certificates: "Certificates",
+  other: "Other",
+};
+
+const ALL_STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
+const HIDDEN_BY_DEFAULT: AppStatus[] = ["rejected", "withdrawn", "discarded"];
+
+const STATUS_LABEL: Record<AppStatus, string> = {
+  draft: "Draft",
+  applied: "Applied",
+  offer: "Offer",
+  rejected: "Rejected",
+  accepted: "Accepted",
+  withdrawn: "Withdrawn",
+  discarded: "Discarded",
+  need_call: "Need call",
+  apply_direct: "Apply direct",
+};
 
 const CATEGORY_ORDER: LabelCategory[] = [
   "role", "tech", "domain", "seniority",
@@ -30,23 +59,33 @@ const CATEGORY_LABEL: Record<LabelCategory, string> = {
   other: "Other",
 };
 
-function loadOpenCategories(): Set<LabelCategory> {
+
+function loadHiddenStatuses(): Set<AppStatus> {
   try {
-    const raw = localStorage.getItem(FILTER_OPEN_KEY);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw) as LabelCategory[];
-    return new Set(arr);
+    const raw = localStorage.getItem(STATUS_FILTER_KEY);
+    if (raw === null) return new Set(HIDDEN_BY_DEFAULT);
+    return new Set(JSON.parse(raw) as AppStatus[]);
   } catch {
-    return new Set();
+    return new Set(HIDDEN_BY_DEFAULT);
   }
 }
 
-function saveOpenCategories(s: Set<LabelCategory>) {
-  localStorage.setItem(FILTER_OPEN_KEY, JSON.stringify([...s]));
+function saveHiddenStatuses(s: Set<AppStatus>) {
+  localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify([...s]));
+}
+
+function loadShowMailSent(): boolean {
+  const raw = localStorage.getItem(MAIL_SENT_FILTER_KEY);
+  return raw === null ? true : raw === "true";
 }
 
 export default function ApplicationsList() {
+  const scrollKey = "applicator.list.scrollY";
+  const restoredRef = useRef(false);
+
   const [filterLabelIds, setFilterLabelIds] = useState<string[]>([]);
+  const [hiddenStatuses, setHiddenStatuses] = useState<Set<AppStatus>>(() => loadHiddenStatuses());
+  const [showMailSent, setShowMailSent] = useState<boolean>(() => loadShowMailSent());
   const qc = useQueryClient();
   const [pendingDelete, setPendingDelete] = useState<Application | null>(null);
   const remove = useMutation({
@@ -69,26 +108,120 @@ export default function ApplicationsList() {
     },
   });
 
+  useEffect(() => {
+    if (isLoading || restoredRef.current) return;
+    restoredRef.current = true;
+    const saved = sessionStorage.getItem(scrollKey);
+    if (saved) {
+      sessionStorage.removeItem(scrollKey);
+      window.scrollTo(0, parseInt(saved, 10));
+    }
+  }, [isLoading]);
+
   const toggleLabel = (id: string) =>
     setFilterLabelIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
 
-  const [openCats, setOpenCats] = useState<Set<LabelCategory>>(() => loadOpenCategories());
-
-  function toggleCat(cat: LabelCategory) {
-    setOpenCats((prev) => {
+  const toggleStatus = (s: AppStatus) => {
+    setHiddenStatuses((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat); else next.add(cat);
-      saveOpenCategories(next);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      saveHiddenStatuses(next);
       return next;
     });
+  };
+
+  const [filterDocs, setFilterDocs] = useState<RequiredDoc[]>(() => {
+    try { return JSON.parse(localStorage.getItem(DOCS_FILTER_KEY) ?? "[]"); } catch { return []; }
+  });
+
+  const toggleDoc = (d: RequiredDoc) =>
+    setFilterDocs((prev) => {
+      const next = prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d];
+      localStorage.setItem(DOCS_FILTER_KEY, JSON.stringify(next));
+      return next;
+    });
+
+  const [labelPanelOpen, setLabelPanelOpen] = useState<boolean>(
+    () => localStorage.getItem(LABEL_PANEL_KEY) === "true",
+  );
+
+  function toggleLabelPanel() {
+    setLabelPanelOpen((v) => {
+      localStorage.setItem(LABEL_PANEL_KEY, String(!v));
+      return !v;
+    });
   }
+
+  const visible = (data ?? []).filter((a) => {
+    if (hiddenStatuses.has(a.status)) return false;
+    if (!showMailSent && a.inquiry_sent_at) return false;
+    if (filterDocs.length > 0) {
+      const docs = a.job_posting?.required_documents ?? [];
+      if (!filterDocs.every((d) => docs.includes(d))) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Applications</h1>
       <AddApplicationForm />
+
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {ALL_STATUSES.map((s) => {
+          const hidden = hiddenStatuses.has(s);
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => toggleStatus(s)}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                hidden
+                  ? "bg-white text-slate-400 border-slate-200"
+                  : "bg-slate-700 text-white border-slate-700"
+              }`}
+            >
+              {STATUS_LABEL[s]}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => {
+            const next = !showMailSent;
+            setShowMailSent(next);
+            localStorage.setItem(MAIL_SENT_FILTER_KEY, String(next));
+          }}
+          className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+            showMailSent
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white text-slate-400 border-slate-200"
+          }`}
+        >
+          ✉ Mail sent
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {ALL_DOCS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => toggleDoc(d)}
+            className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+              filterDocs.includes(d)
+                ? "bg-amber-100 text-amber-800 border-amber-300"
+                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+            }`}
+          >
+            {DOC_LABEL[d]}
+          </button>
+        ))}
+      </div>
+
       {(allLabels.data ?? []).length > 0 && (() => {
         const allLabelsList = allLabels.data ?? [];
         const grouped = new Map<LabelCategory, typeof allLabelsList>();
@@ -97,49 +230,87 @@ export default function ApplicationsList() {
           arr.push(lab);
           grouped.set(lab.category, arr);
         }
+        const activeCount = filterLabelIds.length;
         return (
-          <div className="space-y-1 mb-3">
-            {CATEGORY_ORDER.map((cat) => {
-              const items = grouped.get(cat);
-              if (!items || items.length === 0) return null;
-              const open = openCats.has(cat);
-              return (
-                <div key={cat} className="border rounded">
+          <div className="mb-3">
+            <button
+              type="button"
+              onClick={toggleLabelPanel}
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                activeCount > 0
+                  ? "bg-indigo-100 border-indigo-300 text-indigo-800"
+                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
+              }`}
+            >
+              Labels{activeCount > 0 ? ` (${activeCount})` : ""} {labelPanelOpen ? "▾" : "▸"}
+            </button>
+            {activeCount > 0 && !labelPanelOpen && (
+              <button
+                type="button"
+                onClick={() => setFilterLabelIds([])}
+                className="ml-2 text-xs text-slate-400 hover:text-slate-600"
+              >
+                clear
+              </button>
+            )}
+            {labelPanelOpen && (
+              <div className="mt-2 border rounded bg-white p-3 space-y-2">
+                {CATEGORY_ORDER.map((cat) => {
+                  const items = grouped.get(cat);
+                  if (!items || items.length === 0) return null;
+                  return (
+                    <div key={cat}>
+                      <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">
+                        {CATEGORY_LABEL[cat]}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {items.map((lab) => (
+                          <button
+                            key={lab.id}
+                            type="button"
+                            className={`text-xs rounded px-2 py-0.5 border transition-colors ${
+                              filterLabelIds.includes(lab.id)
+                                ? "bg-indigo-100 border-indigo-300 text-indigo-800"
+                                : "bg-white border-slate-200 hover:border-slate-400"
+                            }`}
+                            onClick={() => toggleLabel(lab.id)}
+                          >
+                            {lab.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {activeCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => toggleCat(cat)}
-                    className="w-full flex justify-between items-center px-2 py-1 text-sm"
+                    onClick={() => setFilterLabelIds([])}
+                    className="text-xs text-slate-400 hover:text-slate-600 pt-1"
                   >
-                    <span>{CATEGORY_LABEL[cat]}</span>
-                    <span className="text-slate-500">{items.length} {open ? "▾" : "▸"}</span>
+                    Clear all filters
                   </button>
-                  {open && (
-                    <div className="flex flex-wrap gap-1 p-2">
-                      {items.map((lab) => (
-                        <button
-                          key={lab.id}
-                          type="button"
-                          className={`text-xs rounded px-2 py-0.5 border ${
-                            filterLabelIds.includes(lab.id) ? "bg-indigo-100 border-indigo-300" : "bg-white"
-                          }`}
-                          onClick={() => toggleLabel(lab.id)}
-                        >
-                          {lab.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                )}
+              </div>
+            )}
           </div>
         );
       })()}
       {isLoading && <div>Loading…</div>}
+      {!isLoading && (
+        <div className="text-xs text-slate-400 mb-1">
+          {visible.length} {visible.length === 1 ? "position" : "positions"}
+          {(data ?? []).length !== visible.length && ` of ${(data ?? []).length}`}
+        </div>
+      )}
       <ul className="divide-y border rounded bg-white">
-        {(data ?? []).map((a: Application) => (
+        {visible.map((a: Application) => (
           <li key={a.id} className="p-3 flex items-center gap-3 hover:bg-slate-50">
-            <Link to={`/applications/${a.id}`} className="flex-1 truncate min-w-0">
+            <Link
+              to={`/applications/${a.id}`}
+              className="flex-1 truncate min-w-0"
+              onClick={() => sessionStorage.setItem(scrollKey, String(window.scrollY))}
+            >
               <div className="font-medium truncate">
                 <span className="text-slate-400 font-mono mr-2">
                   #{String(a.display_id).padStart(4, "0")}
@@ -170,6 +341,14 @@ export default function ApplicationsList() {
             >
               ↗
             </a>
+            {a.inquiry_sent_at && (
+              <span
+                className="text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap"
+                title={`Inquiry sent ${new Date(a.inquiry_sent_at).toLocaleString()}`}
+              >
+                ✉ {new Date(a.inquiry_sent_at).toLocaleDateString()}
+              </span>
+            )}
             <OnlineBadge online={a.posting_online} />
             <JobStateBadge state={a.job_state} />
             <StatusBadge status={a.status} />

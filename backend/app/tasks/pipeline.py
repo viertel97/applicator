@@ -107,6 +107,26 @@ def extract_task(self, payload: dict) -> dict:
     return {"app_id": app_id}
 
 
+@celery_app.task(name="pipeline.extract_from_text", bind=True)
+def extract_from_text_task(self, app_id: str, raw_text: str) -> dict:
+    settings = _settings()
+    cm = _db_factory()
+    with cm() as db:
+        app = db.get(Application, uuid.UUID(app_id))
+        if app is None:
+            return {"app_id": app_id, "skipped": True}
+        try:
+            run_extract(db, app, raw_text, "pasted", _llm(settings))
+        except Exception as exc:
+            db.rollback()
+            with cm() as db2:
+                app2 = db2.get(Application, uuid.UUID(app_id))
+                if app2:
+                    _record_failure(db2, app2, FailedStage.extract, exc)
+            raise
+    return {"app_id": app_id}
+
+
 @celery_app.task(name="pipeline.generate", bind=True)
 def generate_task(self, app_id: str) -> dict:
     settings = _settings()
