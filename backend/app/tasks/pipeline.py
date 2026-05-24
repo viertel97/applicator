@@ -145,3 +145,27 @@ def generate_task(self, app_id: str) -> dict:
                     _record_failure(db2, app2, FailedStage.generate, exc)
             raise
     return {"app_id": app_id}
+
+
+@celery_app.task(name="pipeline.notify", bind=False)
+def notify_task(payload: dict, chat_id: int | None = None) -> dict:
+    if not chat_id:
+        return payload
+    token = _settings().telegram_bot_token
+    if not token:
+        return payload
+    app_id = payload.get("app_id")
+    text = "Done"
+    if app_id:
+        cm = _db_factory()
+        with cm() as db:
+            app = db.get(Application, uuid.UUID(app_id))
+            if app and app.job_posting and app.job_posting.title:
+                text = f"Done: {app.job_posting.title}"
+    import httpx as _httpx
+    _httpx.post(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        json={"chat_id": chat_id, "text": text},
+        timeout=10.0,
+    )
+    return payload
