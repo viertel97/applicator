@@ -13,6 +13,7 @@ from app.db.session import get_engine
 from app.llm.base import LLMClient
 from app.llm.groq import GroqClient
 from app.pipeline import run_crawl, run_extract, run_generate
+import httpx
 from app.tasks.celery_app import celery_app
 
 
@@ -151,6 +152,8 @@ def generate_task(self, app_id: str) -> dict:
 def notify_task(payload: dict, chat_id: int | None = None) -> dict:
     if not chat_id:
         return payload
+    if payload.get("skipped"):
+        return payload
     token = _settings().telegram_bot_token
     if not token:
         return payload
@@ -162,10 +165,9 @@ def notify_task(payload: dict, chat_id: int | None = None) -> dict:
             app = db.get(Application, uuid.UUID(app_id))
             if app and app.job_posting and app.job_posting.title:
                 text = f"Done: {app.job_posting.title}"
-    import httpx as _httpx
-    _httpx.post(
+    httpx.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
         json={"chat_id": chat_id, "text": text},
         timeout=10.0,
-    )
+    ).raise_for_status()
     return payload
