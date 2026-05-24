@@ -14,6 +14,9 @@ os.environ.setdefault("MS_REDIRECT_URI", "http://localhost:8000/api/auth/callbac
 os.environ.setdefault("LLM_API_KEY", "test-llm-key")
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://u:p@localhost/db")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
+os.environ.setdefault("BOT_API_KEY", "test-bot-key")
+os.environ.setdefault("APP_USER_ID", "")
 
 
 @pytest.fixture

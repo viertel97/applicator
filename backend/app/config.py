@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     session_cookie_name: str = "applicator_session"
     session_cookie_secure: bool = False
     redis_url: str = "redis://localhost:6379/0"
+    telegram_bot_token: str = ""
+    bot_api_key: str = ""
+    app_user_id: str = ""
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None
 
