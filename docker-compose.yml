@@ -58,6 +58,15 @@ services:
       - ./data:/app/data
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
 
+  bot:
+    build: ./bot
+    env_file: .env
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+
   web:
     build: ./frontend
     depends_on: [api]
