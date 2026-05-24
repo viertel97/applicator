@@ -28,12 +28,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     try:
-        resp = httpx.post(
-            f"{API_URL}/api/bot/applications",
-            json={"url": text, "chat_id": chat_id},
-            headers={"Authorization": f"Bearer {BOT_API_KEY}"},
-            timeout=15.0,
-        )
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{API_URL}/api/bot/applications",
+                json={"url": text, "chat_id": chat_id},
+                headers={"Authorization": f"Bearer {BOT_API_KEY}"},
+                timeout=15.0,
+            )
         if resp.status_code == 200:
             await update.message.reply_text(f"Queued: {text}")
         elif resp.status_code == 409:
