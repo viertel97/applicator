@@ -46,7 +46,10 @@ def bot_create_application(
 ):
     if not settings.app_user_id:
         raise HTTPException(500, "APP_USER_ID not configured")
-    user_id = uuid.UUID(settings.app_user_id)
+    try:
+        user_id = uuid.UUID(settings.app_user_id)
+    except ValueError:
+        raise HTTPException(500, "APP_USER_ID is not a valid UUID")
     h = url_hash(str(body.url))
     existing = db.query(Application).filter_by(user_id=user_id, url_hash=h).first()
     if existing:
