@@ -26,7 +26,7 @@ def test_settings_loads_from_env(monkeypatch):
     s = Settings()
     assert s.database_url == "postgresql+psycopg://x"
     assert s.llm_provider == "groq"
-    assert s.llm_model == "gpt-oss"
+    assert s.llm_model == "openai/gpt-oss-120b"
     assert s.data_dir.endswith("data")
 
 
