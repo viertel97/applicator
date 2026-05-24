@@ -20,7 +20,7 @@ class FakeLLM:
 
 
 def test_draft_parses_llm_json_into_inquiry_email():
-    payload = {"subject": "Frage", "body": "Hallo …"}
+    payload = {"subject": "Frage", "greeting": "Sehr geehrte Damen und Herren"}
     llm = FakeLLM(handler=lambda m, s: json.dumps(payload))
     result = draft(
         job=_job(),
@@ -32,7 +32,7 @@ def test_draft_parses_llm_json_into_inquiry_email():
     )
     assert isinstance(result, InquiryEmail)
     assert result.subject == "Frage"
-    assert result.body == "Hallo …"
+    assert result.body.startswith("Sehr geehrte Damen und Herren")
 
 
 def test_draft_uses_provided_system_prompt():
@@ -40,7 +40,7 @@ def test_draft_uses_provided_system_prompt():
 
     def handler(messages, schema):
         seen["sys"] = messages[0]["content"]
-        return json.dumps({"subject": "s", "body": "b"})
+        return json.dumps({"subject": "s", "greeting": "Hallo"})
 
     draft(
         job=_job(),
