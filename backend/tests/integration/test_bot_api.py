@@ -1,9 +1,7 @@
-import uuid
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from testcontainers.postgres import PostgresContainer
 
 from app.api.deps import db_dep
 from app.db import models  # noqa: F401
@@ -11,15 +9,9 @@ from app.db.models import Application, User
 from app.db.session import Base
 
 
-@pytest.fixture(scope="module")
-def pg():
-    with PostgresContainer("postgres:16") as pg:
-        yield pg
-
-
 @pytest.fixture
-def db_session(pg, monkeypatch, reset_db_session_singletons):
-    raw_url = pg.get_connection_url()
+def db_session(pg_container, monkeypatch, reset_db_session_singletons):
+    raw_url = pg_container.get_connection_url()
     url = (
         raw_url
         .replace("postgresql+psycopg2://", "postgresql+psycopg://")

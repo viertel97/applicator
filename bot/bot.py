@@ -19,6 +19,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     if update.message is None or not update.message.text:
         return
+    if update.effective_chat is None:
+        return
 
     text = update.message.text.strip()
     chat_id = update.effective_chat.id

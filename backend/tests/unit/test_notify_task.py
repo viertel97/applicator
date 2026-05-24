@@ -1,4 +1,5 @@
 import pytest
+from contextlib import contextmanager
 
 
 def _make_fake_post(sent):
@@ -17,25 +18,34 @@ def _make_fake_post(sent):
     return fake_post
 
 
+def _stub_db(monkeypatch, job_title=None):
+    import app.tasks.pipeline as tp
+
+    @contextmanager
+    def fake_cm():
+        class FakeJobPosting:
+            title = job_title
+
+        class FakeApp:
+            job_posting = FakeJobPosting() if job_title else None
+
+        class FakeDB:
+            def get(self, model, pk):
+                return FakeApp() if job_title is not None else None
+
+        yield FakeDB()
+
+    monkeypatch.setattr(tp, "_db_factory", lambda: fake_cm)
+
+
 def test_notify_task_sends_message(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
     sent = {}
 
     import httpx
-    import app.tasks.pipeline as tp
-    from contextlib import contextmanager
 
     monkeypatch.setattr(httpx, "post", _make_fake_post(sent))
-
-    @contextmanager
-    def fake_cm():
-        class FakeDB:
-            def get(self, model, pk):
-                return None
-
-        yield FakeDB()
-
-    monkeypatch.setattr(tp, "_db_factory", lambda: fake_cm)
+    _stub_db(monkeypatch)
 
     from app.tasks.pipeline import notify_task
 
@@ -44,6 +54,22 @@ def test_notify_task_sends_message(monkeypatch):
     assert sent["url"] == "https://api.telegram.org/bottest-token/sendMessage"
     assert sent["json"]["chat_id"] == 42
     assert sent["json"]["text"] == "Done"
+
+
+def test_notify_task_sends_job_title(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    sent = {}
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "post", _make_fake_post(sent))
+    _stub_db(monkeypatch, job_title="Senior Python Engineer")
+
+    from app.tasks.pipeline import notify_task
+
+    notify_task({"app_id": "00000000-0000-0000-0000-000000000001"}, chat_id=42)
+
+    assert sent["json"]["text"] == "Done: Senior Python Engineer"
 
 
 def test_notify_task_noop_without_chat_id(monkeypatch):

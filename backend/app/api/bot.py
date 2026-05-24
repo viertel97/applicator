@@ -1,3 +1,4 @@
+import hmac
 import uuid
 from typing import Annotated
 
@@ -24,8 +25,10 @@ def _bot_auth(
     authorization: Annotated[str | None, Header()] = None,
     settings: Settings = Depends(settings_dep),
 ) -> None:
+    if not settings.bot_api_key or not authorization:
+        raise HTTPException(401, "unauthorized")
     expected = f"Bearer {settings.bot_api_key}"
-    if not settings.bot_api_key or authorization != expected:
+    if not hmac.compare_digest(authorization.encode(), expected.encode()):
         raise HTTPException(401, "unauthorized")
 
 

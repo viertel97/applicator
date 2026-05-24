@@ -148,9 +148,20 @@ def generate_task(self, app_id: str) -> dict:
     return {"app_id": app_id}
 
 
-@celery_app.task(name="pipeline.notify", bind=False)
+import logging as _logging
+
+_notify_logger = _logging.getLogger(__name__)
+
+
+@celery_app.task(
+    name="pipeline.notify",
+    bind=False,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3, "countdown": 5},
+)
 def notify_task(payload: dict, chat_id: int | None = None) -> dict:
-    if not chat_id:
+    if chat_id is None:
         return payload
     if payload.get("skipped"):
         return payload
@@ -165,9 +176,13 @@ def notify_task(payload: dict, chat_id: int | None = None) -> dict:
             app = db.get(Application, uuid.UUID(app_id))
             if app and app.job_posting and app.job_posting.title:
                 text = f"Done: {app.job_posting.title}"
-    httpx.post(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        json={"chat_id": chat_id, "text": text},
-        timeout=10.0,
-    ).raise_for_status()
+    try:
+        httpx.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text},
+            timeout=10.0,
+        ).raise_for_status()
+    except Exception as exc:
+        _notify_logger.warning("Telegram notify failed: %s", exc)
+        raise
     return payload
