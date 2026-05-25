@@ -53,7 +53,8 @@ def test_notify_task_sends_message(monkeypatch):
 
     assert sent["url"] == "https://api.telegram.org/bottest-token/sendMessage"
     assert sent["json"]["chat_id"] == 42
-    assert sent["json"]["text"] == "Done"
+    assert sent["json"]["text"].startswith("Done\n")
+    assert "/applications/00000000-0000-0000-0000-000000000001" in sent["json"]["text"]
 
 
 def test_notify_task_sends_job_title(monkeypatch):
@@ -69,7 +70,8 @@ def test_notify_task_sends_job_title(monkeypatch):
 
     notify_task({"app_id": "00000000-0000-0000-0000-000000000001"}, chat_id=42)
 
-    assert sent["json"]["text"] == "Done: Senior Python Engineer"
+    assert sent["json"]["text"].startswith("Done: Senior Python Engineer\n")
+    assert "/applications/00000000-0000-0000-0000-000000000001" in sent["json"]["text"]
 
 
 def test_notify_task_noop_without_chat_id(monkeypatch):

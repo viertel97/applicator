@@ -168,6 +168,7 @@ def notify_task(payload: dict, chat_id: int | None = None) -> dict:
     token = _settings().telegram_bot_token
     if not token:
         return payload
+    settings = _settings()
     app_id = payload.get("app_id")
     text = "Done"
     if app_id:
@@ -176,6 +177,8 @@ def notify_task(payload: dict, chat_id: int | None = None) -> dict:
             app = db.get(Application, uuid.UUID(app_id))
             if app and app.job_posting and app.job_posting.title:
                 text = f"Done: {app.job_posting.title}"
+        link = f"{settings.frontend_origin}/applications/{app_id}"
+        text = f"{text}\n{link}"
     try:
         httpx.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
