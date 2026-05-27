@@ -15,6 +15,7 @@ from app.api import interviews as interviews_api
 from app.api import inquiry_prompt as inquiry_prompt_api
 from app.api import labels as labels_api
 from app.config import get_settings
+from app.services import stats as stats_api
 from app.db import events as db_events
 from app.tasks.backfill import backfill_missing_task
 from app.tasks.categorize_labels import categorize_existing_labels_task
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(labels_api.router)
     app.include_router(inquiry_prompt_api.router)
     app.include_router(discard_reasons_api.router)
+    app.include_router(stats_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
