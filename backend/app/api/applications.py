@@ -508,11 +508,6 @@ def _inquiry_llm():
     return GroqClient(api_key=s.llm_api_key, model=s.llm_model, base_url=s.llm_base_url)
 
 
-class InquiryPatch(BaseModel):
-    subject: str
-    body: str
-
-
 class InquiryDraftOut(BaseModel):
     subject: str
     body: str
@@ -520,7 +515,13 @@ class InquiryDraftOut(BaseModel):
     sent_at: datetime | None = None
 
 
-class InquiryMarkSentOut(BaseModel):
+class InquirySendIn(BaseModel):
+    subject: str
+    body: str
+
+
+class InquirySendOut(BaseModel):
+    interaction_id: uuid.UUID
     sent_at: datetime
 
 
@@ -586,10 +587,6 @@ def draft_inquiry(
         )
     except Exception as exc:
         raise HTTPException(502, f"draft failed: {exc}") from exc
-    app_row.inquiry_subject = email.subject
-    app_row.inquiry_body = email.body
-    db.commit()
-    db.refresh(app_row)
     jp = app_row.job_posting
     _contact = jp.contact if isinstance(jp.contact, dict) else {}
     recipient = _contact.get("email")
@@ -597,41 +594,39 @@ def draft_inquiry(
         subject=email.subject,
         body=email.body,
         recipient=recipient,
-        sent_at=app_row.inquiry_sent_at,
+        sent_at=None,
     )
 
 
-@router.patch("/{aid}/inquiry", response_model=InquiryDraftOut)
-def patch_inquiry(
-    aid: uuid.UUID,
-    body: InquiryPatch,
-    db: Annotated[Session, Depends(db_dep)],
-    user: Annotated[User, Depends(current_user)],
-):
-    app_row = _load_owned(db, aid, user)
-    app_row.inquiry_subject = body.subject
-    app_row.inquiry_body = body.body
-    db.commit()
-    db.refresh(app_row)
-    jp = app_row.job_posting
-    _contact = jp.contact if isinstance(jp.contact, dict) else {}
-    recipient = _contact.get("email")
-    return InquiryDraftOut(
-        subject=app_row.inquiry_subject or "",
-        body=app_row.inquiry_body or "",
-        recipient=recipient,
-        sent_at=app_row.inquiry_sent_at,
-    )
-
-
-@router.post("/{aid}/inquiry/mark-sent", response_model=InquiryMarkSentOut)
+@router.post("/{aid}/inquiry/mark-sent", response_model=InquirySendOut)
 def mark_inquiry_sent(
     aid: uuid.UUID,
+    body: InquirySendIn,
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
+    from app.db.models import (
+        Interaction,
+        InteractionChannel,
+        InteractionCreatedFrom,
+        InteractionDirection,
+    )
     app_row = _load_owned(db, aid, user)
-    app_row.inquiry_sent_at = datetime.now(timezone.utc)
+    jp = app_row.job_posting
+    _contact = jp.contact if jp and isinstance(jp.contact, dict) else {}
+    now = datetime.now(timezone.utc)
+    interaction = Interaction(
+        application_id=app_row.id,
+        occurred_at=now,
+        direction=InteractionDirection.out,
+        channel=InteractionChannel.mail,
+        subject=body.subject,
+        body=body.body,
+        contact_name=_contact.get("name"),
+        contact_handle=_contact.get("email"),
+        created_from=InteractionCreatedFrom.manual,
+    )
+    db.add(interaction)
     db.commit()
-    db.refresh(app_row)
-    return InquiryMarkSentOut(sent_at=app_row.inquiry_sent_at)
+    db.refresh(interaction)
+    return InquirySendOut(interaction_id=interaction.id, sent_at=interaction.occurred_at)

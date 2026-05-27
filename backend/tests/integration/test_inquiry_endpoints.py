@@ -1,7 +1,15 @@
 import json
 import uuid
 
-from app.db.models import Application, JobPosting, JobState
+from app.db.models import (
+    Application,
+    Interaction,
+    InteractionChannel,
+    InteractionCreatedFrom,
+    InteractionDirection,
+    JobPosting,
+    JobState,
+)
 from app.inquiry.prompts import DEFAULT_TEMPLATE
 
 
@@ -21,7 +29,7 @@ def _make_app(db_session, user, *, ho=False, pt=False):
         title="Dev",
         company="Acme",
         language="de",
-        contact={"email": "hr@acme.test", "name": None, "role": None, "phone": None},
+        contact={"email": "hr@acme.test", "name": "HR Person", "role": None, "phone": None},
         mentions_home_office_policy=ho,
         mentions_part_time=pt,
     )
@@ -42,66 +50,80 @@ def _patch_llm(monkeypatch, payload):
     monkeypatch.setattr(apps_module, "_inquiry_llm", fake_llm)
 
 
-def test_draft_creates_inquiry_when_both_flags_false(
-    auth_user, db_session, monkeypatch,
-):
+def test_draft_returns_subject_and_body(auth_user, db_session, monkeypatch):
     client, user = auth_user
     a = _make_app(db_session, user, ho=False, pt=False)
-    _patch_llm(monkeypatch, {"subject": "Frage", "body": "Hallo …"})
+    _patch_llm(monkeypatch, {"subject": "Frage", "greeting": "Sehr geehrte Damen und Herren"})
 
     r = client.post(f"/api/applications/{a.id}/inquiry/draft")
     assert r.status_code == 200, r.text
     data = r.json()
     assert data["subject"] == "Frage"
-    assert data["body"] == "Hallo …"
+    assert isinstance(data["body"], str) and data["body"]
     assert data["recipient"] == "hr@acme.test"
-
-    # ApplicationOut now exposes the saved values
-    g = client.get(f"/api/applications/{a.id}").json()
-    assert g["inquiry_subject"] == "Frage"
-    assert g["inquiry_body"] == "Hallo …"
+    # sent_at is now always None — draft does not persist anything
+    assert data["sent_at"] is None
 
 
-def test_draft_rejected_when_both_flags_true(
-    auth_user, db_session, monkeypatch,
-):
-    client, user = auth_user
-    a = _make_app(db_session, user, ho=True, pt=True)
-    _patch_llm(monkeypatch, {"subject": "x", "body": "x"})
-
-    r = client.post(f"/api/applications/{a.id}/inquiry/draft")
-    assert r.status_code == 400
-
-
-def test_patch_updates_subject_and_body(auth_user, db_session, monkeypatch):
+def test_patch_endpoint_is_gone(auth_user, db_session, monkeypatch):
     client, user = auth_user
     a = _make_app(db_session, user, ho=False, pt=False)
-    _patch_llm(monkeypatch, {"subject": "s", "body": "b"})
-    client.post(f"/api/applications/{a.id}/inquiry/draft")
-
     r = client.patch(
         f"/api/applications/{a.id}/inquiry",
         json={"subject": "edited", "body": "edited body"},
     )
-    assert r.status_code == 200
-    assert r.json()["subject"] == "edited"
-    g = client.get(f"/api/applications/{a.id}").json()
-    assert g["inquiry_subject"] == "edited"
-    assert g["inquiry_body"] == "edited body"
+    # Either 404 (route gone) or 405 (method not allowed) is acceptable
+    assert r.status_code in (404, 405), r.text
 
 
-def test_mark_sent_sets_timestamp(auth_user, db_session, monkeypatch):
+def test_mark_sent_creates_outgoing_mail_interaction(auth_user, db_session, monkeypatch):
     client, user = auth_user
     a = _make_app(db_session, user, ho=False, pt=False)
-    _patch_llm(monkeypatch, {"subject": "s", "body": "b"})
-    client.post(f"/api/applications/{a.id}/inquiry/draft")
 
-    r = client.post(f"/api/applications/{a.id}/inquiry/mark-sent")
+    r = client.post(
+        f"/api/applications/{a.id}/inquiry/mark-sent",
+        json={"subject": "My subject", "body": "My body"},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["sent_at"] is not None
+    assert "interaction_id" in data
+
+    interactions = (
+        db_session.query(Interaction)
+        .filter(Interaction.application_id == a.id)
+        .all()
+    )
+    assert len(interactions) == 1
+    it = interactions[0]
+    assert str(it.id) == data["interaction_id"]
+    assert it.direction == InteractionDirection.out
+    assert it.channel == InteractionChannel.mail
+    assert it.subject == "My subject"
+    assert it.body == "My body"
+    assert it.created_from == InteractionCreatedFrom.manual
+    # contact came from job_posting.contact
+    assert it.contact_name == "HR Person"
+    assert it.contact_handle == "hr@acme.test"
+
+
+def test_mark_sent_visible_in_interactions_list(auth_user, db_session, monkeypatch):
+    client, user = auth_user
+    a = _make_app(db_session, user, ho=False, pt=False)
+
+    r = client.post(
+        f"/api/applications/{a.id}/inquiry/mark-sent",
+        json={"subject": "S", "body": "B"},
+    )
     assert r.status_code == 200
-    assert r.json()["sent_at"] is not None
 
-    g = client.get(f"/api/applications/{a.id}").json()
-    assert g["inquiry_sent_at"] is not None
+    g = client.get(f"/api/applications/{a.id}/interactions")
+    assert g.status_code == 200
+    rows = g.json()
+    assert len(rows) == 1
+    assert rows[0]["subject"] == "S"
+    assert rows[0]["direction"] == "out"
+    assert rows[0]["channel"] == "mail"
 
 
 def test_draft_seeds_default_prompt_when_missing(auth_user, db_session, monkeypatch):
@@ -114,7 +136,7 @@ def test_draft_seeds_default_prompt_when_missing(auth_user, db_session, monkeypa
         class FakeLLM:
             def complete(self, messages, **kwargs):
                 seen["sys"] = messages[0]["content"]
-                return json.dumps({"subject": "s", "body": "b"})
+                return json.dumps({"subject": "s", "greeting": "Hallo"})
         return FakeLLM()
 
     from app.api import applications as apps_module
