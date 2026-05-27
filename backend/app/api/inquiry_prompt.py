@@ -29,7 +29,7 @@ class InquiryPromptPut(BaseModel):
     question_part_time_en: str | None = None
 
 
-_OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Vorab-Mail")
+_OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Offene Fragen-Mail")
 
 
 def _get_or_seed(db: Session, user: User) -> InquiryPromptTemplate:

@@ -2,11 +2,11 @@ from app.extractor.schemas import ExtractedJobPosting
 
 
 DEFAULT_TEMPLATE = (
-    "Bestimme f\u00fcr eine Vorab-Bewerbungsmail genau zwei Felder als JSON:\n"
+    "Bestimme f\u00fcr eine Offene Fragen-Bewerbungsmail genau zwei Felder als JSON:\n"
     "- \"subject\": Betreff. "
     "Falls eine Referenznummer vorhanden ist: "
-    "'Vorab-Anfrage \u2013 [Stelle] (Ref. [Nr.])'. "
-    "Sonst: 'Vorab-Anfrage \u2013 [Stelle]'.\n"
+    "'Offene Fragen \u2013 [Stelle] (Ref. [Nr.])'. "
+    "Sonst: 'Offene Fragen \u2013 [Stelle]'.\n"
     "- \"greeting\": Anrede ohne Komma. "
     "Beispiele: 'Sehr geehrte Frau M\u00fcller', "
     "'Sehr geehrter Herr Schmidt', "
@@ -52,7 +52,7 @@ def build_body(
 
 DEFAULT_USER_PROMPT_TEMPLATE = (
     "Zielsprache: {language}\n"
-    "Stelle: {title} bei {company}\n"
+    "Stelle: {title}\n"
     "{ref_line}"
     "Ansprechpartner: {contact}\n\n"
     "Fragen, die in der Mail vorkommen MUESSEN (in dieser Reihenfolge):\n"
@@ -60,16 +60,14 @@ DEFAULT_USER_PROMPT_TEMPLATE = (
 )
 
 DEFAULT_HO_TOPIC_DE = (
-    "Wie viele Tage Home Office pro Woche sind möglich, unter der "
-    "Voraussetzung, dass Kundenprojekte und sonstige Anforderungen erfüllt "
-    "sind?"
+    "Wie flexibel gestaltet sich der Homeoffice-Anteil, sofern Projektanforderungen und Termine zuverlässig erfüllt werden?"
 )
 DEFAULT_HO_TOPIC_EN = (
     "How many days of home office per week are possible, assuming customer "
     "projects and other requirements are met?"
 )
 DEFAULT_PT_TOPIC_DE = (
-    "Wäre eine 80%-Stelle (Montag bis Donnerstag) grundsätzlich denkbar?"
+    "Wäre eine Beschäftigung in Teilzeit mit 80 % (z. B. Montag bis Donnerstag) grundsätzlich denkbar?"
 )
 DEFAULT_PT_TOPIC_EN = (
     "Would an 80% position (Monday to Thursday) be possible in principle?"
