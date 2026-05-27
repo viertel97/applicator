@@ -1,7 +1,7 @@
 import { api } from "./client";
 
 export type Direction = "out" | "in";
-export type Channel = "mail" | "linkedin" | "phone" | "portal" | "xing" | "other";
+export type Channel = "mail" | "linkedin" | "phone" | "portal" | "xing" | "interview" | "other";
 export type Sentiment = "positive" | "neutral" | "negative" | "rejection" | null;
 
 export type Interaction = {
@@ -38,7 +38,6 @@ export type CreateInteractionResp = {
 
 export type TimelineRow =
   | { kind: "interaction"; at: string; data: Interaction }
-  | { kind: "interview"; at: string; data: { id: string; kind: string; notes: string | null; outcome: string } }
   | { kind: "event"; at: string; data: { kind: string; from: string | null; to: string | null; meta: unknown } };
 
 export const interactions = {

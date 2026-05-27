@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, db_dep
 from app.db.models import (
     Application, ApplicationStatus, DiscardReason, Interaction,
-    InteractionDirection, Interview, User,
+    InteractionChannel, InteractionDirection, User,
 )
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
@@ -90,9 +90,11 @@ def funnel(
     responded_app_ids = {it.application_id for it in in_rows}
 
     interview_app_ids = {
-        i.application_id for i in (
-            db.query(Interview).filter(Interview.application_id.in_(aids)).all()
-            if aids else []
+        it.application_id for it in (
+            db.query(Interaction)
+              .filter(Interaction.application_id.in_(aids),
+                      Interaction.channel == InteractionChannel.interview)
+              .all() if aids else []
         )
     }
 

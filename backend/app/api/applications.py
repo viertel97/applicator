@@ -297,7 +297,7 @@ def patch_notes(
 
 
 class TimelineRow(BaseModel):
-    kind: str       # "interaction" | "interview" | "event"
+    kind: str       # "interaction" | "event"
     at: datetime
     data: dict
 
@@ -308,9 +308,7 @@ def get_timeline(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
-    from app.db.models import (
-        ApplicationEvent, Interaction, Interview,
-    )
+    from app.db.models import ApplicationEvent, Interaction
     _load_owned(db, aid, user)
     rows: list[TimelineRow] = []
     for it in db.query(Interaction).filter_by(application_id=aid):
@@ -325,16 +323,6 @@ def get_timeline(
                 "contact_name": it.contact_name,
                 "contact_handle": it.contact_handle,
                 "sentiment": it.sentiment.value if it.sentiment else None,
-            },
-        ))
-    for iv in db.query(Interview).filter_by(application_id=aid):
-        rows.append(TimelineRow(
-            kind="interview", at=iv.scheduled_at,
-            data={
-                "id": str(iv.id),
-                "kind": iv.kind.value,
-                "notes": iv.notes,
-                "outcome": iv.outcome.value,
             },
         ))
     for ev in db.query(ApplicationEvent).filter_by(application_id=aid):

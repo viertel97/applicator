@@ -55,10 +55,6 @@ test("happy path: add URL, poll until ready, see download", async ({ page }) => 
   await page.route("**/api/applications/a1/chat", (r) =>
     r.fulfill({ status: 200, body: JSON.stringify([]) }),
   );
-  await page.route("**/api/applications/a1/interviews", (r) =>
-    r.fulfill({ status: 200, body: JSON.stringify([]) }),
-  );
-
   await page.goto("/applications");
   await page.fill("input[type=url]", "https://x.test/j");
   await page.click("button:has-text('Add')");
@@ -112,10 +108,6 @@ test("URL-only add → state extracted → fields editable", async ({ page }) =>
   await page.route("**/api/applications/app-1/chat", (r) =>
     r.fulfill({ status: 200, body: JSON.stringify([]) }),
   );
-  await page.route("**/api/applications/app-1/interviews", (r) =>
-    r.fulfill({ status: 200, body: JSON.stringify([]) }),
-  );
-
   await page.goto("/applications");
   await page.fill("input[type=url]", "https://x.test/j");
   await page.click("button:has-text('Add')");
@@ -259,10 +251,6 @@ test("contact block renders mailto and tel links when present", async ({ page })
   await page.route("**/api/applications/a2/chat", (r) =>
     r.fulfill({ status: 200, body: JSON.stringify([]) }),
   );
-  await page.route("**/api/applications/a2/interviews", (r) =>
-    r.fulfill({ status: 200, body: JSON.stringify([]) }),
-  );
-
   await page.goto("/applications/a2");
   await expect(page.locator('a[href="mailto:jane@acme.test"]')).toBeVisible();
   await expect(page.locator('a[href="tel:+49 30 1234567"]')).toBeVisible();

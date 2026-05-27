@@ -91,10 +91,6 @@ test("logging a rejection interaction surfaces discard sheet and discards app", 
   await page.route("**/api/applications/a1/chat", (r) =>
     r.fulfill({ status: 200, body: JSON.stringify([]) }),
   );
-  await page.route("**/api/applications/a1/interviews", (r) =>
-    r.fulfill({ status: 200, body: JSON.stringify([]) }),
-  );
-
   let interactionsList: Array<Record<string, unknown>> = [];
   await page.route("**/api/applications/a1/interactions", async (route, req) => {
     if (req.method() === "POST") {

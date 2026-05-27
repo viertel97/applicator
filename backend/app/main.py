@@ -11,7 +11,6 @@ from app.api import chat as chat_api
 from app.api import discard_reasons as discard_reasons_api
 from app.api import documents as documents_api
 from app.api import interactions as interactions_api
-from app.api import interviews as interviews_api
 from app.api import inquiry_prompt as inquiry_prompt_api
 from app.api import labels as labels_api
 from app.config import get_settings
@@ -55,7 +54,6 @@ def create_app() -> FastAPI:
     app.include_router(bot_api.router)
     app.include_router(chat_api.router)
     app.include_router(interactions_api.router)
-    app.include_router(interviews_api.router)
     app.include_router(labels_api.router)
     app.include_router(inquiry_prompt_api.router)
     app.include_router(discard_reasons_api.router)

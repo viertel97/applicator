@@ -3,20 +3,20 @@ import { timeline, type TimelineRow } from "../api/interactions";
 
 function iconFor(row: TimelineRow) {
   if (row.kind === "interaction") {
+    if (row.data.channel === "interview") return "🎤";
     return row.data.direction === "out" ? "→" : "←";
   }
-  if (row.kind === "interview") return "🎤";
   return "•";
 }
 
 function describe(row: TimelineRow): string {
   if (row.kind === "interaction") {
     const it = row.data;
+    if (it.channel === "interview") {
+      return `Interview${it.subject ? ` — ${it.subject}` : ""}`;
+    }
     const dir = it.direction === "out" ? "Sent" : "Received";
     return `${dir} via ${it.channel}${it.subject ? ` — ${it.subject}` : ""}`;
-  }
-  if (row.kind === "interview") {
-    return `Interview (${row.data.kind}) — ${row.data.outcome}`;
   }
   const ev = row.data;
   if (ev.kind === "status_change") return `Status: ${ev.from} → ${ev.to}`;

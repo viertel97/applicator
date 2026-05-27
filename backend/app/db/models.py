@@ -54,21 +54,6 @@ class FailedStage(str, enum.Enum):
     generate = "generate"
 
 
-class InterviewKind(str, enum.Enum):
-    phone = "phone"
-    video = "video"
-    onsite = "onsite"
-    technical = "technical"
-    final = "final"
-
-
-class InterviewOutcome(str, enum.Enum):
-    pending = "pending"
-    passed = "passed"
-    failed = "failed"
-    cancelled = "cancelled"
-
-
 class ChatRole(str, enum.Enum):
     user = "user"
     assistant = "assistant"
@@ -99,6 +84,7 @@ class InteractionChannel(str, enum.Enum):
     phone = "phone"
     portal = "portal"
     xing = "xing"
+    interview = "interview"
     other = "other"
 
 
@@ -283,19 +269,6 @@ class JobPosting(Base):
     extracted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     application: Mapped[Application] = relationship("Application", back_populates="job_posting")
-
-
-class Interview(Base):
-    __tablename__ = "interview"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
-    application_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("application.id"))
-    scheduled_at: Mapped[datetime] = mapped_column(DateTime)
-    kind: Mapped[InterviewKind] = mapped_column(Enum(InterviewKind))
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    outcome: Mapped[InterviewOutcome] = mapped_column(
-        Enum(InterviewOutcome), default=InterviewOutcome.pending
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ChatMessage(Base):

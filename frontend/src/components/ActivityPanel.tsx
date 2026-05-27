@@ -2,15 +2,16 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { InteractionLogModal } from "./InteractionLogModal";
-import { InterviewsList } from "./InterviewsList";
 import { interactions, type Interaction } from "../api/interactions";
+import type { Application } from "../api/applications";
 
 type Tab = "timeline" | "interactions" | "notes";
 
 export function ActivityPanel({
-  appId, notes: _notes, onNotesBlur, notesValue, onNotesChange,
+  appId, app, notes: _notes, onNotesBlur, notesValue, onNotesChange,
 }: {
   appId: string;
+  app?: Application;
   notes: string | null;
   onNotesBlur: () => void;
   notesValue: string;
@@ -70,10 +71,7 @@ export function ActivityPanel({
           />
         )}
       </div>
-      <InteractionLogModal appId={appId} open={showLog} onClose={() => setShowLog(false)} />
-      <div className="border-t p-3">
-        <InterviewsList appId={appId} />
-      </div>
+      <InteractionLogModal appId={appId} app={app} open={showLog} onClose={() => setShowLog(false)} />
     </div>
   );
 }
