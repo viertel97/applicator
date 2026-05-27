@@ -296,6 +296,60 @@ def patch_notes(
     return ApplicationOut.from_orm_row(app_row)
 
 
+class TimelineRow(BaseModel):
+    kind: str       # "interaction" | "interview" | "event"
+    at: datetime
+    data: dict
+
+
+@router.get("/{aid}/timeline", response_model=list[TimelineRow])
+def get_timeline(
+    aid: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    from app.db.models import (
+        ApplicationEvent, Interaction, Interview,
+    )
+    _load_owned(db, aid, user)
+    rows: list[TimelineRow] = []
+    for it in db.query(Interaction).filter_by(application_id=aid):
+        rows.append(TimelineRow(
+            kind="interaction", at=it.occurred_at,
+            data={
+                "id": str(it.id),
+                "direction": it.direction.value,
+                "channel": it.channel.value,
+                "subject": it.subject,
+                "body": it.body,
+                "contact_name": it.contact_name,
+                "contact_handle": it.contact_handle,
+                "sentiment": it.sentiment.value if it.sentiment else None,
+            },
+        ))
+    for iv in db.query(Interview).filter_by(application_id=aid):
+        rows.append(TimelineRow(
+            kind="interview", at=iv.scheduled_at,
+            data={
+                "id": str(iv.id),
+                "kind": iv.kind.value,
+                "notes": iv.notes,
+                "outcome": iv.outcome.value,
+            },
+        ))
+    for ev in db.query(ApplicationEvent).filter_by(application_id=aid):
+        rows.append(TimelineRow(
+            kind="event", at=ev.occurred_at,
+            data={
+                "kind": ev.kind.value,
+                "from": ev.from_value, "to": ev.to_value,
+                "meta": ev.meta,
+            },
+        ))
+    rows.sort(key=lambda r: r.at, reverse=True)
+    return rows
+
+
 @router.delete("/{aid}", status_code=204)
 def delete_application(
     aid: uuid.UUID,
