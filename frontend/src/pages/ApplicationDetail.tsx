@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applications } from "../api/applications";
-import type { AppStatus } from "../api/applications";
+import type { AppStatus, DiscardPayload } from "../api/applications";
 import { cv as cvApi, anschreiben as anApi } from "../api/documents";
 import { JobPostingPanel } from "../components/JobPostingPanel";
 import { AnschreibenEditor } from "../components/AnschreibenEditor";
@@ -62,8 +62,8 @@ export default function ApplicationDetail() {
   const [pasteText, setPasteText] = useState("");
 
   const setStatus = useMutation({
-    mutationFn: ({ status, reason }: { status: AppStatus; reason?: string }) =>
-      applications.setStatus(id!, status, reason),
+    mutationFn: (payload: { status: AppStatus } | DiscardPayload) =>
+      applications.setStatus(id!, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["application", id] }),
   });
   const retry = useMutation({
@@ -172,19 +172,19 @@ export default function ApplicationDetail() {
             <input
               type="text"
               placeholder="Reason for discarding…"
-              defaultValue={a.discard_reason ?? ""}
+              defaultValue={a.discard_note ?? ""}
               onChange={(e) => setDiscardReason(e.target.value)}
               className="border rounded px-2 py-1 text-sm flex-1"
               onKeyDown={(e) => {
                 if (e.key === "Enter")
-                  setStatus.mutate({ status: "discarded", reason: discardReason });
+                  setStatus.mutate({ status: "discarded", discard_note: discardReason });
               }}
             />
             <button
               type="button"
               className="bg-orange-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50"
               disabled={setStatus.isPending}
-              onClick={() => setStatus.mutate({ status: "discarded", reason: discardReason })}
+              onClick={() => setStatus.mutate({ status: "discarded", discard_note: discardReason })}
             >
               {a.status === "discarded" ? "Update" : "Confirm discard"}
             </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { applications } from "../api/applications";
 import type { Application } from "../api/applications";
@@ -16,39 +16,32 @@ export function InquiryPanel({ app }: Props) {
   const qc = useQueryClient();
   const jp = app.job_posting;
   const pipelineReady = (["extracted", "ready"] as Application["job_state"][]).includes(app.job_state);
-  const hasDraft = app.inquiry_subject != null || app.inquiry_body != null;
 
-  const [subject, setSubject] = useState(app.inquiry_subject ?? "");
-  const [body, setBody] = useState(app.inquiry_body ?? "");
-  const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    if (!dirty) {
-      setSubject(app.inquiry_subject ?? "");
-      setBody(app.inquiry_body ?? "");
-    }
-  }, [app.inquiry_subject, app.inquiry_body, dirty]);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [hasDraft, setHasDraft] = useState(false);
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["application", app.id] });
 
   const draft = useMutation({
     mutationFn: () => applications.draftInquiry(app.id),
-    onSuccess: () => {
-      setDirty(false);
-      invalidate();
+    onSuccess: (data) => {
+      setSubject(data.subject);
+      setBody(data.body);
+      setHasDraft(true);
     },
   });
-  const save = useMutation({
-    mutationFn: () => applications.patchInquiry(app.id, { subject, body }),
+  const send = useMutation({
+    mutationFn: () => applications.sendInquiry(app.id, subject, body),
     onSuccess: () => {
-      setDirty(false);
+      // TODO(Task 14): replace this panel with the new ActivityTimeline-driven UI;
+      // for now, hide the local draft after a successful send.
+      setHasDraft(false);
+      setSubject("");
+      setBody("");
       invalidate();
     },
-  });
-  const markSent = useMutation({
-    mutationFn: () => applications.markInquirySent(app.id),
-    onSuccess: invalidate,
   });
 
   if (!jp || !pipelineReady) {
@@ -60,7 +53,6 @@ export function InquiryPanel({ app }: Props) {
   }
 
   const recipient = jp.contact?.email ?? null;
-  const isSent = app.inquiry_sent_at != null;
 
   const onDraft = () => {
     if (hasDraft && !confirm("Overwrite the current draft?")) return;
@@ -71,11 +63,6 @@ export function InquiryPanel({ app }: Props) {
     <div className="bg-white border rounded p-3 mt-4">
       <div className="flex items-center mb-2">
         <h2 className="font-semibold flex-1">Pre-application inquiry</h2>
-        {app.inquiry_sent_at && (
-          <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-            Sent {new Date(app.inquiry_sent_at).toLocaleDateString()}
-          </span>
-        )}
       </div>
 
       {!hasDraft ? (
@@ -93,32 +80,16 @@ export function InquiryPanel({ app }: Props) {
           <input
             className="border rounded px-2 py-1 w-full"
             value={subject}
-            readOnly={isSent}
-            onChange={(e) => {
-              setSubject(e.target.value);
-              setDirty(true);
-            }}
+            onChange={(e) => setSubject(e.target.value)}
           />
           <label className="block text-xs uppercase text-slate-500 mt-2">Body</label>
           <textarea
             className="border rounded px-2 py-1 w-full font-mono text-sm"
             rows={10}
             value={body}
-            readOnly={isSent}
-            onChange={(e) => {
-              setBody(e.target.value);
-              setDirty(true);
-            }}
+            onChange={(e) => setBody(e.target.value)}
           />
           <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
-              disabled={isSent || !dirty || save.isPending}
-              onClick={() => save.mutate()}
-            >
-              Save
-            </button>
             <a
               href={mailto(recipient, subject, body)}
               className={`px-3 py-1 rounded border ${
@@ -131,23 +102,23 @@ export function InquiryPanel({ app }: Props) {
             <button
               type="button"
               className="bg-emerald-600 text-white px-3 py-1 rounded disabled:opacity-50"
-              disabled={markSent.isPending}
-              onClick={() => markSent.mutate()}
+              disabled={send.isPending || !subject.trim() || !body.trim()}
+              onClick={() => send.mutate()}
             >
               Mark sent
             </button>
             <button
               type="button"
               className="bg-slate-200 text-slate-800 px-3 py-1 rounded disabled:opacity-50"
-              disabled={isSent || draft.isPending}
+              disabled={draft.isPending}
               onClick={onDraft}
             >
               Regenerate
             </button>
           </div>
-          {(save.isError || draft.isError || markSent.isError) && (
+          {(draft.isError || send.isError) && (
             <div className="text-rose-600 text-sm mt-2">
-              {((save.error || draft.error || markSent.error) as Error)?.toString()}
+              {((draft.error || send.error) as Error)?.toString()}
             </div>
           )}
         </>

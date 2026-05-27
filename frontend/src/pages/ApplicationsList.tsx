@@ -156,7 +156,8 @@ export default function ApplicationsList() {
 
   const visible = (data ?? []).filter((a) => {
     if (hiddenStatuses.has(a.status)) return false;
-    if (!showMailSent && a.inquiry_sent_at) return false;
+    // TODO(Task 16): re-implement "mail sent" filter against interactions table
+    void showMailSent;
     if (filterDocs.length > 0) {
       const docs = a.job_posting?.required_documents ?? [];
       if (!filterDocs.every((d) => docs.includes(d))) return false;
@@ -341,14 +342,7 @@ export default function ApplicationsList() {
             >
               ↗
             </a>
-            {a.inquiry_sent_at && (
-              <span
-                className="text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 flex-shrink-0 whitespace-nowrap"
-                title={`Inquiry sent ${new Date(a.inquiry_sent_at).toLocaleString()}`}
-              >
-                ✉ {new Date(a.inquiry_sent_at).toLocaleDateString()}
-              </span>
-            )}
+            {/* TODO(Task 14/16): show mail-sent badge from interactions */}
             <OnlineBadge online={a.posting_online} />
             <JobStateBadge state={a.job_state} />
             <StatusBadge status={a.status} />

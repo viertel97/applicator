@@ -67,11 +67,17 @@ export type Application = {
   labels: Label[];
   job_posting: JobPosting | null;
   folder_name: string;
-  discard_reason: string | null;
   notes: string | null;
-  inquiry_subject: string | null;
-  inquiry_body: string | null;
-  inquiry_sent_at: string | null;
+  discard_note: string | null;
+  discard_reason_id: string | null;
+  discard_interaction_id: string | null;
+};
+
+export type DiscardPayload = {
+  status: "discarded";
+  discard_reason_id?: string;
+  discard_interaction_id?: string;
+  discard_note?: string;
 };
 
 export type CreateApplicationBody = {
@@ -97,10 +103,10 @@ export const applications = {
   get: (id: string) => api<Application>(`/api/applications/${id}`),
   create: (body: CreateApplicationBody) =>
     api<Application>("/api/applications", { method: "POST", body: JSON.stringify(body) }),
-  setStatus: (id: string, status: AppStatus, discard_reason?: string) =>
+  setStatus: (id: string, payload: { status: AppStatus } | DiscardPayload) =>
     api<Application>(`/api/applications/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status, discard_reason: discard_reason ?? null }),
+      body: JSON.stringify(payload),
     }),
   remove: (id: string) =>
     api<void>(`/api/applications/${id}`, { method: "DELETE" }),
@@ -124,15 +130,10 @@ export const applications = {
       `/api/applications/${id}/inquiry/draft`,
       { method: "POST" },
     ),
-  patchInquiry: (id: string, body: { subject: string; body: string }) =>
-    api<{ subject: string; body: string; recipient: string | null; sent_at: string | null }>(
-      `/api/applications/${id}/inquiry`,
-      { method: "PATCH", body: JSON.stringify(body) },
-    ),
-  markInquirySent: (id: string) =>
-    api<{ sent_at: string }>(
+  sendInquiry: (id: string, subject: string, body: string) =>
+    api<{ interaction_id: string; sent_at: string }>(
       `/api/applications/${id}/inquiry/mark-sent`,
-      { method: "POST" },
+      { method: "POST", body: JSON.stringify({ subject, body }) },
     ),
   patchNotes: (id: string, notes: string | null) =>
     api<Application>(`/api/applications/${id}/notes`, {
