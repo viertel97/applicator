@@ -40,6 +40,10 @@ export default function ApplicationDetail() {
     if (q.data?.generated_md != null) setMd(q.data.generated_md);
   }, [q.data?.generated_md]);
 
+  useEffect(() => {
+    if (q.data) setNotes(q.data.notes ?? "");
+  }, [q.data?.notes]);
+
   const prevTitle = useRef(document.title);
   useEffect(() => {
     const prev = prevTitle.current;
@@ -53,6 +57,7 @@ export default function ApplicationDetail() {
 
   const [discardReason, setDiscardReason] = useState("");
   const [showDiscard, setShowDiscard] = useState(false);
+  const [notes, setNotes] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState("");
 
@@ -89,6 +94,10 @@ export default function ApplicationDetail() {
       qc.invalidateQueries({ queryKey: ["applications"] });
       navigate("/applications");
     },
+  });
+  const patchNotes = useMutation({
+    mutationFn: (n: string | null) => applications.patchNotes(id!, n),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["application", id] }),
   });
 
   if (q.isLoading || !q.data) return <div className="p-6">Loading…</div>;
@@ -205,6 +214,20 @@ export default function ApplicationDetail() {
         <div className="mb-3">
           <div className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Labels</div>
           <LabelEditor appId={a.id} assigned={a.labels} />
+        </div>
+        <div className="mb-3">
+          <div className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Notes</div>
+          <textarea
+            className="w-full border rounded px-2 py-1 text-sm resize-none"
+            rows={3}
+            placeholder="e.g. sent message to recruiter via LinkedIn…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => {
+              const val = notes.trim() || null;
+              if (val !== (a.notes ?? null)) patchNotes.mutate(val);
+            }}
+          />
         </div>
 
         {a.job_state === "failed" && (

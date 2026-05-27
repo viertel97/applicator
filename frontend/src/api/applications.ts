@@ -68,6 +68,7 @@ export type Application = {
   job_posting: JobPosting | null;
   folder_name: string;
   discard_reason: string | null;
+  notes: string | null;
   inquiry_subject: string | null;
   inquiry_body: string | null;
   inquiry_sent_at: string | null;
@@ -133,6 +134,11 @@ export const applications = {
       `/api/applications/${id}/inquiry/mark-sent`,
       { method: "POST" },
     ),
+  patchNotes: (id: string, notes: string | null) =>
+    api<Application>(`/api/applications/${id}/notes`, {
+      method: "PATCH",
+      body: JSON.stringify({ notes }),
+    }),
   extractFromText: (id: string, raw_text: string) =>
     api<Application>(`/api/applications/${id}/extract-from-text`, {
       method: "POST",

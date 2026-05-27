@@ -113,6 +113,7 @@ class ApplicationOut(BaseModel):
     job_posting: JobPostingOut | None
     folder_name: str
     discard_reason: str | None
+    notes: str | None
     inquiry_subject: str | None
     inquiry_body: str | None
     inquiry_sent_at: datetime | None
@@ -144,6 +145,7 @@ class ApplicationOut(BaseModel):
                 app.job_posting.title if app.job_posting else None,
             ),
             discard_reason=app.discard_reason,
+            notes=app.notes,
             inquiry_subject=app.inquiry_subject,
             inquiry_body=app.inquiry_body,
             inquiry_sent_at=app.inquiry_sent_at,
@@ -252,6 +254,24 @@ def update_status(
         app_row.discard_reason = body.discard_reason or None
     else:
         app_row.discard_reason = None
+    db.commit()
+    db.refresh(app_row)
+    return ApplicationOut.from_orm_row(app_row)
+
+
+class NotesPatch(BaseModel):
+    notes: str | None = None
+
+
+@router.patch("/{aid}/notes", response_model=ApplicationOut)
+def patch_notes(
+    aid: uuid.UUID,
+    body: NotesPatch,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    app_row = _load_owned(db, aid, user)
+    app_row.notes = body.notes
     db.commit()
     db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)
@@ -499,7 +519,7 @@ def _build_inquiry_job(app_row: Application):
     )
 
 
-_OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Vorab-Mail")
+_OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Offene Fragen-Mail")
 
 
 def _ensure_inquiry_prompt(db: Session, user: User):
