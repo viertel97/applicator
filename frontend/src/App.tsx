@@ -7,6 +7,7 @@ import SettingsAnschreiben from "./pages/SettingsAnschreiben";
 import SettingsLLM from "./pages/SettingsLLM";
 import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
 import SettingsDiscardReasons from "./pages/SettingsDiscardReasons";
+import Stats from "./pages/Stats";
 import { useAuth } from "./hooks/useAuth";
 
 function Nav() {
@@ -25,6 +26,7 @@ function Nav() {
     <nav className="bg-white border-b px-4 py-2 flex gap-2 items-center">
       <span className="font-bold mr-3">Applicator</span>
       {item("/applications", "Applications")}
+      {item("/stats", "Stats")}
       {item("/settings/cv", "CV")}
       {item("/settings/anschreiben", "Anschreiben")}
       {item("/settings/llm", "LLM")}
@@ -68,6 +70,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <ApplicationDetail />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/stats"
+        element={
+          <ProtectedShell>
+            <Stats />
           </ProtectedShell>
         }
       />
