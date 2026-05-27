@@ -14,6 +14,7 @@ from app.api import interviews as interviews_api
 from app.api import inquiry_prompt as inquiry_prompt_api
 from app.api import labels as labels_api
 from app.config import get_settings
+from app.db import events as db_events
 from app.tasks.backfill import backfill_missing_task
 from app.tasks.categorize_labels import categorize_existing_labels_task
 
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    db_events.register()
     settings = get_settings()
     app = FastAPI(title="Applicator", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
