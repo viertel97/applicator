@@ -182,9 +182,9 @@ Single JSON blob, computed by `backend/app/services/stats.py` with raw SQL aggre
 }
 ```
 
-**Response rate definition**: `responses[channel]` = count of applications with ≥1 incoming interaction on that channel whose `occurred_at` is after the earliest outgoing interaction on the same channel for that application. Prevents cross-channel inflation.
-
-`stage=responded` in the funnel = applications with ≥1 incoming interaction on any channel.
+**Response definitions** (intentionally different):
+- `response_rate_by_channel.responses[channel]` = count of applications with ≥1 incoming interaction on that channel whose `occurred_at` is strictly after the earliest outgoing interaction on the same channel for that application. The same-channel + ordering rule prevents cross-channel inflation (e.g. mail-out + linkedin-in doesn't count as a mail response).
+- `funnel.stage=responded` = count of applications with ≥1 incoming interaction on any channel, regardless of ordering. Looser by design: the funnel measures "did this app generate any reply?" while channel rates measure per-channel effectiveness.
 
 ## Frontend
 
@@ -251,7 +251,7 @@ Charts via **recharts** (new dependency).
 6. Data backfill (raw SQL via `op.execute`):
    - For each `user`: insert the 10 system discard reasons (slugs + default labels, `is_system=true`).
    - For each `application` where `inquiry_sent_at IS NOT NULL`: insert one `interaction` row (direction=out, channel=mail, occurred_at=`inquiry_sent_at`, subject=`inquiry_subject`, body=`inquiry_body`, created_from=`inquiry_migration`).
-   - For each `application` where status=`discarded` AND `discard_note` matches a seeded label case-insensitively: set `discard_reason_id` to the matching reason. Unmatched: leave `discard_reason_id` NULL; the original text remains in `discard_note`.
+   - For each `application` where status=`discarded` AND `discard_note` matches a seeded label case-insensitively: set `discard_reason_id` to the matching reason. Unmatched OR NULL `discard_note`: leave `discard_reason_id` NULL; any existing text in `discard_note` is preserved.
    - For each `application`: insert one `application_event` row (kind=`created`, occurred_at=`application.created_at`).
 7. Drop columns: `inquiry_subject`, `inquiry_body`, `inquiry_sent_at`.
 8. Downgrade: drop new tables, drop new columns, restore old columns as nullable (backfill data loss for inquiry fields is accepted; documented in revision docstring).
