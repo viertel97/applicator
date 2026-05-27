@@ -6,6 +6,7 @@ import SettingsCV from "./pages/SettingsCV";
 import SettingsAnschreiben from "./pages/SettingsAnschreiben";
 import SettingsLLM from "./pages/SettingsLLM";
 import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
+import SettingsDiscardReasons from "./pages/SettingsDiscardReasons";
 import { useAuth } from "./hooks/useAuth";
 
 function Nav() {
@@ -28,6 +29,7 @@ function Nav() {
       {item("/settings/anschreiben", "Anschreiben")}
       {item("/settings/llm", "LLM")}
       {item("/settings/inquiry-prompt", "Inquiry prompt")}
+      {item("/settings/discard-reasons", "Discard reasons")}
       {authData?.oauth_enabled && (
         <form action="/api/auth/logout" method="post" className="ml-auto">
           <button className="text-sm text-slate-600">Logout</button>
@@ -98,6 +100,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <SettingsInquiryPrompt />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/settings/discard-reasons"
+        element={
+          <ProtectedShell>
+            <SettingsDiscardReasons />
           </ProtectedShell>
         }
       />
