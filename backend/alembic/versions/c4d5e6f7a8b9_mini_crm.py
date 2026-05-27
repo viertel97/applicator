@@ -41,20 +41,24 @@ SYSTEM_REASONS = [
 def upgrade() -> None:
     bind = op.get_bind()
 
-    direction = postgresql.ENUM("out", "in", name="interactiondirection")
+    direction = postgresql.ENUM(
+        "out", "in", name="interactiondirection", create_type=False
+    )
     channel = postgresql.ENUM(
         "mail", "linkedin", "phone", "portal", "xing", "other",
-        name="interactionchannel",
+        name="interactionchannel", create_type=False,
     )
     sentiment = postgresql.ENUM(
-        "positive", "neutral", "negative", "rejection", name="interactionsentiment",
+        "positive", "neutral", "negative", "rejection",
+        name="interactionsentiment", create_type=False,
     )
     created_from = postgresql.ENUM(
-        "manual", "inquiry_migration", "graph_sync", name="interactioncreatedfrom",
+        "manual", "inquiry_migration", "graph_sync",
+        name="interactioncreatedfrom", create_type=False,
     )
     event_kind = postgresql.ENUM(
         "status_change", "created", "inquiry_generated", "interview_scheduled",
-        name="applicationeventkind",
+        name="applicationeventkind", create_type=False,
     )
     for e in (direction, channel, sentiment, created_from, event_kind):
         e.create(bind, checkfirst=True)
@@ -174,7 +178,7 @@ def upgrade() -> None:
         UPDATE application a SET discard_reason_id = dr.id
           FROM discard_reason dr
          WHERE a.user_id = dr.user_id
-           AND a.status = 'discarded'
+           AND a.status::text = 'discarded'
            AND a.discard_note IS NOT NULL
            AND lower(trim(a.discard_note)) = lower(dr.label)
         """
