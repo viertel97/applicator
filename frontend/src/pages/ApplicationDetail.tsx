@@ -7,11 +7,11 @@ import { cv as cvApi, anschreiben as anApi } from "../api/documents";
 import { JobPostingPanel } from "../components/JobPostingPanel";
 import { AnschreibenEditor } from "../components/AnschreibenEditor";
 import { ChatPanel } from "../components/ChatPanel";
-import { InterviewsList } from "../components/InterviewsList";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
 import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { InquiryPanel } from "../components/InquiryPanel";
+import { ActivityPanel } from "../components/ActivityPanel";
 
 const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
 
@@ -215,21 +215,6 @@ export default function ApplicationDetail() {
           <div className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Labels</div>
           <LabelEditor appId={a.id} assigned={a.labels} />
         </div>
-        <div className="mb-3">
-          <div className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">Notes</div>
-          <textarea
-            className="w-full border rounded px-2 py-1 text-sm resize-none"
-            rows={3}
-            placeholder="e.g. sent message to recruiter via LinkedIn…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => {
-              const val = notes.trim() || null;
-              if (val !== (a.notes ?? null)) patchNotes.mutate(val);
-            }}
-          />
-        </div>
-
         {a.job_state === "failed" && (
           <div className="bg-rose-50 border border-rose-200 p-3 rounded mb-3">
             <div className="text-rose-700 text-sm mb-2">
@@ -375,7 +360,18 @@ export default function ApplicationDetail() {
           </button>
         </div>
 
-        <InterviewsList appId={a.id} />
+        <div className="mt-4">
+          <ActivityPanel
+            appId={a.id}
+            notes={a.notes ?? null}
+            notesValue={notes}
+            onNotesChange={setNotes}
+            onNotesBlur={() => {
+              const val = notes.trim() || null;
+              if (val !== (a.notes ?? null)) patchNotes.mutate(val);
+            }}
+          />
+        </div>
         <InquiryPanel app={a} />
       </div>
       <div>

@@ -21,8 +21,10 @@ export function InquiryPanel({ app }: Props) {
   const [body, setBody] = useState("");
   const [hasDraft, setHasDraft] = useState(false);
 
-  const invalidate = () =>
+  const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["application", app.id] });
+    qc.invalidateQueries({ queryKey: ["application-timeline", app.id] });
+  };
 
   const draft = useMutation({
     mutationFn: () => applications.draftInquiry(app.id),
@@ -35,8 +37,6 @@ export function InquiryPanel({ app }: Props) {
   const send = useMutation({
     mutationFn: () => applications.sendInquiry(app.id, subject, body),
     onSuccess: () => {
-      // TODO(Task 14): replace this panel with the new ActivityTimeline-driven UI;
-      // for now, hide the local draft after a successful send.
       setHasDraft(false);
       setSubject("");
       setBody("");
@@ -105,7 +105,7 @@ export function InquiryPanel({ app }: Props) {
               disabled={send.isPending || !subject.trim() || !body.trim()}
               onClick={() => send.mutate()}
             >
-              Mark sent
+              Send
             </button>
             <button
               type="button"
