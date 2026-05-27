@@ -130,11 +130,6 @@ export const applications = {
       `/api/applications/${id}/inquiry/draft`,
       { method: "POST" },
     ),
-  sendInquiry: (id: string, subject: string, body: string) =>
-    api<{ interaction_id: string; sent_at: string }>(
-      `/api/applications/${id}/inquiry/mark-sent`,
-      { method: "POST", body: JSON.stringify({ subject, body }) },
-    ),
   patchNotes: (id: string, notes: string | null) =>
     api<Application>(`/api/applications/${id}/notes`, {
       method: "PATCH",

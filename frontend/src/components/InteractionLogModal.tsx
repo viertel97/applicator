@@ -3,18 +3,25 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   interactions, type CreateInteractionInput, type Channel, type Direction, type Sentiment,
 } from "../api/interactions";
-import { applications, type DiscardPayload } from "../api/applications";
+import { applications, type Application, type DiscardPayload } from "../api/applications";
 import { DiscardReasonPicker } from "./DiscardReasonPicker";
 
 type Props = {
   appId: string;
   open: boolean;
   onClose: () => void;
+  app?: Application;
 };
 
-const CHANNELS: Channel[] = ["mail", "linkedin", "phone", "portal", "xing", "other"];
+const CHANNELS: Channel[] = ["mail", "linkedin", "phone", "portal", "xing", "interview", "other"];
 
-export function InteractionLogModal({ appId, open, onClose }: Props) {
+function mailto(to: string | null, subject: string, body: string): string {
+  const normalized = body.replace(/\\n/g, "\n");
+  const crlfBody = normalized.replace(/\r?\n/g, "\r\n");
+  return `mailto:${to ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(crlfBody)}`;
+}
+
+export function InteractionLogModal({ appId, open, onClose, app }: Props) {
   const qc = useQueryClient();
   const [direction, setDirection] = useState<Direction>("out");
   const [channel, setChannel] = useState<Channel>("mail");
@@ -48,6 +55,17 @@ export function InteractionLogModal({ appId, open, onClose }: Props) {
     },
   });
 
+  const draft = useMutation({
+    mutationFn: () => applications.draftInquiry(appId),
+    onSuccess: (data) => {
+      setSubject(data.subject);
+      setBody(data.body);
+      if (data.recipient) setContactHandle(data.recipient);
+      const cname = app?.job_posting?.contact?.name;
+      if (cname) setContactName(cname);
+    },
+  });
+
   const discardApp = useMutation({
     mutationFn: (payload: DiscardPayload) => applications.setStatus(appId, payload),
     onSuccess: () => {
@@ -64,6 +82,14 @@ export function InteractionLogModal({ appId, open, onClose }: Props) {
   }
 
   if (!open) return null;
+  const pipelineReady =
+    app != null &&
+    (app.job_state === "extracted" || app.job_state === "ready") &&
+    app.job_posting != null;
+  const recipient = app?.job_posting?.contact?.email ?? null;
+  const canDraft =
+    channel === "mail" && direction === "out" && pipelineReady;
+  const showMailActions = channel === "mail" && direction === "out";
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded shadow-lg p-4 w-[520px] max-h-[90vh] overflow-y-auto">
@@ -92,14 +118,19 @@ export function InteractionLogModal({ appId, open, onClose }: Props) {
                      onChange={(e) => setContactHandle(e.target.value)}
                      className="border rounded px-2 py-1 text-sm" />
             </div>
-            {channel === "mail" && (
-              <input placeholder="Subject" value={subject}
-                     onChange={(e) => setSubject(e.target.value)}
-                     className="border rounded px-2 py-1 text-sm w-full mb-2" />
+            {(channel === "mail" || channel === "interview") && (
+              <input
+                placeholder={channel === "interview" ? "Round / type (e.g. Technical screen)" : "Subject"}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="border rounded px-2 py-1 text-sm w-full mb-2"
+              />
             )}
-            <textarea placeholder="Body" value={body}
-                      onChange={(e) => setBody(e.target.value)} rows={5}
-                      className="border rounded px-2 py-1 text-sm w-full mb-2" />
+            <textarea
+              placeholder={channel === "interview" ? "Comment (how it went, notes)" : "Body"}
+              value={body}
+              onChange={(e) => setBody(e.target.value)} rows={5}
+              className="border rounded px-2 py-1 text-sm w-full mb-2" />
             {direction === "in" && (
               <select value={sentiment ?? ""}
                       onChange={(e) => setSentiment((e.target.value || null) as Sentiment)}
@@ -110,6 +141,34 @@ export function InteractionLogModal({ appId, open, onClose }: Props) {
                 <option value="negative">negative</option>
                 <option value="rejection">rejection</option>
               </select>
+            )}
+            {showMailActions && (
+              <div className="flex flex-wrap gap-2 mb-3 border-t pt-3">
+                <button
+                  type="button"
+                  disabled={!canDraft || draft.isPending}
+                  onClick={() => {
+                    if ((subject || body) && !confirm("Overwrite current draft?")) return;
+                    draft.mutate();
+                  }}
+                  title={canDraft ? "Generate inquiry via LLM" : "Available after extraction"}
+                  className="bg-violet-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50">
+                  {draft.isPending ? "Drafting…" : "Draft inquiry"}
+                </button>
+                <a
+                  href={mailto(recipient, subject, body)}
+                  className={`px-3 py-1 rounded border text-sm ${
+                    recipient ? "border-blue-600 text-blue-700" : "border-slate-300 text-slate-400 pointer-events-none"
+                  }`}
+                  title={recipient ? "" : "No recipient on file"}>
+                  Open in mail
+                </a>
+                {draft.isError && (
+                  <span className="text-rose-600 text-xs self-center">
+                    {(draft.error as Error)?.toString()}
+                  </span>
+                )}
+              </div>
             )}
             <div className="flex justify-end gap-2 mt-3">
               <button type="button" onClick={onClose}

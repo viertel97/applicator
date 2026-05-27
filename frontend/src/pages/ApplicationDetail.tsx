@@ -10,7 +10,6 @@ import { ChatPanel } from "../components/ChatPanel";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
 import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { InquiryPanel } from "../components/InquiryPanel";
 import { ActivityPanel } from "../components/ActivityPanel";
 
 const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
@@ -363,6 +362,7 @@ export default function ApplicationDetail() {
         <div className="mt-4">
           <ActivityPanel
             appId={a.id}
+            app={a}
             notes={a.notes ?? null}
             notesValue={notes}
             onNotesChange={setNotes}
@@ -372,7 +372,6 @@ export default function ApplicationDetail() {
             }}
           />
         </div>
-        <InquiryPanel app={a} />
       </div>
       <div>
         {a.generated_md != null ? (
