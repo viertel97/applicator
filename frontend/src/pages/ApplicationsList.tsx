@@ -1,17 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { Application, AppStatus, LabelCategory } from "../api/applications";
 import { applications } from "../api/applications";
 import { labels as labelsApi } from "../api/labels";
+import { discardReasons } from "../api/discardReasons";
 import { AddApplicationForm } from "../components/AddApplicationForm";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
 import { LabelChip } from "../components/LabelChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DiscardReasonPicker } from "../components/DiscardReasonPicker";
 
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
 const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
-const MAIL_SENT_FILTER_KEY = "applicator.statusFilter.showMailSent";
 const DOCS_FILTER_KEY = "applicator.docsFilter.required";
 
 const ALL_DOCS = ["cv", "cover_letter", "portfolio", "references", "certificates", "other"] as const;
@@ -74,18 +75,14 @@ function saveHiddenStatuses(s: Set<AppStatus>) {
   localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify([...s]));
 }
 
-function loadShowMailSent(): boolean {
-  const raw = localStorage.getItem(MAIL_SENT_FILTER_KEY);
-  return raw === null ? true : raw === "true";
-}
-
 export default function ApplicationsList() {
   const scrollKey = "applicator.list.scrollY";
   const restoredRef = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [filterLabelIds, setFilterLabelIds] = useState<string[]>([]);
   const [hiddenStatuses, setHiddenStatuses] = useState<Set<AppStatus>>(() => loadHiddenStatuses());
-  const [showMailSent, setShowMailSent] = useState<boolean>(() => loadShowMailSent());
+  const [reasonFilter, setReasonFilter] = useState<string | null>(null);
   const qc = useQueryClient();
   const [pendingDelete, setPendingDelete] = useState<Application | null>(null);
   const remove = useMutation({
@@ -97,6 +94,14 @@ export default function ApplicationsList() {
   });
 
   const allLabels = useQuery({ queryKey: ["labels"], queryFn: labelsApi.list });
+  const reasonsQ = useQuery({
+    queryKey: ["discard-reasons"],
+    queryFn: () => discardReasons.list(),
+  });
+  const reasonMap = useMemo(
+    () => Object.fromEntries((reasonsQ.data ?? []).map((r) => [r.id, r.label])),
+    [reasonsQ.data],
+  );
 
   const { data, isLoading } = useQuery<Application[]>({
     queryKey: ["applications", filterLabelIds],
@@ -107,6 +112,58 @@ export default function ApplicationsList() {
       return arr.some((a) => !["ready", "failed"].includes(a.job_state)) ? 2000 : false;
     },
   });
+
+  // Sync URL query params (?status=discarded&reason=<slug>) into local state.
+  // Runs once when params or reasons become available.
+  const urlSyncedRef = useRef(false);
+  useEffect(() => {
+    if (urlSyncedRef.current) return;
+    const statusParam = searchParams.get("status");
+    const reasonParam = searchParams.get("reason");
+    if (!statusParam && !reasonParam) {
+      urlSyncedRef.current = true;
+      return;
+    }
+    // For reason resolution we need the reasons list.
+    if (reasonParam && !reasonsQ.data) return;
+
+    if (statusParam && (ALL_STATUSES as string[]).includes(statusParam)) {
+      // Show only the requested status.
+      const next = new Set<AppStatus>(ALL_STATUSES.filter((s) => s !== statusParam));
+      setHiddenStatuses(next);
+      saveHiddenStatuses(next);
+    }
+    if (reasonParam && reasonsQ.data) {
+      const match = reasonsQ.data.find((r) => r.slug === reasonParam || r.id === reasonParam);
+      if (match) setReasonFilter(match.id);
+    }
+    urlSyncedRef.current = true;
+  }, [searchParams, reasonsQ.data]);
+
+  const discardedVisible = !hiddenStatuses.has("discarded");
+
+  // Clear the reason filter if the user re-hides the discarded status.
+  useEffect(() => {
+    if (!discardedVisible && reasonFilter) setReasonFilter(null);
+  }, [discardedVisible, reasonFilter]);
+
+  // Keep URL in sync with the reason picker so it stays shareable.
+  useEffect(() => {
+    if (!urlSyncedRef.current) return;
+    const current = searchParams.get("reason");
+    if (reasonFilter && reasonsQ.data) {
+      const r = reasonsQ.data.find((x) => x.id === reasonFilter);
+      if (r && current !== r.slug) {
+        const next = new URLSearchParams(searchParams);
+        next.set("reason", r.slug);
+        setSearchParams(next, { replace: true });
+      }
+    } else if (!reasonFilter && current) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("reason");
+      setSearchParams(next, { replace: true });
+    }
+  }, [reasonFilter, reasonsQ.data]);
 
   useEffect(() => {
     if (isLoading || restoredRef.current) return;
@@ -154,16 +211,18 @@ export default function ApplicationsList() {
     });
   }
 
-  const visible = (data ?? []).filter((a) => {
-    if (hiddenStatuses.has(a.status)) return false;
-    // TODO(Task 16): re-implement "mail sent" filter against interactions table
-    void showMailSent;
-    if (filterDocs.length > 0) {
-      const docs = a.job_posting?.required_documents ?? [];
-      if (!filterDocs.every((d) => docs.includes(d))) return false;
-    }
-    return true;
-  });
+  const visible = useMemo(() => {
+    return (data ?? []).filter((a) => {
+      if (hiddenStatuses.has(a.status)) return false;
+      if (reasonFilter && a.status === "discarded" && a.discard_reason_id !== reasonFilter)
+        return false;
+      if (filterDocs.length > 0) {
+        const docs = a.job_posting?.required_documents ?? [];
+        if (!filterDocs.every((d) => docs.includes(d))) return false;
+      }
+      return true;
+    });
+  }, [data, hiddenStatuses, reasonFilter, filterDocs]);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -171,7 +230,7 @@ export default function ApplicationsList() {
       <AddApplicationForm />
 
       {/* Status filter */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3 items-center">
         {ALL_STATUSES.map((s) => {
           const hidden = hiddenStatuses.has(s);
           return (
@@ -189,21 +248,15 @@ export default function ApplicationsList() {
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={() => {
-            const next = !showMailSent;
-            setShowMailSent(next);
-            localStorage.setItem(MAIL_SENT_FILTER_KEY, String(next));
-          }}
-          className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-            showMailSent
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white text-slate-400 border-slate-200"
-          }`}
-        >
-          ✉ Mail sent
-        </button>
+        {discardedVisible && (
+          <div className="flex items-center gap-1 ml-2">
+            <span className="text-xs text-slate-500">Reason:</span>
+            <DiscardReasonPicker
+              value={reasonFilter}
+              onChange={(id) => setReasonFilter(id)}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-3">
@@ -342,10 +395,12 @@ export default function ApplicationsList() {
             >
               ↗
             </a>
-            {/* TODO(Task 14/16): show mail-sent badge from interactions */}
             <OnlineBadge online={a.posting_online} />
             <JobStateBadge state={a.job_state} />
-            <StatusBadge status={a.status} />
+            <StatusBadge
+              status={a.status}
+              title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
+            />
             <button
               type="button"
               className="text-slate-400 hover:text-rose-600 px-2"

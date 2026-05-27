@@ -12,9 +12,12 @@ const STATUS_CLASS: Record<AppStatus, string> = {
   apply_direct: "bg-teal-100 text-teal-700",
 };
 
-export function StatusBadge({ status }: { status: AppStatus }) {
+export function StatusBadge({ status, title }: { status: AppStatus; title?: string }) {
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_CLASS[status]}`}>
+    <span
+      className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_CLASS[status]}`}
+      title={title}
+    >
       {status}
     </span>
   );
