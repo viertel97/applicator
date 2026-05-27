@@ -197,3 +197,59 @@ def test_other_users_cv_variant_rejected(monkeypatch, auth_user, db_session, app
         json={"url": "https://x.test/j2", "anschreiben_variant_id": str(other_an.id)},
     )
     assert r.status_code == 400, f"Expected 400 but got {r.status_code}: {r.text}"
+
+
+def test_discard_with_structured_fields(client, db_session, auth_user):
+    _, user = auth_user
+    a = Application(user_id=user.id, url="https://x.test/d", url_hash="hd")
+    db_session.add(a)
+    db_session.commit()
+
+    # ensure reasons seeded
+    reasons = client.get("/api/discard-reasons").json()
+    rejected = next(r for r in reasons if r["slug"] == "rejected")
+
+    # create an interaction to point to
+    it = client.post(
+        f"/api/applications/{a.id}/interactions",
+        json={
+            "direction": "in",
+            "channel": "mail",
+            "sentiment": "rejection",
+            "body": "no",
+        },
+    ).json()["interaction"]
+
+    r = client.patch(
+        f"/api/applications/{a.id}",
+        json={
+            "status": "discarded",
+            "discard_reason_id": rejected["id"],
+            "discard_interaction_id": it["id"],
+            "discard_note": "auto from rejection mail",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "discarded"
+    assert body["discard_reason_id"] == rejected["id"]
+    assert body["discard_interaction_id"] == it["id"]
+    assert body["discard_note"] == "auto from rejection mail"
+
+
+def test_un_discard_clears_structured_fields(client, db_session, auth_user):
+    _, user = auth_user
+    a = Application(user_id=user.id, url="https://x.test/u", url_hash="hu")
+    db_session.add(a)
+    db_session.commit()
+    reasons = client.get("/api/discard-reasons").json()
+    rid = reasons[0]["id"]
+    client.patch(
+        f"/api/applications/{a.id}",
+        json={"status": "discarded", "discard_reason_id": rid},
+    )
+    r = client.patch(f"/api/applications/{a.id}", json={"status": "draft"})
+    body = r.json()
+    assert body["discard_reason_id"] is None
+    assert body["discard_interaction_id"] is None
+    assert body["discard_note"] is None

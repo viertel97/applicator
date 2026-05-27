@@ -112,11 +112,10 @@ class ApplicationOut(BaseModel):
     labels: list[LabelOut]
     job_posting: JobPostingOut | None
     folder_name: str
-    discard_reason: str | None
+    discard_note: str | None
+    discard_reason_id: uuid.UUID | None
+    discard_interaction_id: uuid.UUID | None
     notes: str | None
-    inquiry_subject: str | None
-    inquiry_body: str | None
-    inquiry_sent_at: datetime | None
 
     @classmethod
     def from_orm_row(cls, app: Application) -> "ApplicationOut":
@@ -144,11 +143,10 @@ class ApplicationOut(BaseModel):
                 app.job_posting.company if app.job_posting else None,
                 app.job_posting.title if app.job_posting else None,
             ),
-            discard_reason=app.discard_reason,
+            discard_note=app.discard_note,
+            discard_reason_id=app.discard_reason_id,
+            discard_interaction_id=app.discard_interaction_id,
             notes=app.notes,
-            inquiry_subject=app.inquiry_subject,
-            inquiry_body=app.inquiry_body,
-            inquiry_sent_at=app.inquiry_sent_at,
         )
 
 
@@ -238,7 +236,11 @@ def get_app(
 
 class StatusUpdate(BaseModel):
     status: ApplicationStatus
+    # back-compat: accept legacy free-text key but map into discard_note
     discard_reason: str | None = None
+    discard_reason_id: uuid.UUID | None = None
+    discard_interaction_id: uuid.UUID | None = None
+    discard_note: str | None = None
 
 
 @router.patch("/{aid}", response_model=ApplicationOut)
@@ -248,12 +250,29 @@ def update_status(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
+    from app.db.models import DiscardReason, Interaction
     app_row = _load_owned(db, aid, user)
     app_row.status = body.status
     if body.status == ApplicationStatus.discarded:
-        app_row.discard_reason = body.discard_reason or None
+        if body.discard_reason_id is not None:
+            r = db.get(DiscardReason, body.discard_reason_id)
+            if not r or r.user_id != user.id:
+                raise HTTPException(400, "discard_reason_id invalid")
+            app_row.discard_reason_id = body.discard_reason_id
+        if body.discard_interaction_id is not None:
+            it = db.get(Interaction, body.discard_interaction_id)
+            if not it or it.application_id != app_row.id:
+                raise HTTPException(400, "discard_interaction_id invalid")
+            app_row.discard_interaction_id = body.discard_interaction_id
+        # back-compat: legacy `discard_reason` (free text) maps into `discard_note`
+        if body.discard_note is not None:
+            app_row.discard_note = body.discard_note
+        elif body.discard_reason is not None:
+            app_row.discard_note = body.discard_reason
     else:
-        app_row.discard_reason = None
+        app_row.discard_reason_id = None
+        app_row.discard_interaction_id = None
+        app_row.discard_note = None
     db.commit()
     db.refresh(app_row)
     return ApplicationOut.from_orm_row(app_row)
