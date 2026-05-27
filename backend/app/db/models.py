@@ -88,6 +88,40 @@ class LabelCategory(str, enum.Enum):
     other = "other"
 
 
+class InteractionDirection(str, enum.Enum):
+    out = "out"
+    in_ = "in"
+
+
+class InteractionChannel(str, enum.Enum):
+    mail = "mail"
+    linkedin = "linkedin"
+    phone = "phone"
+    portal = "portal"
+    xing = "xing"
+    other = "other"
+
+
+class InteractionSentiment(str, enum.Enum):
+    positive = "positive"
+    neutral = "neutral"
+    negative = "negative"
+    rejection = "rejection"
+
+
+class InteractionCreatedFrom(str, enum.Enum):
+    manual = "manual"
+    inquiry_migration = "inquiry_migration"
+    graph_sync = "graph_sync"
+
+
+class ApplicationEventKind(str, enum.Enum):
+    status_change = "status_change"
+    created = "created"
+    inquiry_generated = "inquiry_generated"
+    interview_scheduled = "interview_scheduled"
+
+
 def _uuid() -> uuid.UUID:
     return uuid.uuid4()
 
@@ -197,10 +231,14 @@ class Application(Base):
     )
     posting_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     posting_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    inquiry_subject: Mapped[str | None] = mapped_column(Text, nullable=True)
-    inquiry_body: Mapped[str | None] = mapped_column(Text, nullable=True)
-    inquiry_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    discard_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    discard_reason_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("discard_reason.id"), nullable=True
+    )
+    discard_interaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("interaction.id", use_alter=True, name="fk_app_discard_interaction"),
+        nullable=True,
+    )
+    discard_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -290,4 +328,70 @@ class InquiryPromptTemplate(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class DiscardReason(Base):
+    __tablename__ = "discard_reason"
+    __table_args__ = (UniqueConstraint("user_id", "slug", name="uq_discard_user_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Interaction(Base):
+    __tablename__ = "interaction"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("application.id"), index=True
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    direction: Mapped[InteractionDirection] = mapped_column(
+        Enum(InteractionDirection, name="interactiondirection")
+    )
+    channel: Mapped[InteractionChannel] = mapped_column(
+        Enum(InteractionChannel, name="interactionchannel")
+    )
+    subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact_handle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sentiment: Mapped[InteractionSentiment | None] = mapped_column(
+        Enum(InteractionSentiment, name="interactionsentiment"), nullable=True
+    )
+    created_from: Mapped[InteractionCreatedFrom] = mapped_column(
+        Enum(InteractionCreatedFrom, name="interactioncreatedfrom"),
+        default=InteractionCreatedFrom.manual,
+        server_default=InteractionCreatedFrom.manual.value,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ApplicationEvent(Base):
+    __tablename__ = "application_event"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("application.id"), index=True
+    )
+    kind: Mapped[ApplicationEventKind] = mapped_column(
+        Enum(ApplicationEventKind, name="applicationeventkind")
+    )
+    from_value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    to_value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), index=True
     )

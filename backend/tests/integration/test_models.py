@@ -65,3 +65,66 @@ def test_failed_stage_enum_values():
     from app.db.models import FailedStage
 
     assert {s.value for s in FailedStage} == {"crawl", "extract", "generate"}
+
+
+def test_discard_reason_unique_user_slug(db_session):
+    from app.db.models import DiscardReason, User
+
+    u = User(ms_oid="o1", email="x@y", display_name="X")
+    db_session.add(u); db_session.commit()
+    db_session.add(DiscardReason(user_id=u.id, slug="no_reply", label="No reply"))
+    db_session.commit()
+    import sqlalchemy.exc
+    db_session.add(DiscardReason(user_id=u.id, slug="no_reply", label="dup"))
+    try:
+        db_session.commit()
+        raised = False
+    except sqlalchemy.exc.IntegrityError:
+        db_session.rollback(); raised = True
+    assert raised
+
+
+def test_interaction_roundtrip(db_session):
+    from app.db.models import (
+        Application,
+        Interaction,
+        InteractionChannel,
+        InteractionDirection,
+        User,
+    )
+
+    u = User(ms_oid="o2", email="y@z", display_name="Y")
+    db_session.add(u); db_session.commit()
+    app_row = Application(user_id=u.id, url="https://x.test/m", url_hash="h-m")
+    db_session.add(app_row); db_session.commit()
+    it = Interaction(
+        application_id=app_row.id,
+        direction=InteractionDirection.out,
+        channel=InteractionChannel.linkedin,
+        body="hi",
+    )
+    db_session.add(it); db_session.commit()
+    db_session.refresh(it)
+    assert it.id and it.created_at and it.occurred_at
+
+
+def test_application_event_kind_enum(db_session):
+    from app.db.models import (
+        Application,
+        ApplicationEvent,
+        ApplicationEventKind,
+        User,
+    )
+
+    u = User(ms_oid="o3", email="a@b", display_name="A")
+    db_session.add(u); db_session.commit()
+    app_row = Application(user_id=u.id, url="https://x.test/e", url_hash="h-e")
+    db_session.add(app_row); db_session.commit()
+    ev = ApplicationEvent(
+        application_id=app_row.id,
+        kind=ApplicationEventKind.status_change,
+        from_value="draft", to_value="applied",
+    )
+    db_session.add(ev); db_session.commit()
+    db_session.refresh(ev)
+    assert ev.kind == ApplicationEventKind.status_change
