@@ -71,5 +71,5 @@ services:
   web:
     build: ./frontend
     depends_on: [api]
-    ports: ["8080:80"]
+    ports: ["8090:80"]
 
