@@ -3,7 +3,13 @@ import re
 from dataclasses import dataclass
 from email import message_from_bytes, policy
 from email.message import EmailMessage
-from email.utils import getaddresses, parseaddr
+from email.utils import getaddresses, parseaddr, parsedate_to_datetime
+
+from app.email_ingest.confidence import Confidence, score
+from app.email_ingest.models import ParsedMessage, ParsedThread
+from app.llm.base import LLMClient
+
+MAX_MESSAGES = 20
 
 _SCRIPT_STYLE_RE = re.compile(r"(?is)<(script|style)\b.*?</\1>")
 _BR_RE = re.compile(r"(?i)<br\s*/?>")
@@ -151,3 +157,64 @@ def parse_quote_header(block: str) -> dict:
         elif _HDR_FIELD_RE["subject"].match(line):
             out["subject"] = _HDR_FIELD_RE["subject"].match(line).group(2).strip()
     return out
+
+
+def _top_message(msg: EmailMessage, body: str) -> ParsedMessage:
+    name, email = parseaddr(msg.get("From", ""))
+    recipients = [a for _, a in getaddresses(msg.get_all("To", [])) if a]
+    occurred = None
+    date_hdr = msg.get("Date")
+    if date_hdr:
+        try:
+            occurred = parsedate_to_datetime(date_hdr)
+        except (TypeError, ValueError):
+            occurred = None
+    return ParsedMessage(
+        sender_name=name or None,
+        sender_email=email or None,
+        recipients=recipients,
+        occurred_at=occurred,
+        subject=msg.get("Subject") or None,
+        body=body.strip(),
+    )
+
+
+def _segment_to_message(seg: Segment, top_subject: str | None) -> ParsedMessage:
+    from app.email_ingest.llm_split import _parse_date  # reuse dateutil helper
+
+    h = parse_quote_header(seg.header)
+    return ParsedMessage(
+        sender_name=h.get("sender_name"),
+        sender_email=h.get("sender_email"),
+        recipients=h.get("to", []),
+        occurred_at=_parse_date(h.get("date", "")) if h.get("date") else None,
+        subject=h.get("subject") or top_subject,
+        body=seg.body,
+    )
+
+
+def parse_eml(raw: bytes, *, llm: LLMClient | None) -> ParsedThread:
+    msg, top_text = extract_top_message(raw)
+    top = _top_message(msg, top_text)
+    quoted = split_quoted(top_text)
+    det = [top] + [_segment_to_message(s, top.subject) for s in quoted]
+
+    conf = score(det, top_text)
+    if conf == Confidence.LOW and llm is not None:
+        try:
+            from app.email_ingest.llm_split import llm_split_thread
+
+            llm_msgs = llm_split_thread(top_text, llm)
+            if llm_msgs:
+                # message[0] is newest: override with authoritative top headers
+                llm_msgs[0].sender_name = top.sender_name
+                llm_msgs[0].sender_email = top.sender_email
+                llm_msgs[0].occurred_at = top.occurred_at
+                llm_msgs[0].subject = top.subject
+                if not llm_msgs[0].recipients:
+                    llm_msgs[0].recipients = top.recipients
+                return ParsedThread(messages=llm_msgs[:MAX_MESSAGES], used_llm=True)
+        except Exception:  # noqa: BLE001 — graceful degrade, never hard-fail
+            pass
+
+    return ParsedThread(messages=det[:MAX_MESSAGES], used_llm=False)
