@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { InteractionLogModal } from "./InteractionLogModal";
+import { useToast } from "./Toast";
 import { interactions, type Interaction } from "../api/interactions";
 import type { Application } from "../api/applications";
 
@@ -19,11 +20,45 @@ export function ActivityPanel({
 }) {
   const [tab, setTab] = useState<Tab>("timeline");
   const [showLog, setShowLog] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+  const toast = useToast();
+
   const ints = useQuery({
     queryKey: ["interactions", appId],
     queryFn: () => interactions.list(appId),
     enabled: tab === "interactions",
   });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["interactions", appId] });
+    qc.invalidateQueries({ queryKey: ["application-timeline", appId] });
+  };
+
+  const undo = async (ids: string[]) => {
+    await Promise.all(ids.map((id) => interactions.remove(id)));
+    refresh();
+  };
+
+  const importEml = useMutation({
+    mutationFn: (file: File) => interactions.importEml(appId, file),
+    onSuccess: (resp) => {
+      refresh();
+      const ids = resp.interactions.map((it) => it.id);
+      toast(`Imported ${resp.count} interaction${resp.count === 1 ? "" : "s"}`, {
+        label: "Undo",
+        onClick: () => undo(ids),
+      });
+    },
+    onError: (err) => toast(`Import failed: ${(err as Error).message}`),
+  });
+
+  const onFiles = (files: FileList | null) => {
+    const f = Array.from(files ?? []).find((x) => x.name.toLowerCase().endsWith(".eml"));
+    if (f) importEml.mutate(f);
+    else if (files && files.length) toast("Only .eml files are supported");
+  };
 
   return (
     <div className="border rounded bg-white">
@@ -41,6 +76,28 @@ export function ActivityPanel({
           + Log interaction
         </button>
       </div>
+
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); onFiles(e.dataTransfer.files); }}
+        onClick={() => fileRef.current?.click()}
+        className={`mx-3 mt-3 border-2 border-dashed rounded p-3 text-center text-xs cursor-pointer ${
+          dragging ? "border-blue-500 bg-blue-50" : "border-slate-300 hover:bg-slate-50"
+        }`}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".eml"
+          className="hidden"
+          onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }}
+        />
+        <span className="text-slate-600">
+          {importEml.isPending ? "Importing email…" : "Drop an .eml here, or click to import an email thread"}
+        </span>
+      </div>
+
       <div className="p-3">
         {tab === "timeline" && <ActivityTimeline appId={appId} />}
         {tab === "interactions" && (
