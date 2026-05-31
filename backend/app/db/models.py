@@ -330,7 +330,13 @@ class Interaction(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     direction: Mapped[InteractionDirection] = mapped_column(
-        Enum(InteractionDirection, name="interactiondirection")
+        # in_ → "in": persist enum values, not member names, to match the
+        # migration-created Postgres type (values "in"/"out").
+        Enum(
+            InteractionDirection,
+            name="interactiondirection",
+            values_callable=lambda e: [m.value for m in e],
+        )
     )
     channel: Mapped[InteractionChannel] = mapped_column(
         Enum(InteractionChannel, name="interactionchannel")
