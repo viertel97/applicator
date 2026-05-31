@@ -1,0 +1,8 @@
+From: Recruiter Anna <anna@acme.test>
+To: Me <me@self.test>
+Subject: HTML hello
+Date: Thu, 01 May 2026 09:30:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body><p>Hello&nbsp;there.</p><div>Second line</div></body></html>
