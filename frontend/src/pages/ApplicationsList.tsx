@@ -10,6 +10,7 @@ import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBad
 import { LabelChip } from "../components/LabelChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DiscardReasonPicker } from "../components/DiscardReasonPicker";
+import { matchesSearch } from "../lib/search";
 
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
 const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
@@ -80,6 +81,7 @@ export default function ApplicationsList() {
   const restoredRef = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const [query, setQuery] = useState("");
   const [filterLabelIds, setFilterLabelIds] = useState<string[]>([]);
   const [hiddenStatuses, setHiddenStatuses] = useState<Set<AppStatus>>(() => loadHiddenStatuses());
   const [reasonFilter, setReasonFilter] = useState<string | null>(null);
@@ -220,14 +222,35 @@ export default function ApplicationsList() {
         const docs = a.job_posting?.required_documents ?? [];
         if (!filterDocs.every((d) => docs.includes(d))) return false;
       }
+      if (!matchesSearch(a, query)) return false;
       return true;
     });
-  }, [data, hiddenStatuses, reasonFilter, filterDocs]);
+  }, [data, hiddenStatuses, reasonFilter, filterDocs, query]);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Applications</h1>
       <AddApplicationForm />
+
+      <div className="relative mb-3">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search title, company, location…"
+          className="w-full text-sm border border-slate-300 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-slate-500"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            aria-label="clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       {/* Status filter */}
       <div className="flex flex-wrap gap-1.5 mb-3 items-center">
