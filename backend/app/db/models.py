@@ -99,6 +99,7 @@ class InteractionCreatedFrom(str, enum.Enum):
     manual = "manual"
     inquiry_migration = "inquiry_migration"
     graph_sync = "graph_sync"
+    eml_import = "eml_import"
 
 
 class ApplicationEventKind(str, enum.Enum):
