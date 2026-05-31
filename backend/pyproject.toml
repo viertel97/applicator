@@ -19,6 +19,7 @@ dependencies = [
   "cryptography>=43",
   "openai>=1.40",
   "markdown>=3.6",
+  "python-dateutil>=2.9",
   "celery[redis]>=5.4",
 ]
 
