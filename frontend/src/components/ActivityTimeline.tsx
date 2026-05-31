@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { timeline, type TimelineRow } from "../api/interactions";
+import { DeleteConfirmButton } from "./DeleteConfirmButton";
+import { timeline, type Interaction, type TimelineRow } from "../api/interactions";
 
 function iconFor(row: TimelineRow) {
   if (row.kind === "interaction") {
@@ -23,7 +24,13 @@ function describe(row: TimelineRow): string {
   return ev.kind;
 }
 
-export function ActivityTimeline({ appId }: { appId: string }) {
+export function ActivityTimeline({
+  appId,
+  onDelete,
+}: {
+  appId: string;
+  onDelete?: (it: Interaction) => void;
+}) {
   const q = useQuery({
     queryKey: ["application-timeline", appId],
     queryFn: () => timeline.get(appId),
@@ -47,6 +54,12 @@ export function ActivityTimeline({ appId }: { appId: string }) {
               </div>
             )}
           </div>
+          {row.kind === "interaction" && onDelete && (
+            <DeleteConfirmButton
+              label="Delete interaction"
+              onConfirm={() => onDelete(row.data)}
+            />
+          )}
         </li>
       ))}
     </ul>

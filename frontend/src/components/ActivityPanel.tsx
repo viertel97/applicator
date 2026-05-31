@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { InteractionLogModal } from "./InteractionLogModal";
+import { DeleteConfirmButton } from "./DeleteConfirmButton";
 import { useToast } from "./Toast";
 import { interactions, type Interaction } from "../api/interactions";
 import type { Application } from "../api/applications";
@@ -54,6 +55,30 @@ export function ActivityPanel({
     onError: (err) => toast(`Import failed: ${(err as Error).message}`),
   });
 
+  const del = useMutation({
+    mutationFn: (it: Interaction) => interactions.remove(it.id),
+    onSuccess: (_data, it) => {
+      refresh();
+      toast("Interaction deleted", {
+        label: "Undo",
+        onClick: async () => {
+          await interactions.create(appId, {
+            occurred_at: it.occurred_at,
+            direction: it.direction,
+            channel: it.channel,
+            subject: it.subject,
+            body: it.body,
+            contact_name: it.contact_name,
+            contact_handle: it.contact_handle,
+            sentiment: it.sentiment,
+          });
+          refresh();
+        },
+      });
+    },
+    onError: (err) => toast(`Delete failed: ${(err as Error).message}`),
+  });
+
   const onFiles = (files: FileList | null) => {
     const f = Array.from(files ?? []).find((x) => x.name.toLowerCase().endsWith(".eml"));
     if (f) importEml.mutate(f);
@@ -99,20 +124,28 @@ export function ActivityPanel({
       </div>
 
       <div className="p-3">
-        {tab === "timeline" && <ActivityTimeline appId={appId} />}
+        {tab === "timeline" && (
+          <ActivityTimeline appId={appId} onDelete={(it) => del.mutate(it)} />
+        )}
         {tab === "interactions" && (
           <ul className="divide-y">
             {(ints.data ?? []).map((it: Interaction) => (
-              <li key={it.id} className="py-2 text-sm">
-                <span className="text-slate-400 mr-2">
-                  {it.direction === "out" ? "→" : "←"}
-                </span>
-                <span>{it.channel}</span>
-                {it.subject && <> — <strong>{it.subject}</strong></>}
-                <div className="text-xs text-slate-500">
-                  {new Date(it.occurred_at).toLocaleString()}
+              <li key={it.id} className="py-2 text-sm flex items-start gap-2">
+                <div className="flex-1">
+                  <span className="text-slate-400 mr-2">
+                    {it.direction === "out" ? "→" : "←"}
+                  </span>
+                  <span>{it.channel}</span>
+                  {it.subject && <> — <strong>{it.subject}</strong></>}
+                  <div className="text-xs text-slate-500">
+                    {new Date(it.occurred_at).toLocaleString()}
+                  </div>
+                  {it.body && <div className="text-slate-700 whitespace-pre-wrap">{it.body}</div>}
                 </div>
-                {it.body && <div className="text-slate-700 whitespace-pre-wrap">{it.body}</div>}
+                <DeleteConfirmButton
+                  label="Delete interaction"
+                  onConfirm={() => del.mutate(it)}
+                />
               </li>
             ))}
           </ul>
