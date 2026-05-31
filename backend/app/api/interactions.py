@@ -226,6 +226,8 @@ async def import_eml(
     _own_app(db, user, aid)
     if not (file.filename or "").lower().endswith(".eml"):
         raise HTTPException(400, "only .eml files are accepted")
+    if file.size is not None and file.size > MAX_EML_BYTES:
+        raise HTTPException(413, "file too large")
     raw = await file.read()
     if len(raw) > MAX_EML_BYTES:
         raise HTTPException(413, "file too large")

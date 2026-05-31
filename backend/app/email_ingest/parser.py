@@ -1,4 +1,5 @@
 import html as _html
+import logging
 import re
 from dataclasses import dataclass
 from email import message_from_bytes, policy
@@ -8,6 +9,8 @@ from email.utils import getaddresses, parseaddr, parsedate_to_datetime
 from app.email_ingest.confidence import Confidence, score
 from app.email_ingest.models import ParsedMessage, ParsedThread
 from app.llm.base import LLMClient
+
+logger = logging.getLogger(__name__)
 
 MAX_MESSAGES = 20
 
@@ -215,6 +218,6 @@ def parse_eml(raw: bytes, *, llm: LLMClient | None) -> ParsedThread:
                     llm_msgs[0].recipients = top.recipients
                 return ParsedThread(messages=llm_msgs[:MAX_MESSAGES], used_llm=True)
         except Exception:  # noqa: BLE001 — graceful degrade, never hard-fail
-            pass
+            logger.warning("LLM thread split failed; using deterministic split", exc_info=True)
 
     return ParsedThread(messages=det[:MAX_MESSAGES], used_llm=False)
