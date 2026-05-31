@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { ApiError, api } from "./client";
 
 export type Direction = "out" | "in";
 export type Channel = "mail" | "linkedin" | "phone" | "portal" | "xing" | "interview" | "other";
@@ -15,9 +15,15 @@ export type Interaction = {
   contact_name: string | null;
   contact_handle: string | null;
   sentiment: Sentiment;
-  created_from: "manual" | "inquiry_migration" | "graph_sync";
+  created_from: "manual" | "inquiry_migration" | "graph_sync" | "eml_import";
   created_at: string;
   updated_at: string;
+};
+
+export type ImportEmlResp = {
+  interactions: Interaction[];
+  count: number;
+  used_llm: boolean;
 };
 
 export type CreateInteractionInput = {
@@ -55,6 +61,25 @@ export const interactions = {
     }),
   remove: (id: string) =>
     api<void>(`/api/interactions/${id}`, { method: "DELETE" }),
+  importEml: async (appId: string, file: File): Promise<ImportEmlResp> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`/api/applications/${appId}/interactions/import-eml`, {
+      method: "POST",
+      credentials: "include",
+      body: fd,
+    });
+    if (!res.ok) {
+      let body: unknown = null;
+      try {
+        body = await res.json();
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(res.status, body);
+    }
+    return (await res.json()) as ImportEmlResp;
+  },
 };
 
 export const timeline = {
