@@ -6,9 +6,10 @@ type Props = {
   value: string | null;
   onChange: (id: string | null, reason: DiscardReason | null) => void;
   includeArchived?: boolean;
+  disabled?: boolean;
 };
 
-export function DiscardReasonPicker({ value, onChange, includeArchived }: Props) {
+export function DiscardReasonPicker({ value, onChange, includeArchived, disabled }: Props) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["discard-reasons", includeArchived],
@@ -31,18 +32,19 @@ export function DiscardReasonPicker({ value, onChange, includeArchived }: Props)
     <div className="flex gap-1 items-center">
       <select
         value={value ?? ""}
+        disabled={disabled}
         onChange={(e) => {
           const id = e.target.value || null;
           onChange(id, id ? q.data.find((r) => r.id === id) ?? null : null);
         }}
-        className="border rounded px-2 py-1 text-sm"
+        className="border rounded px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <option value="">— no reason —</option>
         {q.data.map((r) => (
           <option key={r.id} value={r.id}>{r.label}</option>
         ))}
       </select>
-      {!showAdd ? (
+      {disabled ? null : !showAdd ? (
         <button
           type="button"
           className="text-xs text-blue-600 hover:underline"

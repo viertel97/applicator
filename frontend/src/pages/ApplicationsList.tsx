@@ -10,7 +10,13 @@ import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBad
 import { LabelChip } from "../components/LabelChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DiscardReasonPicker } from "../components/DiscardReasonPicker";
-import { matchesSearch } from "../lib/search";
+import { FilterEmptyState } from "../components/FilterEmptyState";
+import {
+  applyFilters,
+  diagnoseEmpty,
+  type EmptyReason,
+  type FilterState,
+} from "../lib/filterDiagnostics";
 
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
 const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
@@ -213,19 +219,53 @@ export default function ApplicationsList() {
     });
   }
 
-  const visible = useMemo(() => {
-    return (data ?? []).filter((a) => {
-      if (hiddenStatuses.has(a.status)) return false;
-      if (reasonFilter && a.status === "discarded" && a.discard_reason_id !== reasonFilter)
-        return false;
-      if (filterDocs.length > 0) {
-        const docs = a.job_posting?.required_documents ?? [];
-        if (!filterDocs.every((d) => docs.includes(d))) return false;
+  const filterState: FilterState = useMemo(
+    () => ({ hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds }),
+    [hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds],
+  );
+
+  const visible = useMemo(
+    () => applyFilters(data ?? [], filterState),
+    [data, filterState],
+  );
+
+  const emptyReason = isLoading ? null : diagnoseEmpty(data ?? [], filterState);
+
+  function handleFix(reason: Exclude<EmptyReason, null>) {
+    switch (reason) {
+      case "all-statuses-hidden":
+      case "no-status-match": {
+        const next = new Set<AppStatus>();
+        setHiddenStatuses(next);
+        saveHiddenStatuses(next);
+        break;
       }
-      if (!matchesSearch(a, query)) return false;
-      return true;
-    });
-  }, [data, hiddenStatuses, reasonFilter, filterDocs, query]);
+      case "reason":
+        setReasonFilter(null);
+        break;
+      case "docs":
+        setFilterDocs([]);
+        localStorage.setItem(DOCS_FILTER_KEY, "[]");
+        break;
+      case "search":
+        setQuery("");
+        break;
+      case "labels":
+        setFilterLabelIds([]);
+        break;
+      case "mixed": {
+        const next = new Set<AppStatus>();
+        setHiddenStatuses(next);
+        saveHiddenStatuses(next);
+        setReasonFilter(null);
+        setFilterDocs([]);
+        localStorage.setItem(DOCS_FILTER_KEY, "[]");
+        setQuery("");
+        setFilterLabelIds([]);
+        break;
+      }
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -254,6 +294,12 @@ export default function ApplicationsList() {
 
       {/* Status filter */}
       <div className="flex flex-wrap gap-1.5 mb-3 items-center">
+        <span className="text-xs text-slate-500 mr-1">
+          Status{" "}
+          <span className="text-slate-400">
+            (showing {ALL_STATUSES.length - hiddenStatuses.size} of {ALL_STATUSES.length})
+          </span>
+        </span>
         {ALL_STATUSES.map((s) => {
           const hidden = hiddenStatuses.has(s);
           return (
@@ -281,6 +327,13 @@ export default function ApplicationsList() {
           </div>
         )}
       </div>
+      {!discardedVisible && (
+        <div className="flex items-center gap-1 mb-3 ml-4">
+          <span className="text-xs text-slate-400">Reason:</span>
+          <DiscardReasonPicker value={null} onChange={() => {}} disabled />
+          <span className="text-xs text-slate-400">Show Discarded to filter by reason</span>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1.5 mb-3">
         {ALL_DOCS.map((d) => (
@@ -380,6 +433,9 @@ export default function ApplicationsList() {
           {(data ?? []).length !== visible.length && ` of ${(data ?? []).length}`}
         </div>
       )}
+      {!isLoading && visible.length === 0 && emptyReason ? (
+        <FilterEmptyState reason={emptyReason} onFix={handleFix} />
+      ) : (
       <ul className="divide-y border rounded bg-white">
         {visible.map((a: Application) => (
           <li key={a.id} className="p-3 flex items-center gap-3 hover:bg-slate-50">
@@ -436,6 +492,7 @@ export default function ApplicationsList() {
           </li>
         ))}
       </ul>
+      )}
       <ConfirmDialog
         open={!!pendingDelete}
         title="Delete application"
