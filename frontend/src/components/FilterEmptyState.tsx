@@ -14,6 +14,7 @@ const COPY: Record<Reason, { message: string; fix: string }> = {
   docs: { message: "No items have all the selected documents.", fix: "Clear document filters" },
   search: { message: "No items match your search.", fix: "Clear search" },
   labels: { message: "No items have all the selected labels.", fix: "Clear labels" },
+  awaiting: { message: "No applications are awaiting a reply.", fix: "Show all" },
   mixed: { message: "Active filters exclude all items.", fix: "Reset all filters" },
 };
 

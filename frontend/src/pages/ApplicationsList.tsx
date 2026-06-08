@@ -21,6 +21,7 @@ import {
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
 const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
 const DOCS_FILTER_KEY = "applicator.docsFilter.required";
+const AWAITING_FILTER_KEY = "applicator.awaitingFilter";
 
 const ALL_DOCS = ["cv", "cover_letter", "portfolio", "references", "certificates", "other"] as const;
 type RequiredDoc = typeof ALL_DOCS[number];
@@ -201,6 +202,16 @@ export default function ApplicationsList() {
     try { return JSON.parse(localStorage.getItem(DOCS_FILTER_KEY) ?? "[]"); } catch { return []; }
   });
 
+  const [awaitingOnly, setAwaitingOnly] = useState<boolean>(
+    () => localStorage.getItem(AWAITING_FILTER_KEY) === "true",
+  );
+
+  const toggleAwaiting = () =>
+    setAwaitingOnly((v) => {
+      localStorage.setItem(AWAITING_FILTER_KEY, String(!v));
+      return !v;
+    });
+
   const toggleDoc = (d: RequiredDoc) =>
     setFilterDocs((prev) => {
       const next = prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d];
@@ -220,8 +231,8 @@ export default function ApplicationsList() {
   }
 
   const filterState: FilterState = useMemo(
-    () => ({ hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds }),
-    [hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds],
+    () => ({ hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingOnly }),
+    [hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingOnly],
   );
 
   const visible = useMemo(
@@ -253,6 +264,10 @@ export default function ApplicationsList() {
       case "labels":
         setFilterLabelIds([]);
         break;
+      case "awaiting":
+        setAwaitingOnly(false);
+        localStorage.setItem(AWAITING_FILTER_KEY, "false");
+        break;
       case "mixed": {
         const next = new Set<AppStatus>();
         setHiddenStatuses(next);
@@ -262,6 +277,8 @@ export default function ApplicationsList() {
         localStorage.setItem(DOCS_FILTER_KEY, "[]");
         setQuery("");
         setFilterLabelIds([]);
+        setAwaitingOnly(false);
+        localStorage.setItem(AWAITING_FILTER_KEY, "false");
         break;
       }
     }
@@ -336,6 +353,17 @@ export default function ApplicationsList() {
       )}
 
       <div className="flex flex-wrap gap-1.5 mb-3">
+        <button
+          type="button"
+          onClick={toggleAwaiting}
+          className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+            awaitingOnly
+              ? "bg-sky-100 text-sky-800 border-sky-300"
+              : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+          }`}
+        >
+          Awaiting reply
+        </button>
         {ALL_DOCS.map((d) => (
           <button
             key={d}
