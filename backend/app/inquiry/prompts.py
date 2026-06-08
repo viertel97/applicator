@@ -16,38 +16,54 @@ DEFAULT_TEMPLATE = (
     "Nur diese zwei Felder zur\u00fcckgeben. Kein Body, kein Text au\u00dferhalb des JSON."
 )
 
+DEFAULT_BODY_TEMPLATE_DE = (
+    "{greeting},\n\n"
+    "ich interessiere mich sehr f\u00fcr Ihre Stellenausschreibung als "
+    "\u201e{title}{ref}\u201c. "
+    "Bevor ich meine Bewerbung einreiche, h\u00e4tte ich zwei kurze Fragen:\n\n"
+    "{questions}\n\n"
+    "Vielen Dank im Voraus f\u00fcr Ihre R\u00fcckmeldung und mit freundlichen Gr\u00fc\u00dfen\n"
+    "Janik Viertel"
+)
+
+DEFAULT_BODY_TEMPLATE_EN = (
+    "{greeting},\n\n"
+    'I am very interested in your job posting for the position of "{title}{ref}". '
+    "Before submitting my application, I have a couple of questions:\n\n"
+    "{questions}\n\n"
+    "Thank you in advance for your reply.\n\n"
+    "Kind regards\n"
+    "Janik Viertel"
+)
+
+
 def build_body(
     greeting: str,
     title: str,
     ref_number: str | None,
     questions: list[str],
     language: str,
+    template: str | None = None,
+    company: str | None = None,
 ) -> str:
     lang = (language or "de").lower()
-    ref_part = f" (Ref. {ref_number})" if ref_number else ""
+    ref = f" (Ref. {ref_number})" if ref_number else ""
     q_block = "\n".join(questions)
-    n = len(questions)
-    if lang == "en":
-        count = "one question" if n == 1 else "a couple of questions"
-        return (
-            f"{greeting},\n\n"
-            f'I am very interested in your job posting for the position of "{title}{ref_part}". '
-            f"Before submitting my application, I have {count}:\n\n"
-            f"{q_block}\n\n"
-            f"Thank you in advance for your reply.\n\n"
-            f"Kind regards\n"
-            f"Janik Viertel"
-        )
-    count = "eine kurze Frage" if n == 1 else "zwei kurze Fragen"
-    return (
-        f"{greeting},\n\n"
-        f"ich interessiere mich sehr f\u00fcr Ihre Stellenausschreibung als "
-        f"\u201e{title}{ref_part}\u201c. "
-        f"Bevor ich meine Bewerbung einreiche, h\u00e4tte ich {count}:\n\n"
-        f"{q_block}\n\n"
-        f"Vielen Dank im Voraus f\u00fcr Ihre R\u00fcckmeldung und mit freundlichen Gr\u00fc\u00dfen\n"
-        f"Janik Viertel"
+    tpl = template or (
+        DEFAULT_BODY_TEMPLATE_EN if lang == "en" else DEFAULT_BODY_TEMPLATE_DE
     )
+    tokens = {
+        "{greeting}": greeting,
+        "{title}": title,
+        "{reference_number}": ref_number or "",
+        "{ref}": ref,
+        "{company}": company or "",
+        "{questions}": q_block,
+    }
+    out = tpl
+    for token, value in tokens.items():
+        out = out.replace(token, value)
+    return out
 
 
 DEFAULT_USER_PROMPT_TEMPLATE = (
