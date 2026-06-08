@@ -18,6 +18,8 @@ class InquiryPromptOut(BaseModel):
     question_home_office_en: str | None = None
     question_part_time_de: str | None = None
     question_part_time_en: str | None = None
+    body_template_de: str | None = None
+    body_template_en: str | None = None
 
 
 class InquiryPromptPut(BaseModel):
@@ -27,6 +29,8 @@ class InquiryPromptPut(BaseModel):
     question_home_office_en: str | None = None
     question_part_time_de: str | None = None
     question_part_time_en: str | None = None
+    body_template_de: str | None = None
+    body_template_en: str | None = None
 
 
 _OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Offene Fragen-Mail")
@@ -54,6 +58,8 @@ def _row_to_out(row: InquiryPromptTemplate) -> InquiryPromptOut:
         question_home_office_en=row.question_home_office_en,
         question_part_time_de=row.question_part_time_de,
         question_part_time_en=row.question_part_time_en,
+        body_template_de=row.body_template_de,
+        body_template_en=row.body_template_en,
     )
 
 
@@ -78,6 +84,8 @@ def put_prompt(
     row.question_home_office_en = body.question_home_office_en or None
     row.question_part_time_de = body.question_part_time_de or None
     row.question_part_time_en = body.question_part_time_en or None
+    row.body_template_de = body.body_template_de or None
+    row.body_template_en = body.body_template_en or None
     db.commit()
     db.refresh(row)
     return _row_to_out(row)
