@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ms_client_secret: str = ""
     ms_redirect_uri: str = "http://localhost:8000/api/auth/callback"
     llm_provider: str = "groq"
-    llm_model: str = "gpt-oss"
+    llm_model: str = "openai/gpt-oss-120b"
     llm_api_key: str
     llm_base_url: str = "https://api.groq.com/openai/v1"
     data_dir: str = "./data"
