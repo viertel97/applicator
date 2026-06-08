@@ -14,3 +14,4 @@ pgdata/
 !backend/app/renderer/template.docx
 .history
 .worktrees/
+.superpowers/
