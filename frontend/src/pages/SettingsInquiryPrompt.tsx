@@ -16,6 +16,21 @@ const DEFAULT_HO_EN =
   "How many days of home office per week are possible, assuming customer projects and other requirements are met?";
 const DEFAULT_PT_DE = "Wäre eine 80%-Stelle (Montag bis Donnerstag) grundsätzlich denkbar?";
 const DEFAULT_PT_EN = "Would an 80% position (Monday to Thursday) be possible in principle?";
+const DEFAULT_BODY_TEMPLATE_DE =
+  "{greeting},\n\n" +
+  "ich interessiere mich sehr für Ihre Stellenausschreibung als „{title}{ref}“. " +
+  "Bevor ich meine Bewerbung einreiche, hätte ich zwei kurze Fragen:\n\n" +
+  "{questions}\n\n" +
+  "Vielen Dank im Voraus für Ihre Rückmeldung und mit freundlichen Grüßen\n" +
+  "Janik Viertel";
+const DEFAULT_BODY_TEMPLATE_EN =
+  "{greeting},\n\n" +
+  'I am very interested in your job posting for the position of "{title}{ref}". ' +
+  "Before submitting my application, I have a couple of questions:\n\n" +
+  "{questions}\n\n" +
+  "Thank you in advance for your reply.\n\n" +
+  "Kind regards\n" +
+  "Janik Viertel";
 
 function Field({
   label,
@@ -58,6 +73,8 @@ export default function SettingsInquiryPrompt() {
     question_home_office_en: null,
     question_part_time_de: null,
     question_part_time_en: null,
+    body_template_de: null,
+    body_template_en: null,
   });
   const [dirty, setDirty] = useState(false);
 
@@ -155,6 +172,36 @@ export default function SettingsInquiryPrompt() {
             placeholder={DEFAULT_PT_EN}
             value={draft.question_part_time_en ?? ""}
             onChange={(v) => set("question_part_time_en", v)}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium text-slate-800">Request mail body</h2>
+        <p className="text-xs text-slate-500">
+          The full inquiry email body. Available placeholders:{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{greeting}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{title}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{ref}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{questions}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{company}"}</code>{" "}
+          <code className="bg-slate-100 px-1 rounded">{"{reference_number}"}</code>
+          . Leave blank to use the default wording.
+        </p>
+        <div className="grid grid-cols-1 gap-3">
+          <Field
+            label="Body — DE"
+            placeholder={DEFAULT_BODY_TEMPLATE_DE}
+            value={draft.body_template_de ?? ""}
+            rows={12}
+            onChange={(v) => set("body_template_de", v)}
+          />
+          <Field
+            label="Body — EN"
+            placeholder={DEFAULT_BODY_TEMPLATE_EN}
+            value={draft.body_template_en ?? ""}
+            rows={12}
+            onChange={(v) => set("body_template_en", v)}
           />
         </div>
       </section>
