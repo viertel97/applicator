@@ -81,6 +81,10 @@ DEFAULT_USER_PROMPT_TEMPLATE = (
     "{questions}"
 )
 
+_USER_PROMPT_TOKEN_RE = re.compile(
+    r"\{(?:language|title|company|contact|ref_line|reference_number|questions)\}"
+)
+
 DEFAULT_HO_TOPIC_DE = (
     "Wie flexibel gestaltet sich der Homeoffice-Anteil, sofern Projektanforderungen und Termine zuverlässig erfüllt werden?"
 )
@@ -138,12 +142,13 @@ def user_prompt(
     ref_line = f"Referenznummer: {job.reference_number}\n" if job.reference_number else ""
 
     tpl = template or DEFAULT_USER_PROMPT_TEMPLATE
-    return tpl.format(
-        language=language,
-        title=job.title or "unbekannt",
-        company=job.company or "unbekannt",
-        contact=contact_name,
-        ref_line=ref_line,
-        reference_number=job.reference_number or "",
-        questions=bullet_block,
-    )
+    tokens = {
+        "{language}": language,
+        "{title}": job.title or "unbekannt",
+        "{company}": job.company or "unbekannt",
+        "{contact}": contact_name,
+        "{ref_line}": ref_line,
+        "{reference_number}": job.reference_number or "",
+        "{questions}": bullet_block,
+    }
+    return _USER_PROMPT_TOKEN_RE.sub(lambda m: tokens[m.group(0)], tpl)

@@ -24,6 +24,16 @@ def test_preview_reflects_custom_body_template(auth_user):
     assert r.json()["de"]["email"] == "DE::Sehr geehrte Frau Müller"
 
 
+def test_preview_tolerates_malformed_user_prompt_template(auth_user):
+    client, _ = auth_user
+    r = client.post(
+        "/api/settings/inquiry-prompt/preview",
+        json={"source_md": "SYS", "user_prompt_md": "{title} {oops} {0} {"},
+    )
+    assert r.status_code == 200
+    assert r.json()["de"]["user_prompt"] == "Data Engineer {oops} {0} {"
+
+
 def test_preview_does_not_write_db(auth_user, db_session):
     from app.db.models import InquiryPromptTemplate
 

@@ -47,6 +47,27 @@ def test_user_prompt_carries_language_and_company():
     assert "en" in p
 
 
+def test_user_prompt_stray_braces_and_unknown_tokens_are_safe():
+    # A user-editable template with a lone brace or an unknown placeholder must
+    # not crash; unknown tokens are left literal (mirrors build_body behaviour).
+    p = user_prompt(
+        job=_job(title="Dev"), language="de",
+        ask_home_office=False, ask_part_time=False,
+        template="{title} {oops} {0} { {language}",
+    )
+    assert p == "Dev {oops} {0} { de"
+
+
+def test_user_prompt_does_not_re_expand_substituted_values():
+    # A field value that itself contains a token marker must NOT be re-substituted.
+    p = user_prompt(
+        job=_job(title="{questions}"), language="en",
+        ask_home_office=False, ask_part_time=False,
+        template="{title}|{questions}",
+    )
+    assert p == "{questions}|"
+
+
 from app.inquiry.prompts import (
     DEFAULT_BODY_TEMPLATE_DE,
     DEFAULT_BODY_TEMPLATE_EN,
