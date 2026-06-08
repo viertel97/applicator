@@ -27,6 +27,48 @@ def test_me_authenticated(db_session, app_client):
     assert r.json()["email"] == "a@b.c"
 
 
+def test_dev_login_uses_app_user_id(db_session, monkeypatch):
+    """Dev login (oauth disabled) must resolve to the APP_USER_ID user,
+    not create/use a separate ms_oid='dev' user."""
+    from fastapi.testclient import TestClient
+
+    from app.api.deps import db_dep
+    from app.db.models import Session as SessionRow
+
+    canonical = User(ms_oid="real-oid", email="me@real", display_name="Me")
+    db_session.add(canonical)
+    db_session.commit()
+    db_session.refresh(canonical)
+
+    monkeypatch.setenv("APP_SECRET_KEY", _SECRET)
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setenv("APP_USER_ID", str(canonical.id))
+    monkeypatch.delenv("MS_TENANT_ID", raising=False)
+    monkeypatch.delenv("MS_CLIENT_ID", raising=False)
+    monkeypatch.delenv("MS_CLIENT_SECRET", raising=False)
+
+    from app.main import create_app
+
+    app = create_app()
+
+    def override_db():
+        yield db_session
+
+    app.dependency_overrides[db_dep] = override_db
+    client = TestClient(app)
+    try:
+        r = client.get("/api/auth/login", follow_redirects=False)
+        assert r.status_code in (302, 307)
+        sid = client.cookies.get("applicator_session")
+        assert sid is not None
+        sess = db_session.get(SessionRow, sid)
+        assert sess is not None
+        assert sess.user_id == canonical.id
+        assert db_session.query(User).filter_by(ms_oid="dev").first() is None
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_logout_deletes_session(db_session, app_client):
     u = User(ms_oid="o2", email="x@y.z", display_name="X")
     db_session.add(u)

@@ -4,6 +4,7 @@ import hmac
 import os
 import struct
 import time
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -109,7 +110,11 @@ def login(
     settings: Annotated[Settings, Depends(settings_dep)],
 ) -> RedirectResponse:
     if not settings.oauth_enabled:
-        user = db.query(User).filter_by(ms_oid=_DEV_OID).first()
+        user = None
+        if settings.app_user_id:
+            user = db.get(User, uuid.UUID(settings.app_user_id))
+        if user is None:
+            user = db.query(User).filter_by(ms_oid=_DEV_OID).first()
         if user is None:
             user = User(ms_oid=_DEV_OID, email=_DEV_EMAIL, display_name=_DEV_NAME)
             db.add(user)
