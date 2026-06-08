@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { inquiryPrompt, type InquiryPrompt } from "../api/inquiry";
+import InquiryPreview from "../components/InquiryPreview";
 
 const DEFAULT_USER_PROMPT =
   "Zielsprache: {language}\n" +
@@ -95,12 +96,26 @@ export default function SettingsInquiryPrompt() {
     },
   });
 
+  const [debounced, setDebounced] = useState<InquiryPrompt>(draft);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(draft), 400);
+    return () => clearTimeout(t);
+  }, [draft]);
+
+  const preview = useQuery({
+    queryKey: ["inquiry-preview", debounced],
+    queryFn: () => inquiryPrompt.preview(debounced),
+    enabled: !q.isLoading,
+    placeholderData: (prev) => prev,
+  });
+
   if (q.isLoading) return <div className="p-6">Loading…</div>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold mb-2">Pre-application inquiry prompt</h1>
+    <div className="p-6 max-w-6xl mx-auto lg:grid lg:grid-cols-2 lg:gap-8">
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-xl font-semibold mb-2">Pre-application inquiry prompt</h1>
         <p className="text-sm text-slate-500 mb-4">
           Configure the full prompt sent to the LLM when drafting inquiry emails. Questions
           are only included when not already covered by the job posting.
@@ -218,6 +233,17 @@ export default function SettingsInquiryPrompt() {
         {save.isError && (
           <span className="text-rose-600 text-sm">{(save.error as Error).message}</span>
         )}
+      </div>
+      </div>
+
+      <div className="mt-8 lg:mt-0">
+        <div className="lg:sticky lg:top-6">
+          <InquiryPreview
+            data={preview.data}
+            loading={preview.isFetching}
+            error={preview.isError ? (preview.error as Error).message : null}
+          />
+        </div>
       </div>
     </div>
   );
