@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, db_dep
 from app.db.models import InquiryPromptTemplate, User
 from app.inquiry.prompts import DEFAULT_TEMPLATE
+from app.inquiry.preview import build_preview
 
 router = APIRouter(prefix="/api/settings/inquiry-prompt", tags=["inquiry-prompt"])
 
@@ -31,6 +32,20 @@ class InquiryPromptPut(BaseModel):
     question_part_time_en: str | None = None
     body_template_de: str | None = None
     body_template_en: str | None = None
+
+
+class InquiryPreviewLang(BaseModel):
+    system_prompt: str
+    user_prompt: str
+    subject: str
+    greeting: str
+    questions: list[str]
+    email: str
+
+
+class InquiryPreviewOut(BaseModel):
+    de: InquiryPreviewLang
+    en: InquiryPreviewLang
 
 
 _OLD_TEMPLATE_PREFIXES = ("Du hilfst dem Bewerber", "Du schreibst eine kurze Offene Fragen-Mail")
@@ -89,3 +104,11 @@ def put_prompt(
     db.commit()
     db.refresh(row)
     return _row_to_out(row)
+
+
+@router.post("/preview", response_model=InquiryPreviewOut)
+def preview_prompt(
+    body: InquiryPromptPut,
+    user: Annotated[User, Depends(current_user)],
+):
+    return build_preview(**body.model_dump())
