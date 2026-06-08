@@ -15,3 +15,4 @@ pgdata/
 .history
 .worktrees/
 .superpowers/
+.claude/
