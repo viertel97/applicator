@@ -17,6 +17,8 @@ def draft(
     ho_en: str | None = None,
     pt_de: str | None = None,
     pt_en: str | None = None,
+    body_de: str | None = None,
+    body_en: str | None = None,
 ) -> InquiryEmail:
     schema = InquiryLLMOutput.model_json_schema()
     raw = llm.complete(
@@ -48,5 +50,7 @@ def draft(
         ref_number=job.reference_number,
         questions=questions,
         language=language,
+        template=(body_en if (language or "de").lower() == "en" else body_de),
+        company=job.company,
     )
     return InquiryEmail(subject=llm_out.subject, body=body)
