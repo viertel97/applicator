@@ -11,11 +11,30 @@ export type InquiryPrompt = {
   body_template_en: string | null;
 };
 
+export type InquiryPreviewLang = {
+  system_prompt: string;
+  user_prompt: string;
+  subject: string;
+  greeting: string;
+  questions: string[];
+  email: string;
+};
+
+export type InquiryPreviewOut = {
+  de: InquiryPreviewLang;
+  en: InquiryPreviewLang;
+};
+
 export const inquiryPrompt = {
   get: () => api<InquiryPrompt>("/api/settings/inquiry-prompt"),
   put: (body: InquiryPrompt) =>
     api<InquiryPrompt>("/api/settings/inquiry-prompt", {
       method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  preview: (body: InquiryPrompt) =>
+    api<InquiryPreviewOut>("/api/settings/inquiry-prompt/preview", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 };
