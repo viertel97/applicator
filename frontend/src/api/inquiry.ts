@@ -7,6 +7,8 @@ export type InquiryPrompt = {
   question_home_office_en: string | null;
   question_part_time_de: string | null;
   question_part_time_en: string | null;
+  body_template_de: string | null;
+  body_template_en: string | null;
 };
 
 export const inquiryPrompt = {
