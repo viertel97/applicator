@@ -299,6 +299,8 @@ class InquiryPromptTemplate(Base):
     question_home_office_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     question_part_time_de: Mapped[str | None] = mapped_column(Text, nullable=True)
     question_part_time_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body_template_de: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body_template_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
