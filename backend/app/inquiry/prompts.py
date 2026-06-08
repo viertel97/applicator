@@ -1,3 +1,5 @@
+import re
+
 from app.extractor.schemas import ExtractedJobPosting
 
 
@@ -16,6 +18,9 @@ DEFAULT_TEMPLATE = (
     "Nur diese zwei Felder zur\u00fcckgeben. Kein Body, kein Text au\u00dferhalb des JSON."
 )
 
+# Question count is fixed plural in the default wording; the old singular/plural
+# branch was dropped — callers always ask two questions, and the phrase is now
+# part of the user-editable template.
 DEFAULT_BODY_TEMPLATE_DE = (
     "{greeting},\n\n"
     "ich interessiere mich sehr f\u00fcr Ihre Stellenausschreibung als "
@@ -34,6 +39,10 @@ DEFAULT_BODY_TEMPLATE_EN = (
     "Thank you in advance for your reply.\n\n"
     "Kind regards\n"
     "Janik Viertel"
+)
+
+_TOKEN_RE = re.compile(
+    r"\{(?:greeting|title|reference_number|ref|company|questions)\}"
 )
 
 
@@ -60,10 +69,7 @@ def build_body(
         "{company}": company or "",
         "{questions}": q_block,
     }
-    out = tpl
-    for token, value in tokens.items():
-        out = out.replace(token, value)
-    return out
+    return _TOKEN_RE.sub(lambda m: tokens[m.group(0)], tpl)
 
 
 DEFAULT_USER_PROMPT_TEMPLATE = (

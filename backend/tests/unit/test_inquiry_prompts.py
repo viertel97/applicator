@@ -110,3 +110,17 @@ def test_build_body_stray_braces_are_safe():
 
 def test_default_body_templates_are_nonempty():
     assert DEFAULT_BODY_TEMPLATE_DE.strip() and DEFAULT_BODY_TEMPLATE_EN.strip()
+
+
+def test_build_body_does_not_re_expand_substituted_values():
+    # A value that itself contains a later token marker must NOT be re-substituted.
+    out = build_body(
+        greeting="{questions}",
+        title="{company}",
+        ref_number=None,
+        questions=["Q1"],
+        language="en",
+        template="{greeting}|{title}|{questions}",
+        company="ACME",
+    )
+    assert out == "{questions}|{company}|Q1"
