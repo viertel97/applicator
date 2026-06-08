@@ -45,6 +45,20 @@ def test_inbound_latest_not_awaiting(client, db_session, auth_user):
     assert _flag(client, a.id) is False
 
 
+def test_tie_inbound_wins_not_awaiting(client, db_session, auth_user):
+    _, u = auth_user
+    a = _app(db_session, u, "tie")
+    same = datetime.utcnow()
+    db_session.add_all([
+        Interaction(application_id=a.id, direction=InteractionDirection.out,
+                    channel=InteractionChannel.mail, occurred_at=same),
+        Interaction(application_id=a.id, direction=InteractionDirection.in_,
+                    channel=InteractionChannel.mail, occurred_at=same),
+    ])
+    db_session.commit()
+    assert _flag(client, a.id) is False
+
+
 def test_no_interactions_not_awaiting(client, db_session, auth_user):
     _, u = auth_user
     a = _app(db_session, u, "none")
