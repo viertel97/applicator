@@ -19,6 +19,7 @@ from app.db.models import (
     ApplicationStatus,
     CVVariant,
     FailedStage,
+    InteractionDirection,
     JobPosting,
     JobState,
     Label as LabelModel,
@@ -30,6 +31,14 @@ from app.tasks.pipeline import crawl_task, extract_task, extract_from_text_task,
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
 _BUSY_STATES = {JobState.crawling, JobState.extracting, JobState.generating}
+
+CLOSED_STATUSES = {
+    ApplicationStatus.offer,
+    ApplicationStatus.rejected,
+    ApplicationStatus.accepted,
+    ApplicationStatus.withdrawn,
+    ApplicationStatus.discarded,
+}
 
 
 def _reset_for_crawl(db: Session, app_row: Application) -> None:
@@ -116,9 +125,10 @@ class ApplicationOut(BaseModel):
     discard_reason_id: uuid.UUID | None
     discard_interaction_id: uuid.UUID | None
     notes: str | None
+    awaiting_response: bool = False
 
     @classmethod
-    def from_orm_row(cls, app: Application) -> "ApplicationOut":
+    def from_orm_row(cls, app: Application, awaiting: bool = False) -> "ApplicationOut":
         return cls(
             id=app.id,
             display_id=app.display_id,
@@ -147,6 +157,7 @@ class ApplicationOut(BaseModel):
             discard_reason_id=app.discard_reason_id,
             discard_interaction_id=app.discard_interaction_id,
             notes=app.notes,
+            awaiting_response=awaiting,
         )
 
 
@@ -178,6 +189,30 @@ def _load_owned(db: Session, aid: uuid.UUID, user: User) -> Application:
     if not app or app.user_id != user.id or app.deleted_at is not None:
         raise HTTPException(404, "not found")
     return app
+
+
+def _compute_awaiting(db: Session, apps: list[Application]) -> set[uuid.UUID]:
+    from app.db.models import Interaction
+    open_ids = [a.id for a in apps if a.status not in CLOSED_STATUSES]
+    if not open_ids:
+        return set()
+    rows = (
+        db.query(
+            Interaction.application_id,
+            Interaction.direction,
+            Interaction.occurred_at,
+        )
+        .filter(Interaction.application_id.in_(open_ids))
+        .all()
+    )
+    # latest interaction per app; inbound wins ties on occurred_at
+    latest: dict[uuid.UUID, tuple[datetime, bool]] = {}
+    for app_id, direction, occurred_at in rows:
+        is_out = direction == InteractionDirection.out
+        cur = latest.get(app_id)
+        if cur is None or occurred_at > cur[0] or (occurred_at == cur[0] and not is_out):
+            latest[app_id] = (occurred_at, is_out)
+    return {aid for aid, (_, is_out) in latest.items() if is_out}
 
 
 @router.post("", response_model=ApplicationOut, status_code=202)
@@ -222,7 +257,8 @@ def list_apps(
     if label_ids:
         q = q.filter(Application.labels.any(LabelModel.id.in_(label_ids)))
     rows = q.order_by(Application.created_at.desc()).all()
-    return [ApplicationOut.from_orm_row(r) for r in rows]
+    awaiting = _compute_awaiting(db, rows)
+    return [ApplicationOut.from_orm_row(r, awaiting=r.id in awaiting) for r in rows]
 
 
 @router.get("/{aid}", response_model=ApplicationOut)
@@ -231,7 +267,9 @@ def get_app(
     db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ):
-    return ApplicationOut.from_orm_row(_load_owned(db, aid, user))
+    app = _load_owned(db, aid, user)
+    awaiting = _compute_awaiting(db, [app])
+    return ApplicationOut.from_orm_row(app, awaiting=app.id in awaiting)
 
 
 class StatusUpdate(BaseModel):
