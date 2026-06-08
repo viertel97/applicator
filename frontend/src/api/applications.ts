@@ -68,6 +68,7 @@ export type Application = {
   job_posting: JobPosting | null;
   folder_name: string;
   notes: string | null;
+  awaiting_response: boolean;
   discard_note: string | null;
   discard_reason_id: string | null;
   discard_interaction_id: string | null;

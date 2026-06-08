@@ -13,6 +13,7 @@ function app(o: {
   discard_reason_id?: string | null;
   docs?: string[];
   title?: string;
+  awaiting?: boolean;
 } = {}): Application {
   const jp =
     o.title !== undefined || o.docs !== undefined
@@ -27,6 +28,7 @@ function app(o: {
     status: o.status ?? "draft",
     discard_reason_id: o.discard_reason_id ?? null,
     job_posting: jp,
+    awaiting_response: o.awaiting ?? false,
   } as Application;
 }
 
@@ -37,6 +39,7 @@ function fs(o: Partial<FilterState> = {}): FilterState {
     filterDocs: [],
     query: "",
     filterLabelIds: [],
+    awaitingOnly: false,
     ...o,
   };
 }
@@ -123,4 +126,16 @@ test("non-empty result -> null", () => {
 
 test("no applications at all (no label filter) -> null", () => {
   assert.equal(diagnoseEmpty([], fs()), null);
+});
+
+test("applyFilters awaitingOnly keeps only awaiting apps", () => {
+  const data = [app({ awaiting: true }), app({ awaiting: false })];
+  const out = applyFilters(data, fs({ awaitingOnly: true }));
+  assert.equal(out.length, 1);
+  assert.equal(out[0].awaiting_response, true);
+});
+
+test("awaiting filter empties list -> awaiting", () => {
+  const data = [app({ awaiting: false })];
+  assert.equal(diagnoseEmpty(data, fs({ awaitingOnly: true })), "awaiting");
 });
