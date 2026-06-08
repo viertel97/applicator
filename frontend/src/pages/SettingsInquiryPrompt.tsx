@@ -116,11 +116,11 @@ export default function SettingsInquiryPrompt() {
       <div className="space-y-8">
         <div>
           <h1 className="text-xl font-semibold mb-2">Pre-application inquiry prompt</h1>
-        <p className="text-sm text-slate-500 mb-4">
-          Configure the full prompt sent to the LLM when drafting inquiry emails. Questions
-          are only included when not already covered by the job posting.
-        </p>
-      </div>
+          <p className="text-sm text-slate-500 mb-4">
+            Configure the full prompt sent to the LLM when drafting inquiry emails. Questions
+            are only included when not already covered by the job posting.
+          </p>
+        </div>
 
       <section className="space-y-3">
         <h2 className="font-medium text-slate-800">System prompt</h2>

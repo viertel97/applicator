@@ -61,6 +61,7 @@ export default function InquiryPreview({
             <button
               key={l}
               type="button"
+              aria-pressed={l === lang}
               className={
                 l === lang
                   ? "px-3 py-1 bg-slate-900 text-white"
@@ -84,6 +85,7 @@ export default function InquiryPreview({
           <div className="border rounded-lg p-3">
             <button
               type="button"
+              aria-expanded={showPrompt}
               className="text-xs font-bold text-slate-900"
               onClick={() => setShowPrompt((v) => !v)}
             >
