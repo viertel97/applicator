@@ -626,6 +626,8 @@ def draft_inquiry(
             ho_en=prompt_row.question_home_office_en,
             pt_de=prompt_row.question_part_time_de,
             pt_en=prompt_row.question_part_time_en,
+            body_de=prompt_row.body_template_de,
+            body_en=prompt_row.body_template_en,
         )
     except Exception as exc:
         raise HTTPException(502, f"draft failed: {exc}") from exc
