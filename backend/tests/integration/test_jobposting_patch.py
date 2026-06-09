@@ -131,3 +131,100 @@ def test_patch_job_posting_404_when_no_posting(monkeypatch, auth_user, db_sessio
     aid = apps[0]["id"]
     r = c.patch(f"/api/applications/{aid}/job-posting", json={"title": "x"})
     assert r.status_code == 404
+
+
+def test_patch_required_documents_valid_round_trips(
+    monkeypatch, auth_user, db_session, tmp_path
+):
+    """PATCH with valid required_documents → 200 and GET round-trips the same list."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/rd1", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en"}
+    _eager_patch(monkeypatch, db_session, settings,
+                 lambda m, s: json.dumps(payload), fr)
+
+    c, _ = auth_user
+    aid = c.post("/api/applications", json={"url": "https://x.test/rd1"}).json()["id"]
+
+    docs = ["cv", "cover_letter"]
+    r = c.patch(f"/api/applications/{aid}/job-posting", json={"required_documents": docs})
+    assert r.status_code == 200, r.text
+    assert r.json()["job_posting"]["required_documents"] == docs
+
+    # Round-trip via GET
+    get_r = c.get(f"/api/applications/{aid}")
+    assert get_r.status_code == 200, get_r.text
+    assert get_r.json()["job_posting"]["required_documents"] == docs
+
+
+def test_patch_required_documents_invalid_value_returns_422(
+    monkeypatch, auth_user, db_session, tmp_path
+):
+    """PATCH with an unknown document type → 422."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/rd2", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en"}
+    _eager_patch(monkeypatch, db_session, settings,
+                 lambda m, s: json.dumps(payload), fr)
+
+    c, _ = auth_user
+    aid = c.post("/api/applications", json={"url": "https://x.test/rd2"}).json()["id"]
+
+    r = c.patch(f"/api/applications/{aid}/job-posting",
+                json={"required_documents": ["cv", "bogus"]})
+    assert r.status_code == 422, r.text
+
+
+def test_patch_required_documents_sets_dirty_after_generate(
+    monkeypatch, auth_user, db_session, tmp_path
+):
+    """PATCH required_documents after generate sets job_posting_dirty=True."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/rd3", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en"}
+    _eager_patch(monkeypatch, db_session, settings,
+                 lambda m, s: json.dumps(payload) if s else "# Letter", fr)
+
+    c, user = auth_user
+    from app.db.models import AnschreibenVariant, CVVariant
+    cv = db_session.query(CVVariant).filter_by(user_id=user.id).first()
+    an = db_session.query(AnschreibenVariant).filter_by(user_id=user.id).first()
+    aid = c.post(
+        "/api/applications",
+        json={
+            "url": "https://x.test/rd3",
+            "cv_variant_id": str(cv.id),
+            "anschreiben_variant_id": str(an.id),
+        },
+    ).json()["id"]
+    c.post(f"/api/applications/{aid}/generate")
+    r = c.patch(f"/api/applications/{aid}/job-posting",
+                json={"required_documents": ["cv", "portfolio"]})
+    assert r.status_code == 200, r.text
+    assert r.json()["job_posting_dirty"] is True
+
+
+def test_patch_required_documents_clears_to_empty(
+    monkeypatch, auth_user, db_session, tmp_path
+):
+    """Toggling every chip off sends [] → 200 and the stored set becomes empty."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/rd4", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en",
+               "required_documents": ["cv", "portfolio"]}
+    _eager_patch(monkeypatch, db_session, settings,
+                 lambda m, s: json.dumps(payload), fr)
+
+    c, _ = auth_user
+    aid = c.post("/api/applications", json={"url": "https://x.test/rd4"}).json()["id"]
+
+    r = c.patch(f"/api/applications/{aid}/job-posting", json={"required_documents": []})
+    assert r.status_code == 200, r.text
+    assert r.json()["job_posting"]["required_documents"] == []
+
+    get_r = c.get(f"/api/applications/{aid}")
+    assert get_r.json()["job_posting"]["required_documents"] == []

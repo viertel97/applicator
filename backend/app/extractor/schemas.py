@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
-_DOC_VOCAB = "cv, cover_letter, portfolio, references, certificates, other"
+DOC_TYPES: tuple[str, ...] = ("cv", "cover_letter", "portfolio", "references", "certificates", "other")
+_DOC_VOCAB = ", ".join(DOC_TYPES)
 
 
 class ContactInfo(BaseModel):

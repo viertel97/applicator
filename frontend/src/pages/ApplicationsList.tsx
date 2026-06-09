@@ -18,22 +18,12 @@ import {
   type FilterState,
   type AwaitingFilter,
 } from "../lib/filterDiagnostics";
+import { ALL_DOCS, DOC_LABEL, type RequiredDoc } from "../lib/docs";
 
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
 const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
 const DOCS_FILTER_KEY = "applicator.docsFilter.required";
 const AWAITING_FILTER_KEY = "applicator.awaitingFilter";
-
-const ALL_DOCS = ["cv", "cover_letter", "portfolio", "references", "certificates", "other"] as const;
-type RequiredDoc = typeof ALL_DOCS[number];
-const DOC_LABEL: Record<RequiredDoc, string> = {
-  cv: "CV",
-  cover_letter: "Cover letter",
-  portfolio: "Portfolio",
-  references: "References",
-  certificates: "Certificates",
-  other: "Other",
-};
 
 const ALL_STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
 const HIDDEN_BY_DEFAULT: AppStatus[] = ["rejected", "withdrawn", "discarded"];
@@ -359,7 +349,7 @@ export default function ApplicationsList() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3 items-center">
         <button
           type="button"
           onClick={cycleAwaiting}
@@ -374,6 +364,10 @@ export default function ApplicationsList() {
         >
           {awaitingFilter === "hide" ? "Hide awaiting" : "Awaiting reply"}
         </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 mb-3 items-center">
+        <span className="text-xs text-slate-500 mr-1">Requires · all of</span>
         {ALL_DOCS.map((d) => (
           <button
             key={d}
@@ -410,7 +404,7 @@ export default function ApplicationsList() {
                   : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
               }`}
             >
-              Labels{activeCount > 0 ? ` (${activeCount})` : ""} {labelPanelOpen ? "▾" : "▸"}
+              Labels · any of{activeCount > 0 ? ` (${activeCount})` : ""} {labelPanelOpen ? "▾" : "▸"}
             </button>
             {activeCount > 0 && !labelPanelOpen && (
               <button
@@ -464,6 +458,9 @@ export default function ApplicationsList() {
           </div>
         );
       })()}
+      <div className="text-xs text-slate-400 mb-2">
+        Sections combine with AND. Within a section: Requires = all, Labels = any.
+      </div>
       {isLoading && <div>Loading…</div>}
       {!isLoading && (
         <div className="text-xs text-slate-400 mb-1">
