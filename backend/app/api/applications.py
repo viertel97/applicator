@@ -6,10 +6,11 @@ from typing import Annotated
 from celery import chain
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep, settings_dep
+from app.extractor.schemas import DOC_TYPES
 from app.api.labels import LabelOut
 from app.config import Settings, get_settings
 from app.pipeline.generate import _build_folder_name
@@ -94,6 +95,19 @@ class JobPostingPatch(BaseModel):
     work_mode: str | None = None
     benefits: list[str] | None = None
     language: str | None = None
+    required_documents: list[str] | None = None
+
+    @field_validator("required_documents")
+    @classmethod
+    def validate_required_documents(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        invalid = [doc for doc in v if doc not in DOC_TYPES]
+        if invalid:
+            raise ValueError(
+                f"invalid document type(s): {invalid}. Allowed: {list(DOC_TYPES)}"
+            )
+        return v
 
 
 class VariantsPatch(BaseModel):
