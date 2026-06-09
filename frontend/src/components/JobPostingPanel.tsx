@@ -63,8 +63,10 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
     field: keyof NonNullable<JobPosting["contact"]>,
     val: string | null,
   ) => {
-    const base = draft.contact ?? jp.contact ?? { name: null, role: null, email: null, phone: null };
-    setDraft((d) => ({ ...d, contact: { ...base, [field]: val } }));
+    setDraft((d) => {
+      const base = d.contact ?? jp.contact ?? { name: null, role: null, email: null, phone: null };
+      return { ...d, contact: { ...base, [field]: val } };
+    });
     setDirty(true);
   };
 
