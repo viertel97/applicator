@@ -39,7 +39,7 @@ function fs(o: Partial<FilterState> = {}): FilterState {
     filterDocs: [],
     query: "",
     filterLabelIds: [],
-    awaitingOnly: false,
+    awaitingFilter: "all",
     ...o,
   };
 }
@@ -128,14 +128,32 @@ test("no applications at all (no label filter) -> null", () => {
   assert.equal(diagnoseEmpty([], fs()), null);
 });
 
-test("applyFilters awaitingOnly keeps only awaiting apps", () => {
+test("applyFilters awaitingFilter=awaiting keeps only awaiting apps", () => {
   const data = [app({ awaiting: true }), app({ awaiting: false })];
-  const out = applyFilters(data, fs({ awaitingOnly: true }));
+  const out = applyFilters(data, fs({ awaitingFilter: "awaiting" }));
   assert.equal(out.length, 1);
   assert.equal(out[0].awaiting_response, true);
 });
 
+test("applyFilters awaitingFilter=hide drops awaiting apps", () => {
+  const data = [app({ awaiting: true }), app({ awaiting: false })];
+  const out = applyFilters(data, fs({ awaitingFilter: "hide" }));
+  assert.equal(out.length, 1);
+  assert.equal(out[0].awaiting_response, false);
+});
+
+test("applyFilters awaitingFilter=all keeps both", () => {
+  const data = [app({ awaiting: true }), app({ awaiting: false })];
+  const out = applyFilters(data, fs({ awaitingFilter: "all" }));
+  assert.equal(out.length, 2);
+});
+
 test("awaiting filter empties list -> awaiting", () => {
   const data = [app({ awaiting: false })];
-  assert.equal(diagnoseEmpty(data, fs({ awaitingOnly: true })), "awaiting");
+  assert.equal(diagnoseEmpty(data, fs({ awaitingFilter: "awaiting" })), "awaiting");
+});
+
+test("hide-awaiting filter empties list -> awaiting", () => {
+  const data = [app({ awaiting: true })];
+  assert.equal(diagnoseEmpty(data, fs({ awaitingFilter: "hide" })), "awaiting");
 });

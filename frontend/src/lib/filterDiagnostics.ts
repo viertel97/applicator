@@ -12,8 +12,10 @@ export interface FilterState {
   filterDocs: string[];
   query: string;
   filterLabelIds: string[];
-  awaitingOnly: boolean;
+  awaitingFilter: AwaitingFilter;
 }
+
+export type AwaitingFilter = "all" | "awaiting" | "hide";
 
 export type EmptyReason =
   | "all-statuses-hidden"
@@ -35,7 +37,8 @@ export function applyFilters(data: Application[], f: FilterState): Application[]
       const docs = a.job_posting?.required_documents ?? [];
       if (!f.filterDocs.every((d) => docs.includes(d))) return false;
     }
-    if (f.awaitingOnly && !a.awaiting_response) return false;
+    if (f.awaitingFilter === "awaiting" && !a.awaiting_response) return false;
+    if (f.awaitingFilter === "hide" && a.awaiting_response) return false;
     if (!matchesSearch(a, f.query)) return false;
     return true;
   });
@@ -55,7 +58,7 @@ export function diagnoseEmpty(data: Application[], f: FilterState): EmptyReason 
     { kind: "reason", state: { ...f, reasonFilter: null } },
     { kind: "docs", state: { ...f, filterDocs: [] } },
     { kind: "search", state: { ...f, query: "" } },
-    { kind: "awaiting", state: { ...f, awaitingOnly: false } },
+    { kind: "awaiting", state: { ...f, awaitingFilter: "all" } },
   ];
 
   const recovers = relaxations.filter((r) => applyFilters(data, r.state).length > 0);

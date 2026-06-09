@@ -16,6 +16,7 @@ import {
   diagnoseEmpty,
   type EmptyReason,
   type FilterState,
+  type AwaitingFilter,
 } from "../lib/filterDiagnostics";
 
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
@@ -81,6 +82,13 @@ function loadHiddenStatuses(): Set<AppStatus> {
 
 function saveHiddenStatuses(s: Set<AppStatus>) {
   localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify([...s]));
+}
+
+function loadAwaitingFilter(): AwaitingFilter {
+  const raw = localStorage.getItem(AWAITING_FILTER_KEY);
+  if (raw === "awaiting" || raw === "hide" || raw === "all") return raw;
+  if (raw === "true") return "awaiting"; // migrate legacy boolean
+  return "all";
 }
 
 export default function ApplicationsList() {
@@ -202,14 +210,13 @@ export default function ApplicationsList() {
     try { return JSON.parse(localStorage.getItem(DOCS_FILTER_KEY) ?? "[]"); } catch { return []; }
   });
 
-  const [awaitingOnly, setAwaitingOnly] = useState<boolean>(
-    () => localStorage.getItem(AWAITING_FILTER_KEY) === "true",
-  );
+  const [awaitingFilter, setAwaitingFilter] = useState<AwaitingFilter>(loadAwaitingFilter);
 
-  const toggleAwaiting = () =>
-    setAwaitingOnly((v) => {
-      localStorage.setItem(AWAITING_FILTER_KEY, String(!v));
-      return !v;
+  const cycleAwaiting = () =>
+    setAwaitingFilter((v) => {
+      const next: AwaitingFilter = v === "all" ? "awaiting" : v === "awaiting" ? "hide" : "all";
+      localStorage.setItem(AWAITING_FILTER_KEY, next);
+      return next;
     });
 
   const toggleDoc = (d: RequiredDoc) =>
@@ -231,8 +238,8 @@ export default function ApplicationsList() {
   }
 
   const filterState: FilterState = useMemo(
-    () => ({ hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingOnly }),
-    [hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingOnly],
+    () => ({ hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingFilter }),
+    [hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingFilter],
   );
 
   const visible = useMemo(
@@ -265,8 +272,8 @@ export default function ApplicationsList() {
         setFilterLabelIds([]);
         break;
       case "awaiting":
-        setAwaitingOnly(false);
-        localStorage.setItem(AWAITING_FILTER_KEY, "false");
+        setAwaitingFilter("all");
+        localStorage.setItem(AWAITING_FILTER_KEY, "all");
         break;
       case "mixed": {
         const next = new Set<AppStatus>();
@@ -277,8 +284,8 @@ export default function ApplicationsList() {
         localStorage.setItem(DOCS_FILTER_KEY, "[]");
         setQuery("");
         setFilterLabelIds([]);
-        setAwaitingOnly(false);
-        localStorage.setItem(AWAITING_FILTER_KEY, "false");
+        setAwaitingFilter("all");
+        localStorage.setItem(AWAITING_FILTER_KEY, "all");
         break;
       }
     }
@@ -355,14 +362,17 @@ export default function ApplicationsList() {
       <div className="flex flex-wrap gap-1.5 mb-3">
         <button
           type="button"
-          onClick={toggleAwaiting}
+          onClick={cycleAwaiting}
+          title="Click to cycle: all → awaiting only → hide awaiting"
           className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-            awaitingOnly
+            awaitingFilter === "awaiting"
               ? "bg-sky-100 text-sky-800 border-sky-300"
-              : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+              : awaitingFilter === "hide"
+                ? "bg-rose-100 text-rose-800 border-rose-300"
+                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
           }`}
         >
-          Awaiting reply
+          {awaitingFilter === "hide" ? "Hide awaiting" : "Awaiting reply"}
         </button>
         {ALL_DOCS.map((d) => (
           <button
