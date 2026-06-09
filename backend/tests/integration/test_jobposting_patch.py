@@ -77,6 +77,38 @@ def test_patch_job_posting_sets_dirty_after_generate(
     assert r.json()["job_posting_dirty"] is True
 
 
+def test_patch_contact_only_keeps_dirty_false_after_generate(
+    monkeypatch, auth_user, db_session, tmp_path
+):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/c", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en"}
+    _eager_patch(monkeypatch, db_session, settings,
+                 lambda m, s: json.dumps(payload) if s else "# Letter", fr)
+
+    c, user = auth_user
+    from app.db.models import AnschreibenVariant, CVVariant
+    cv = db_session.query(CVVariant).filter_by(user_id=user.id).first()
+    an = db_session.query(AnschreibenVariant).filter_by(user_id=user.id).first()
+    aid = c.post(
+        "/api/applications",
+        json={
+            "url": "https://x.test/c",
+            "cv_variant_id": str(cv.id),
+            "anschreiben_variant_id": str(an.id),
+        },
+    ).json()["id"]
+    c.post(f"/api/applications/{aid}/generate")
+    r = c.patch(
+        f"/api/applications/{aid}/job-posting",
+        json={"contact": {"name": "Jane", "role": None, "email": "jane@acme.test", "phone": None}},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["job_posting"]["contact"]["email"] == "jane@acme.test"
+    assert r.json()["job_posting_dirty"] is False
+
+
 def test_patch_job_posting_404_when_no_posting(monkeypatch, auth_user, db_session, tmp_path):
     """Pipeline still running, no JobPosting yet → 404."""
     # Make the fake LLM raise so extraction never completes
