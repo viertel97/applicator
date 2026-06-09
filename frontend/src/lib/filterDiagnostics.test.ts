@@ -36,7 +36,8 @@ function fs(o: Partial<FilterState> = {}): FilterState {
   return {
     hiddenStatuses: new Set<AppStatus>(),
     reasonFilter: null,
-    filterDocs: [],
+    requireDocs: [],
+    hideDocs: [],
     query: "",
     filterLabelIds: [],
     awaitingFilter: "all",
@@ -64,10 +65,28 @@ test("applyFilters reason filter only affects discarded items", () => {
   assert.ok(out.every((a) => a.status !== "discarded" || a.discard_reason_id === "r1"));
 });
 
-test("applyFilters docs filter requires all selected documents", () => {
+test("applyFilters requireDocs requires all selected documents", () => {
   const data = [app({ docs: ["cv", "portfolio"] }), app({ docs: ["cv"] })];
-  const out = applyFilters(data, fs({ filterDocs: ["cv", "portfolio"] }));
+  const out = applyFilters(data, fs({ requireDocs: ["cv", "portfolio"] }));
   assert.equal(out.length, 1);
+});
+
+test("applyFilters hideDocs drops items needing any hidden document", () => {
+  const data = [app({ docs: ["cv", "cover_letter"] }), app({ docs: ["cv"] })];
+  const out = applyFilters(data, fs({ hideDocs: ["cover_letter"] }));
+  assert.equal(out.length, 1);
+  assert.deepEqual(out[0].job_posting?.required_documents, ["cv"]);
+});
+
+test("applyFilters requireDocs and hideDocs AND together", () => {
+  const data = [
+    app({ docs: ["cv", "portfolio"] }),
+    app({ docs: ["cv", "portfolio", "cover_letter"] }),
+    app({ docs: ["cv"] }),
+  ];
+  const out = applyFilters(data, fs({ requireDocs: ["cv"], hideDocs: ["cover_letter"] }));
+  assert.equal(out.length, 2);
+  assert.ok(out.every((a) => !(a.job_posting?.required_documents ?? []).includes("cover_letter")));
 });
 
 test("applyFilters applies search predicate", () => {
@@ -97,9 +116,15 @@ test("reason filter excludes all discarded -> reason", () => {
   assert.equal(diagnoseEmpty(data, f), "reason");
 });
 
-test("docs filter too strict -> docs", () => {
+test("require-docs filter too strict -> docs", () => {
   const data = [app({ docs: ["cv"] })];
-  const f = fs({ filterDocs: ["portfolio"] });
+  const f = fs({ requireDocs: ["portfolio"] });
+  assert.equal(diagnoseEmpty(data, f), "docs");
+});
+
+test("hide-docs filter excludes everything -> docs", () => {
+  const data = [app({ docs: ["cv"] })];
+  const f = fs({ hideDocs: ["cv"] });
   assert.equal(diagnoseEmpty(data, f), "docs");
 });
 

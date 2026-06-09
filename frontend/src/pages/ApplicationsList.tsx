@@ -81,6 +81,26 @@ function loadAwaitingFilter(): AwaitingFilter {
   return "all";
 }
 
+type DocFilter = "require" | "hide";
+
+function loadDocFilters(): Record<string, DocFilter> {
+  try {
+    const raw = localStorage.getItem(DOCS_FILTER_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // migrate legacy "require all" array form
+      const rec: Record<string, DocFilter> = {};
+      for (const d of parsed) rec[d] = "require";
+      return rec;
+    }
+    if (parsed && typeof parsed === "object") return parsed;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 export default function ApplicationsList() {
   const scrollKey = "applicator.list.scrollY";
   const restoredRef = useRef(false);
@@ -196,9 +216,7 @@ export default function ApplicationsList() {
     });
   };
 
-  const [filterDocs, setFilterDocs] = useState<RequiredDoc[]>(() => {
-    try { return JSON.parse(localStorage.getItem(DOCS_FILTER_KEY) ?? "[]"); } catch { return []; }
-  });
+  const [docFilters, setDocFilters] = useState<Record<string, DocFilter>>(loadDocFilters);
 
   const [awaitingFilter, setAwaitingFilter] = useState<AwaitingFilter>(loadAwaitingFilter);
 
@@ -209,9 +227,13 @@ export default function ApplicationsList() {
       return next;
     });
 
-  const toggleDoc = (d: RequiredDoc) =>
-    setFilterDocs((prev) => {
-      const next = prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d];
+  const cycleDoc = (d: RequiredDoc) =>
+    setDocFilters((prev) => {
+      const next = { ...prev };
+      const cur = prev[d];
+      if (cur === undefined) next[d] = "require";
+      else if (cur === "require") next[d] = "hide";
+      else delete next[d];
       localStorage.setItem(DOCS_FILTER_KEY, JSON.stringify(next));
       return next;
     });
@@ -227,10 +249,11 @@ export default function ApplicationsList() {
     });
   }
 
-  const filterState: FilterState = useMemo(
-    () => ({ hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingFilter }),
-    [hiddenStatuses, reasonFilter, filterDocs, query, filterLabelIds, awaitingFilter],
-  );
+  const filterState: FilterState = useMemo(() => {
+    const requireDocs = ALL_DOCS.filter((d) => docFilters[d] === "require");
+    const hideDocs = ALL_DOCS.filter((d) => docFilters[d] === "hide");
+    return { hiddenStatuses, reasonFilter, requireDocs, hideDocs, query, filterLabelIds, awaitingFilter };
+  }, [hiddenStatuses, reasonFilter, docFilters, query, filterLabelIds, awaitingFilter]);
 
   const visible = useMemo(
     () => applyFilters(data ?? [], filterState),
@@ -252,8 +275,8 @@ export default function ApplicationsList() {
         setReasonFilter(null);
         break;
       case "docs":
-        setFilterDocs([]);
-        localStorage.setItem(DOCS_FILTER_KEY, "[]");
+        setDocFilters({});
+        localStorage.setItem(DOCS_FILTER_KEY, "{}");
         break;
       case "search":
         setQuery("");
@@ -270,8 +293,8 @@ export default function ApplicationsList() {
         setHiddenStatuses(next);
         saveHiddenStatuses(next);
         setReasonFilter(null);
-        setFilterDocs([]);
-        localStorage.setItem(DOCS_FILTER_KEY, "[]");
+        setDocFilters({});
+        localStorage.setItem(DOCS_FILTER_KEY, "{}");
         setQuery("");
         setFilterLabelIds([]);
         setAwaitingFilter("all");
@@ -367,21 +390,27 @@ export default function ApplicationsList() {
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-3 items-center">
-        <span className="text-xs text-slate-500 mr-1">Requires · all of</span>
-        {ALL_DOCS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => toggleDoc(d)}
-            className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-              filterDocs.includes(d)
-                ? "bg-amber-100 text-amber-800 border-amber-300"
-                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
-            }`}
-          >
-            {DOC_LABEL[d]}
-          </button>
-        ))}
+        <span className="text-xs text-slate-500 mr-1">Documents</span>
+        {ALL_DOCS.map((d) => {
+          const state = docFilters[d];
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => cycleDoc(d)}
+              title="Click to cycle: any → requires → hides"
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                state === "require"
+                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                  : state === "hide"
+                    ? "bg-rose-100 text-rose-800 border-rose-300"
+                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+              }`}
+            >
+              {state === "hide" ? `Not ${DOC_LABEL[d]}` : DOC_LABEL[d]}
+            </button>
+          );
+        })}
       </div>
 
       {(allLabels.data ?? []).length > 0 && (() => {
@@ -459,7 +488,7 @@ export default function ApplicationsList() {
         );
       })()}
       <div className="text-xs text-slate-400 mb-2">
-        Sections combine with AND. Within a section: Requires = all, Labels = any.
+        Sections combine with AND. Documents: amber = requires all, rose = hides any. Labels = any.
       </div>
       {isLoading && <div>Loading…</div>}
       {!isLoading && (

@@ -11,7 +11,7 @@ const COPY: Record<Reason, { message: string; fix: string }> = {
   "all-statuses-hidden": { message: "All statuses deselected — nothing to show.", fix: "Show all statuses" },
   "no-status-match": { message: "No items match the selected statuses.", fix: "Show all statuses" },
   reason: { message: "Reason filter excludes every discarded item.", fix: "Clear reason" },
-  docs: { message: "No items have all the selected documents.", fix: "Clear document filters" },
+  docs: { message: "No items match the document filters.", fix: "Clear document filters" },
   search: { message: "No items match your search.", fix: "Clear search" },
   labels: { message: "No items have all the selected labels.", fix: "Clear labels" },
   awaiting: { message: "No applications match the awaiting-reply filter.", fix: "Show all" },

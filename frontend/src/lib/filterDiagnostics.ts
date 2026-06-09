@@ -9,7 +9,8 @@ const ALL_STATUSES: AppStatus[] = [
 export interface FilterState {
   hiddenStatuses: Set<AppStatus>;
   reasonFilter: string | null;
-  filterDocs: string[];
+  requireDocs: string[];
+  hideDocs: string[];
   query: string;
   filterLabelIds: string[];
   awaitingFilter: AwaitingFilter;
@@ -33,9 +34,13 @@ export function applyFilters(data: Application[], f: FilterState): Application[]
     if (f.hiddenStatuses.has(a.status)) return false;
     if (f.reasonFilter && a.status === "discarded" && a.discard_reason_id !== f.reasonFilter)
       return false;
-    if (f.filterDocs.length > 0) {
+    if (f.requireDocs.length > 0) {
       const docs = a.job_posting?.required_documents ?? [];
-      if (!f.filterDocs.every((d) => docs.includes(d))) return false;
+      if (!f.requireDocs.every((d) => docs.includes(d))) return false;
+    }
+    if (f.hideDocs.length > 0) {
+      const docs = a.job_posting?.required_documents ?? [];
+      if (f.hideDocs.some((d) => docs.includes(d))) return false;
     }
     if (f.awaitingFilter === "awaiting" && !a.awaiting_response) return false;
     if (f.awaitingFilter === "hide" && a.awaiting_response) return false;
@@ -56,7 +61,7 @@ export function diagnoseEmpty(data: Application[], f: FilterState): EmptyReason 
   const relaxations: { kind: Exclude<EmptyReason, null>; state: FilterState }[] = [
     { kind: "no-status-match", state: { ...f, hiddenStatuses: new Set() } },
     { kind: "reason", state: { ...f, reasonFilter: null } },
-    { kind: "docs", state: { ...f, filterDocs: [] } },
+    { kind: "docs", state: { ...f, requireDocs: [], hideDocs: [] } },
     { kind: "search", state: { ...f, query: "" } },
     { kind: "awaiting", state: { ...f, awaitingFilter: "all" } },
   ];
