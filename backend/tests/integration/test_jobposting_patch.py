@@ -205,3 +205,26 @@ def test_patch_required_documents_sets_dirty_after_generate(
                 json={"required_documents": ["cv", "portfolio"]})
     assert r.status_code == 200, r.text
     assert r.json()["job_posting_dirty"] is True
+
+
+def test_patch_required_documents_clears_to_empty(
+    monkeypatch, auth_user, db_session, tmp_path
+):
+    """Toggling every chip off sends [] → 200 and the stored set becomes empty."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    settings = Settings()
+    fr = FetchResult(url="https://x.test/rd4", status_code=200, html="<p>x</p>", text="x" * 1000)
+    payload = {"title": "Dev", "company": "Acme", "language": "en",
+               "required_documents": ["cv", "portfolio"]}
+    _eager_patch(monkeypatch, db_session, settings,
+                 lambda m, s: json.dumps(payload), fr)
+
+    c, _ = auth_user
+    aid = c.post("/api/applications", json={"url": "https://x.test/rd4"}).json()["id"]
+
+    r = c.patch(f"/api/applications/{aid}/job-posting", json={"required_documents": []})
+    assert r.status_code == 200, r.text
+    assert r.json()["job_posting"]["required_documents"] == []
+
+    get_r = c.get(f"/api/applications/{aid}")
+    assert get_r.json()["job_posting"]["required_documents"] == []
