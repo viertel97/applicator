@@ -6,7 +6,7 @@ export type FunnelStats = {
   response_rate_by_channel: { channel: string; outgoing: number; responses: number; rate: number }[];
   avg_time_to_reply_hours: Record<string, number>;
   discard_breakdown: { slug: string; label: string; count: number }[];
-  weekly_volume: { week: string; applied: number; discarded: number; responses: number }[];
+  weekly_volume: { week: string; applied: number; discarded: number; responses: number; inquiries: number }[];
 };
 
 export const stats = {
