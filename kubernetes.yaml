@@ -1,9 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: forwarding
----
-apiVersion: v1
 kind: Pod
 metadata:
   name: applicator-forward
@@ -16,10 +11,10 @@ spec:
       image: alpine/socat:1.7.4.4
       command:
         - socat
-        - TCP-LISTEN:8080,fork,reuseaddr
-        - TCP:192.168.178.110:8080
+        - TCP-LISTEN:8100,fork,reuseaddr
+        - TCP:192.168.178.110:8100
       ports:
-        - containerPort: 8080
+        - containerPort: 8100
 ---
 apiVersion: v1
 kind: Service
@@ -32,7 +27,7 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 8080
+      targetPort: 8100
       protocol: TCP
 ---
 apiVersion: networking.k8s.io/v1

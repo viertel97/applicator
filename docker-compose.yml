@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16
+    profiles: ["db"]
     environment:
       POSTGRES_DB: applicator
       POSTGRES_USER: applicator
@@ -24,11 +25,12 @@ services:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://applicator:applicator@db:5432/applicator
+      DATABASE_URL: postgresql+psycopg://applicator:applicator@192.168.178.110:5432/applicator
       REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
+        required: false
       redis:
         condition: service_healthy
     volumes:
@@ -45,11 +47,12 @@ services:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://applicator:applicator@db:5432/applicator
+      DATABASE_URL: postgresql+psycopg://applicator:applicator@192.168.178.110:5432/applicator
       REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
+        required: false
       redis:
         condition: service_healthy
       api:
@@ -60,6 +63,7 @@ services:
 
   bot:
     build: ./bot
+    profiles: ["bot"]
     env_file: .env
     environment:
       API_URL: http://api:8000
