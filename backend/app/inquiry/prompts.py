@@ -86,14 +86,14 @@ _USER_PROMPT_TOKEN_RE = re.compile(
 )
 
 DEFAULT_HO_TOPIC_DE = (
-    "Da ich aktuell eine Ausbildung zum Systemischen Berater absolviere und mir in diesem Bereich eine nebenberufliche Selbstständigkeit aufbaue: Wie flexibel sind die Möglichkeiten zum mobilen Arbeiten bzw. HomeOffice, sofern Projekt- und sonstige Anforderungen zuverlässig erfüllt werden?"
+    "Da meine Partnerin und ich uns aktuell noch nicht auf einen langfristigen Wohnort festgelegt haben, würde mich interessieren, wie flexibel die Möglichkeiten zum mobilen Arbeiten bzw. Homeoffice grundsätzlich gestaltet sind, sofern die Projekt- und Teamanforderungen zuverlässig erfüllt werden."
 )
 DEFAULT_HO_TOPIC_EN = (
     "How many days of home office per week are possible, assuming customer "
     "projects and other requirements are met?"
 )
 DEFAULT_PT_TOPIC_DE = (
-    "Vor dem gleichen Hintergrund würde mich interessieren, ob eine Beschäftigung mit einem Umfang von etwa 80 % (z. B. Montag bis Donnerstag) grundsätzlich vorstellbar wäre."
+    "Außerdem absolviere ich derzeit eine Ausbildung zum Systemischen Berater. Vor diesem Hintergrund würde mich interessieren, ob eine Beschäftigung mit einem Umfang von etwa 80 % (z. B. Montag bis Donnerstag) grundsätzlich vorstellbar wäre."
 )
 DEFAULT_PT_TOPIC_EN = (
     "Would an 80% position (Monday to Thursday) be possible in principle?"
