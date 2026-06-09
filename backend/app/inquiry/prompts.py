@@ -25,7 +25,7 @@ DEFAULT_BODY_TEMPLATE_DE = (
     "{greeting},\n\n"
     "ich interessiere mich sehr f\u00fcr Ihre Stellenausschreibung als "
     "\u201e{title}{ref}\u201c. "
-    "Bevor ich meine Bewerbung einreiche, h\u00e4tte ich zwei kurze Fragen:\n\n"
+    "Bevor ich meine Bewerbung einreiche, h\u00e4tte ich zwei organisatorische Fragen:\n\n"
     "{questions}\n\n"
     "Vielen Dank im Voraus f\u00fcr Ihre R\u00fcckmeldung und mit freundlichen Gr\u00fc\u00dfen\n"
     "Janik Viertel"
@@ -86,14 +86,14 @@ _USER_PROMPT_TOKEN_RE = re.compile(
 )
 
 DEFAULT_HO_TOPIC_DE = (
-    "Wie flexibel gestaltet sich der Homeoffice-Anteil, sofern Projektanforderungen und Termine zuverlässig erfüllt werden?"
+    "Da ich aktuell eine Ausbildung zum Systemischen Berater absolviere und mir in diesem Bereich eine nebenberufliche Selbstständigkeit aufbaue: Wie flexibel sind die Möglichkeiten zum mobilen Arbeiten bzw. HomeOffice, sofern Projekt- und sonstige Anforderungen zuverlässig erfüllt werden?"
 )
 DEFAULT_HO_TOPIC_EN = (
     "How many days of home office per week are possible, assuming customer "
     "projects and other requirements are met?"
 )
 DEFAULT_PT_TOPIC_DE = (
-    "Wäre eine Beschäftigung in Teilzeit mit 80 % (z. B. Montag bis Donnerstag) grundsätzlich denkbar?"
+    "Vor dem gleichen Hintergrund würde mich interessieren, ob eine Beschäftigung mit einem Umfang von etwa 80 % (z. B. Montag bis Donnerstag) grundsätzlich vorstellbar wäre."
 )
 DEFAULT_PT_TOPIC_EN = (
     "Would an 80% position (Monday to Thursday) be possible in principle?"
