@@ -155,7 +155,7 @@ def funnel(
     funnel_stages = [
         FunnelStage(stage="created", count=total),
         FunnelStage(stage="applied",
-                    count=sum(1 for a in apps if a.status != ApplicationStatus.draft)),
+                    count=sum(1 for a in apps if a.status in APPLIED_SET)),
         FunnelStage(stage="responded", count=len(responded_app_ids)),
         FunnelStage(stage="interview", count=len(interview_app_ids)),
         FunnelStage(stage="offer", count=by_status.get("offer", 0)),
@@ -219,26 +219,23 @@ def funnel(
         DiscardBreakdown(slug=s, label=l, count=c) for s, l, c in discard_rows
     ]
 
-    # weekly volume: ISO week, applied/discarded/responses
-    weekly: dict[str, dict[str, int]] = defaultdict(lambda: {
-        "applied": 0, "discarded": 0, "responses": 0, "inquiries": 0,
-    })
-    for a in apps:
-        wk = a.created_at.strftime("%G-W%V")
-        if a.status != ApplicationStatus.draft:
-            weekly[wk]["applied"] += 1
-        if a.status == ApplicationStatus.discarded:
-            weekly[wk]["discarded"] += 1
-    for it in in_rows:
-        wk = it.occurred_at.strftime("%G-W%V")
-        weekly[wk]["responses"] += 1
-    weekly_volume = [
-        WeeklyVolume(week=w, **vals) for w, vals in sorted(weekly.items())
+    # weekly volume via pure helper (hybrid applied/discarded)
+    status_events: list[ApplicationEvent] = (
+        db.query(ApplicationEvent)
+          .filter(ApplicationEvent.application_id.in_(aids),
+                  ApplicationEvent.kind == ApplicationEventKind.status_change,
+                  ApplicationEvent.to_value.in_(("applied", "discarded")))
+          .all() if aids else []
+    )
+    inquiry_rows = [
+        it for it in out_rows
+        if it.created_from == InteractionCreatedFrom.inquiry_sent
     ]
+    weekly_volume = _weekly_volume(apps, status_events, in_rows, inquiry_rows)
 
     totals = {
         "applications": total,
-        "applied": sum(1 for a in apps if a.status != ApplicationStatus.draft),
+        "applied": sum(1 for a in apps if a.status in APPLIED_SET),
         "discarded": by_status.get("discarded", 0),
         "active": sum(
             1 for a in apps
