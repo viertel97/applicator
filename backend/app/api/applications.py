@@ -406,7 +406,8 @@ def patch_job_posting(
     updates = body.model_dump(exclude_unset=True)
     for k, v in updates.items():
         setattr(app_row.job_posting, k, v)
-    if app_row.generated_md is not None and updates:
+    non_contact = {k for k in updates if k != "contact"}
+    if app_row.generated_md is not None and non_contact:
         app_row.job_posting_dirty = True
     db.commit()
     db.refresh(app_row)

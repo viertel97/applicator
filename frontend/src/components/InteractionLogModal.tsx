@@ -45,6 +45,10 @@ export function InteractionLogModal({ appId, open, onClose, app }: Props) {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["application-timeline", appId] });
       qc.invalidateQueries({ queryKey: ["interactions", appId] });
+      const email = contactHandle.trim();
+      if (channel === "mail" && direction === "out" && email && app?.job_posting) {
+        saveContactEmail.mutate(email);
+      }
       if (r.suggest_discard) {
         setPendingDiscardIid(r.suggest_discard.interaction_id);
         setShowDiscard(true);
@@ -63,6 +67,18 @@ export function InteractionLogModal({ appId, open, onClose, app }: Props) {
       if (data.recipient) setContactHandle(data.recipient);
       const cname = app?.job_posting?.contact?.name;
       if (cname) setContactName(cname);
+    },
+  });
+
+  const saveContactEmail = useMutation({
+    mutationFn: (email: string) => {
+      const cur = app?.job_posting?.contact ?? {
+        name: null, role: null, email: null, phone: null,
+      };
+      return applications.patchJobPosting(appId, { contact: { ...cur, email } });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["application", appId] });
     },
   });
 
@@ -86,7 +102,8 @@ export function InteractionLogModal({ appId, open, onClose, app }: Props) {
     app != null &&
     (app.job_state === "extracted" || app.job_state === "ready") &&
     app.job_posting != null;
-  const recipient = app?.job_posting?.contact?.email ?? null;
+  const recipient =
+    contactHandle.trim() || (app?.job_posting?.contact?.email ?? null);
   const canDraft =
     channel === "mail" && direction === "out" && pipelineReady;
   const showMailActions = channel === "mail" && direction === "out";
@@ -166,6 +183,11 @@ export function InteractionLogModal({ appId, open, onClose, app }: Props) {
                 {draft.isError && (
                   <span className="text-rose-600 text-xs self-center">
                     {(draft.error as Error)?.toString()}
+                  </span>
+                )}
+                {saveContactEmail.isError && (
+                  <span className="text-amber-600 text-xs self-center">
+                    saved interaction; contact not updated
                   </span>
                 )}
               </div>
