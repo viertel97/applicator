@@ -59,9 +59,22 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
   const value = <K extends keyof JobPosting>(key: K): JobPosting[K] =>
     (draft[key] !== undefined ? draft[key] : jp[key]) as JobPosting[K];
 
+  const updateContact = (
+    field: keyof NonNullable<JobPosting["contact"]>,
+    val: string | null,
+  ) => {
+    const base = draft.contact ?? jp.contact ?? { name: null, role: null, email: null, phone: null };
+    setDraft((d) => ({ ...d, contact: { ...base, [field]: val } }));
+    setDirty(true);
+  };
+
   return (
     <div>
-      <ContactBlock contact={jp.contact} />
+      <ContactBlock
+        contact={draft.contact ?? jp.contact}
+        disabled={disabled}
+        onChange={updateContact}
+      />
       {TEXT_FIELDS.map((f) => (
         <div className="mb-3" key={f.key}>
           <label className="block text-xs uppercase text-slate-500">{f.label}</label>
