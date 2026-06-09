@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { JobPosting } from "../api/applications";
 import { applications } from "../api/applications";
 import { ContactBlock } from "./ContactBlock";
+import { ALL_DOCS, DOC_LABEL } from "../lib/docs";
 
 type Props = {
   appId: string;
@@ -116,23 +117,37 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
           />
         </div>
       ))}
-      {jp?.required_documents && jp.required_documents.length > 0 && (
-        <div className="mt-3">
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-            Required documents
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {jp.required_documents.map((doc) => (
-              <span
-                key={doc}
-                className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full capitalize"
-              >
-                {doc.replace(/_/g, " ")}
-              </span>
-            ))}
-          </div>
+      <div className="mt-3">
+        <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+          Required documents
         </div>
-      )}
+        <div className="flex flex-wrap gap-1">
+          {ALL_DOCS.map((doc) => {
+            const selected = (value("required_documents") ?? []).includes(doc);
+            return (
+              <button
+                key={doc}
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  const current = value("required_documents") ?? [];
+                  const next = selected
+                    ? current.filter((d) => d !== doc)
+                    : ALL_DOCS.filter((d) => [...current, doc].includes(d));
+                  update("required_documents", next);
+                }}
+                className={
+                  selected
+                    ? "text-xs px-2 py-0.5 rounded border bg-slate-700 text-white border-slate-700 disabled:opacity-50"
+                    : "text-xs px-2 py-0.5 rounded border bg-white text-slate-400 border-slate-200 disabled:opacity-50"
+                }
+              >
+                {DOC_LABEL[doc]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <button
         type="button"
         disabled={!dirty || disabled || save.isPending}
