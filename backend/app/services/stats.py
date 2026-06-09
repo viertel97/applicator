@@ -10,9 +10,20 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep
 from app.db.models import (
-    Application, ApplicationStatus, DiscardReason, Interaction,
-    InteractionChannel, InteractionDirection, User,
+    Application, ApplicationEvent, ApplicationEventKind, ApplicationStatus,
+    DiscardReason, Interaction,
+    InteractionChannel, InteractionCreatedFrom, InteractionDirection, User,
 )
+
+WEEK_FMT = "%G-W%V"
+
+APPLIED_SET = {
+    ApplicationStatus.applied,
+    ApplicationStatus.offer,
+    ApplicationStatus.rejected,
+    ApplicationStatus.accepted,
+    ApplicationStatus.withdrawn,
+}
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -40,6 +51,7 @@ class WeeklyVolume(BaseModel):
     applied: int
     discarded: int
     responses: int
+    inquiries: int
 
 
 class FunnelOut(BaseModel):
@@ -58,6 +70,48 @@ def _between(col, fr: datetime | None, to: datetime | None):
     if to is not None:
         out.append(col <= to)
     return out
+
+
+def _weekly_volume(
+    apps: list[Application],
+    status_events: list[ApplicationEvent],
+    in_interactions: list[Interaction],
+    inquiry_interactions: list[Interaction],
+) -> list[WeeklyVolume]:
+    # earliest status_change event per app for applied / discarded
+    applied_at: dict[uuid.UUID, datetime] = {}
+    discarded_at: dict[uuid.UUID, datetime] = {}
+    for ev in status_events:
+        if ev.to_value == "applied":
+            cur = applied_at.get(ev.application_id)
+            if cur is None or ev.occurred_at < cur:
+                applied_at[ev.application_id] = ev.occurred_at
+        elif ev.to_value == "discarded":
+            cur = discarded_at.get(ev.application_id)
+            if cur is None or ev.occurred_at < cur:
+                discarded_at[ev.application_id] = ev.occurred_at
+
+    weekly: dict[str, dict[str, int]] = defaultdict(lambda: {
+        "applied": 0, "discarded": 0, "responses": 0, "inquiries": 0,
+    })
+
+    for a in apps:
+        if a.id in applied_at:
+            weekly[applied_at[a.id].strftime(WEEK_FMT)]["applied"] += 1
+        elif a.status in APPLIED_SET:
+            weekly[a.created_at.strftime(WEEK_FMT)]["applied"] += 1
+
+        if a.id in discarded_at:
+            weekly[discarded_at[a.id].strftime(WEEK_FMT)]["discarded"] += 1
+        elif a.status == ApplicationStatus.discarded:
+            weekly[a.created_at.strftime(WEEK_FMT)]["discarded"] += 1
+
+    for it in in_interactions:
+        weekly[it.occurred_at.strftime(WEEK_FMT)]["responses"] += 1
+    for it in inquiry_interactions:
+        weekly[it.occurred_at.strftime(WEEK_FMT)]["inquiries"] += 1
+
+    return [WeeklyVolume(week=w, **vals) for w, vals in sorted(weekly.items())]
 
 
 @router.get("/funnel", response_model=FunnelOut)
@@ -101,7 +155,7 @@ def funnel(
     funnel_stages = [
         FunnelStage(stage="created", count=total),
         FunnelStage(stage="applied",
-                    count=sum(1 for a in apps if a.status != ApplicationStatus.draft)),
+                    count=sum(1 for a in apps if a.status in APPLIED_SET)),
         FunnelStage(stage="responded", count=len(responded_app_ids)),
         FunnelStage(stage="interview", count=len(interview_app_ids)),
         FunnelStage(stage="offer", count=by_status.get("offer", 0)),
@@ -165,26 +219,23 @@ def funnel(
         DiscardBreakdown(slug=s, label=l, count=c) for s, l, c in discard_rows
     ]
 
-    # weekly volume: ISO week, applied/discarded/responses
-    weekly: dict[str, dict[str, int]] = defaultdict(lambda: {
-        "applied": 0, "discarded": 0, "responses": 0,
-    })
-    for a in apps:
-        wk = a.created_at.strftime("%G-W%V")
-        if a.status != ApplicationStatus.draft:
-            weekly[wk]["applied"] += 1
-        if a.status == ApplicationStatus.discarded:
-            weekly[wk]["discarded"] += 1
-    for it in in_rows:
-        wk = it.occurred_at.strftime("%G-W%V")
-        weekly[wk]["responses"] += 1
-    weekly_volume = [
-        WeeklyVolume(week=w, **vals) for w, vals in sorted(weekly.items())
+    # weekly volume via pure helper (hybrid applied/discarded)
+    status_events: list[ApplicationEvent] = (
+        db.query(ApplicationEvent)
+          .filter(ApplicationEvent.application_id.in_(aids),
+                  ApplicationEvent.kind == ApplicationEventKind.status_change,
+                  ApplicationEvent.to_value.in_(("applied", "discarded")))
+          .all() if aids else []
+    )
+    inquiry_rows = [
+        it for it in out_rows
+        if it.created_from == InteractionCreatedFrom.inquiry_sent
     ]
+    weekly_volume = _weekly_volume(apps, status_events, in_rows, inquiry_rows)
 
     totals = {
         "applications": total,
-        "applied": sum(1 for a in apps if a.status != ApplicationStatus.draft),
+        "applied": sum(1 for a in apps if a.status in APPLIED_SET),
         "discarded": by_status.get("discarded", 0),
         "active": sum(
             1 for a in apps

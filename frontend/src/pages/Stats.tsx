@@ -116,6 +116,7 @@ export default function Stats() {
               <Line type="monotone" dataKey="applied" stroke="#2563eb" />
               <Line type="monotone" dataKey="discarded" stroke="#dc2626" />
               <Line type="monotone" dataKey="responses" stroke="#16a34a" />
+              <Line type="monotone" dataKey="inquiries" stroke="#d97706" />
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -707,7 +707,7 @@ def mark_inquiry_sent(
         body=body.body,
         contact_name=_contact.get("name"),
         contact_handle=_contact.get("email"),
-        created_from=InteractionCreatedFrom.manual,
+        created_from=InteractionCreatedFrom.inquiry_sent,
     )
     db.add(interaction)
     db.commit()

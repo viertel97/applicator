@@ -86,3 +86,56 @@ def test_discard_breakdown(client, db_session, auth_user):
     body = client.get("/api/stats/funnel").json()
     breakdown = {x["slug"]: x for x in body["discard_breakdown"]}
     assert breakdown["rejected"]["count"] == 1
+
+
+def test_applied_excludes_pre_apply_and_discarded(client, db_session, auth_user):
+    from app.db.models import ApplicationStatus
+    _, u = auth_user
+    for i, st in enumerate([
+        ApplicationStatus.need_call,
+        ApplicationStatus.apply_direct,
+        ApplicationStatus.discarded,
+        ApplicationStatus.draft,
+    ]):
+        db_session.add(Application(
+            user_id=u.id, url=f"https://x.test/p{i}", url_hash=f"hp{i}", status=st,
+        ))
+    db_session.add(Application(
+        user_id=u.id, url="https://x.test/ap", url_hash="hap",
+        status=ApplicationStatus.applied,
+    ))
+    db_session.commit()
+    body = client.get("/api/stats/funnel").json()
+    # only the one applied app counts
+    assert body["totals"]["applied"] == 1
+    stages = {s["stage"]: s["count"] for s in body["funnel"]}
+    assert stages["applied"] == 1
+    total_weekly_applied = sum(w["applied"] for w in body["weekly_volume"])
+    total_weekly_discarded = sum(w["discarded"] for w in body["weekly_volume"])
+    assert total_weekly_applied == 1
+    assert total_weekly_discarded == 1  # discarded not also counted as applied
+
+
+def test_weekly_inquiries_counted(client, db_session, auth_user):
+    from app.db.models import (
+        ApplicationStatus, Interaction, InteractionChannel,
+        InteractionCreatedFrom, InteractionDirection,
+    )
+    _, u = auth_user
+    a = Application(user_id=u.id, url="https://x.test/wi", url_hash="hwi",
+                    status=ApplicationStatus.need_call)
+    db_session.add(a); db_session.commit(); db_session.refresh(a)
+    db_session.add_all([
+        Interaction(application_id=a.id, direction=InteractionDirection.out,
+                    channel=InteractionChannel.mail,
+                    created_from=InteractionCreatedFrom.inquiry_sent),
+        Interaction(application_id=a.id, direction=InteractionDirection.out,
+                    channel=InteractionChannel.mail,
+                    created_from=InteractionCreatedFrom.manual),
+    ])
+    db_session.commit()
+    body = client.get("/api/stats/funnel").json()
+    total_inquiries = sum(w["inquiries"] for w in body["weekly_volume"])
+    assert total_inquiries == 1  # only the inquiry_sent one
+    # need_call app is not an application
+    assert body["totals"]["applied"] == 0

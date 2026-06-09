@@ -100,6 +100,7 @@ class InteractionCreatedFrom(str, enum.Enum):
     inquiry_migration = "inquiry_migration"
     graph_sync = "graph_sync"
     eml_import = "eml_import"
+    inquiry_sent = "inquiry_sent"
 
 
 class ApplicationEventKind(str, enum.Enum):

@@ -101,7 +101,7 @@ def test_mark_sent_creates_outgoing_mail_interaction(auth_user, db_session, monk
     assert it.channel == InteractionChannel.mail
     assert it.subject == "My subject"
     assert it.body == "My body"
-    assert it.created_from == InteractionCreatedFrom.manual
+    assert it.created_from == InteractionCreatedFrom.inquiry_sent
     # contact came from job_posting.contact
     assert it.contact_name == "HR Person"
     assert it.contact_handle == "hr@acme.test"
