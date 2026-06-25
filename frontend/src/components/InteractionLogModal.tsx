@@ -42,10 +42,9 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (open && prefill) {
-      if (prefill.channel) setChannel(prefill.channel);
-      if (prefill.direction) setDirection(prefill.direction);
-    }
+    if (!open) return;
+    setChannel(prefill?.channel ?? "mail");
+    setDirection(prefill?.direction ?? "out");
   }, [open]);
 
   const create = useMutation({
