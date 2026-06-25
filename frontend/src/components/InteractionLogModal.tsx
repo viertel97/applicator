@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   interactions, type CreateInteractionInput, type Channel, type Direction, type Sentiment,
@@ -11,6 +11,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   app?: Application;
+  prefill?: { channel?: Channel; direction?: Direction };
 };
 
 const CHANNELS: Channel[] = ["mail", "linkedin", "phone", "portal", "xing", "interview", "other"];
@@ -21,7 +22,7 @@ function mailto(to: string | null, subject: string, body: string): string {
   return `mailto:${to ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(crlfBody)}`;
 }
 
-export function InteractionLogModal({ appId, open, onClose, app }: Props) {
+export function InteractionLogModal({ appId, open, onClose, app, prefill }: Props) {
   const qc = useQueryClient();
   const [direction, setDirection] = useState<Direction>("out");
   const [channel, setChannel] = useState<Channel>("mail");
@@ -38,6 +39,13 @@ export function InteractionLogModal({ appId, open, onClose, app }: Props) {
   const [reasonId, setReasonId] = useState<string | null>(null);
   const [discardNote, setDiscardNote] = useState("");
   const [pendingDiscardIid, setPendingDiscardIid] = useState<string | null>(null);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open) return;
+    setChannel(prefill?.channel ?? "mail");
+    setDirection(prefill?.direction ?? "out");
+  }, [open]);
 
   const create = useMutation({
     mutationFn: (payload: CreateInteractionInput) =>

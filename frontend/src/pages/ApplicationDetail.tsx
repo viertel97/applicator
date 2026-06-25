@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applications } from "../api/applications";
 import type { AppStatus, DiscardPayload } from "../api/applications";
+import type { Channel, Direction } from "../api/interactions";
 import { cv as cvApi, anschreiben as anApi } from "../api/documents";
 import { JobPostingPanel } from "../components/JobPostingPanel";
 import { AnschreibenEditor } from "../components/AnschreibenEditor";
@@ -12,7 +13,7 @@ import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ActivityPanel } from "../components/ActivityPanel";
 
-const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
+const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct", "interview"];
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +60,12 @@ export default function ApplicationDetail() {
   const [notes, setNotes] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  const [logOpen, setLogOpen] = useState(false);
+  const [logPrefill, setLogPrefill] = useState<{ channel?: Channel; direction?: Direction } | undefined>(undefined);
+  const openLog = (prefill?: { channel?: Channel; direction?: Direction }) => {
+    setLogPrefill(prefill);
+    setLogOpen(true);
+  };
 
   const setStatus = useMutation({
     mutationFn: (payload: { status: AppStatus } | DiscardPayload) =>
@@ -145,10 +152,10 @@ export default function ApplicationDetail() {
             value={a.status}
             onChange={(e) => {
               const s = e.target.value as AppStatus;
-              if (s !== "discarded") {
-                setDiscardReason("");
-                setStatus.mutate({ status: s });
-              }
+              if (s === "discarded") return;
+              setDiscardReason("");
+              setStatus.mutate({ status: s });
+              if (s === "interview") openLog({ channel: "interview", direction: "in" });
             }}
             className="border rounded px-2 py-1 text-sm"
           >
@@ -370,6 +377,10 @@ export default function ApplicationDetail() {
               const val = notes.trim() || null;
               if (val !== (a.notes ?? null)) patchNotes.mutate(val);
             }}
+            logOpen={logOpen}
+            onCloseLog={() => setLogOpen(false)}
+            onOpenLog={openLog}
+            logPrefill={logPrefill}
           />
         </div>
       </div>

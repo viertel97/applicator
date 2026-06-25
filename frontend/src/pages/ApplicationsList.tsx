@@ -25,7 +25,7 @@ const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
 const DOCS_FILTER_KEY = "applicator.docsFilter.required";
 const AWAITING_FILTER_KEY = "applicator.awaitingFilter";
 
-const ALL_STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct"];
+const ALL_STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct", "interview"];
 const HIDDEN_BY_DEFAULT: AppStatus[] = ["rejected", "withdrawn", "discarded"];
 
 const STATUS_LABEL: Record<AppStatus, string> = {
@@ -38,6 +38,7 @@ const STATUS_LABEL: Record<AppStatus, string> = {
   discarded: "Discarded",
   need_call: "Need call",
   apply_direct: "Apply direct",
+  interview: "Interview",
 };
 
 const CATEGORY_ORDER: LabelCategory[] = [

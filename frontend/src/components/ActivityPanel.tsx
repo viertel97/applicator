@@ -4,13 +4,14 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { InteractionLogModal } from "./InteractionLogModal";
 import { DeleteConfirmButton } from "./DeleteConfirmButton";
 import { useToast } from "./Toast";
-import { interactions, type Interaction } from "../api/interactions";
+import { interactions, type Interaction, type Channel, type Direction } from "../api/interactions";
 import type { Application } from "../api/applications";
 
 type Tab = "timeline" | "interactions" | "notes";
 
 export function ActivityPanel({
   appId, app, notes: _notes, onNotesBlur, notesValue, onNotesChange,
+  logOpen, onCloseLog, onOpenLog, logPrefill,
 }: {
   appId: string;
   app?: Application;
@@ -18,9 +19,12 @@ export function ActivityPanel({
   onNotesBlur: () => void;
   notesValue: string;
   onNotesChange: (v: string) => void;
+  logOpen: boolean;
+  onCloseLog: () => void;
+  onOpenLog: (prefill?: { channel?: Channel; direction?: Direction }) => void;
+  logPrefill?: { channel?: Channel; direction?: Direction };
 }) {
   const [tab, setTab] = useState<Tab>("timeline");
-  const [showLog, setShowLog] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
@@ -97,7 +101,7 @@ export function ActivityPanel({
         ))}
         <button type="button"
                 className="ml-auto bg-blue-600 text-white rounded px-2 py-1 text-xs"
-                onClick={() => setShowLog(true)}>
+                onClick={() => onOpenLog()}>
           + Log interaction
         </button>
       </div>
@@ -161,7 +165,7 @@ export function ActivityPanel({
           />
         )}
       </div>
-      <InteractionLogModal appId={appId} app={app} open={showLog} onClose={() => setShowLog(false)} />
+      <InteractionLogModal appId={appId} app={app} open={logOpen} onClose={onCloseLog} prefill={logPrefill} />
     </div>
   );
 }

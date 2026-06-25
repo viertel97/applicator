@@ -36,6 +36,7 @@ class ApplicationStatus(str, enum.Enum):
     discarded = "discarded"
     need_call = "need_call"
     apply_direct = "apply_direct"
+    interview = "interview"
 
 
 class JobState(str, enum.Enum):

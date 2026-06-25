@@ -23,6 +23,7 @@ APPLIED_SET = {
     ApplicationStatus.rejected,
     ApplicationStatus.accepted,
     ApplicationStatus.withdrawn,
+    ApplicationStatus.interview,
 }
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
@@ -143,7 +144,7 @@ def funnel(
     )
     responded_app_ids = {it.application_id for it in in_rows}
 
-    interview_app_ids = {
+    interview_interaction_app_ids = {
         it.application_id for it in (
             db.query(Interaction)
               .filter(Interaction.application_id.in_(aids),
@@ -151,6 +152,8 @@ def funnel(
               .all() if aids else []
         )
     }
+    interview_status_app_ids = {a.id for a in apps if a.status == ApplicationStatus.interview}
+    interview_app_ids = interview_interaction_app_ids | interview_status_app_ids
 
     funnel_stages = [
         FunnelStage(stage="created", count=total),

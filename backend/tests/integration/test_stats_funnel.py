@@ -116,6 +116,41 @@ def test_applied_excludes_pre_apply_and_discarded(client, db_session, auth_user)
     assert total_weekly_discarded == 1  # discarded not also counted as applied
 
 
+def test_interview_status_counts_in_applied_and_funnel(client, db_session, auth_user):
+    _, u = auth_user
+    a = Application(
+        user_id=u.id, url="https://x.test/iv", url_hash="hiv",
+        status=ApplicationStatus.interview,
+    )
+    db_session.add(a)
+    db_session.commit()
+    body = client.get("/api/stats/funnel").json()
+    stages = {s["stage"]: s["count"] for s in body["funnel"]}
+    assert stages["interview"] == 1, "interview-status app must appear in interview funnel stage"
+    assert body["totals"]["applied"] == 1, "interview-status app must count in totals.applied"
+    assert stages["applied"] == 1, "interview-status app must count in applied funnel stage"
+
+
+def test_interview_status_no_double_count(client, db_session, auth_user):
+    """An app with both status=interview and an interview Interaction counts once."""
+    _, u = auth_user
+    a = Application(
+        user_id=u.id, url="https://x.test/iv2", url_hash="hiv2",
+        status=ApplicationStatus.interview,
+    )
+    db_session.add(a)
+    db_session.commit()
+    db_session.add(Interaction(
+        application_id=a.id,
+        direction=InteractionDirection.out,
+        channel=InteractionChannel.interview,
+    ))
+    db_session.commit()
+    body = client.get("/api/stats/funnel").json()
+    stages = {s["stage"]: s["count"] for s in body["funnel"]}
+    assert stages["interview"] == 1, "app with both status and interaction must count only once"
+
+
 def test_weekly_inquiries_counted(client, db_session, auth_user):
     from app.db.models import (
         ApplicationStatus, Interaction, InteractionChannel,

@@ -1,6 +1,6 @@
 import { api } from "./client";
 
-export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn" | "discarded" | "need_call" | "apply_direct";
+export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn" | "discarded" | "need_call" | "apply_direct" | "interview";
 export type JobState =
   | "pending"
   | "crawling"
