@@ -3,7 +3,7 @@ import { matchesSearch } from "./search.ts";
 
 const ALL_STATUSES: AppStatus[] = [
   "draft", "applied", "offer", "rejected", "accepted",
-  "withdrawn", "discarded", "need_call", "apply_direct",
+  "withdrawn", "discarded", "need_call", "apply_direct", "interview",
 ];
 
 export interface FilterState {

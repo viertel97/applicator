@@ -5,7 +5,7 @@ import { applyFilters, diagnoseEmpty, type FilterState } from "./filterDiagnosti
 
 const ALL_STATUSES: AppStatus[] = [
   "draft", "applied", "offer", "rejected", "accepted",
-  "withdrawn", "discarded", "need_call", "apply_direct",
+  "withdrawn", "discarded", "need_call", "apply_direct", "interview",
 ];
 
 function app(o: {
