@@ -27,11 +27,8 @@ function fmtHours(h: number | null): string {
 }
 
 function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString();
-  } catch {
-    return iso;
-  }
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString();
 }
 
 function kindBadge(kind: string): string {
@@ -78,6 +75,8 @@ function DetailSections({ d, weeklyVolume, funnel }: {
   }));
 
   // --- Cadence trend (from existing weekly_volume) ---
+  // NOTE: weekly_volume buckets are event-weeks (weeks with activity), not calendar
+  // weeks — gap weeks are absent, so slice(-4) may span more than 4 calendar weeks.
   const vol = [...weeklyVolume].sort((a, b) => a.week.localeCompare(b.week));
   const last4 = vol.slice(-4);
   const prior4 = vol.slice(-8, -4);
@@ -85,14 +84,14 @@ function DetailSections({ d, weeklyVolume, funnel }: {
     arr.length > 0 ? arr.reduce((s, w) => s + w.applied, 0) / arr.length : null;
   const last4Avg = avg(last4);
   const prior4Avg = avg(prior4);
-  let cadenceValue = last4Avg != null ? last4Avg.toFixed(1) : "—";
+  const cadenceValue = last4Avg != null ? last4Avg.toFixed(1) : "—";
   let cadenceSub = "";
-  if (last4Avg != null && prior4Avg != null) {
+  if (last4.length === 4 && prior4.length === 4 && last4Avg != null && prior4Avg != null) {
     const delta = last4Avg - prior4Avg;
     const arrow = delta >= 0 ? "▲" : "▼";
     cadenceSub = `${arrow} ${Math.abs(delta).toFixed(1)} vs prior 4w`;
-  } else if (last4.length < 4) {
-    cadenceSub = `${last4.length} week(s) of data`;
+  } else if (vol.length > 0) {
+    cadenceSub = `${vol.length} week(s) of data`;
   }
 
   // --- Interview win rate ---
@@ -122,8 +121,8 @@ function DetailSections({ d, weeklyVolume, funnel }: {
                     outerRadius="80%"
                     paddingAngle={2}
                   >
-                    {donutData.map((_, i) => (
-                      <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                    {donutData.map((entry, i) => (
+                      <Cell key={entry.name} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
