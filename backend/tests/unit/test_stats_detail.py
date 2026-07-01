@@ -507,14 +507,14 @@ class TestComputeGhost:
     def test_old_applied_no_response_counts(self):
         aid = uuid.uuid4()
         # created_at well in the past (60 days ago)
-        old = datetime.utcnow() - timedelta(days=60)
+        old = datetime.now(UTC) - timedelta(days=60)
         a = _app(ApplicationStatus.applied, old, aid)
         result = compute_ghost([a], [], [], ghost_days=30)
         assert result.count == 1
 
     def test_old_applied_with_incoming_interaction_excluded(self):
         aid = uuid.uuid4()
-        old = datetime.utcnow() - timedelta(days=60)
+        old = datetime.now(UTC) - timedelta(days=60)
         a = _app(ApplicationStatus.applied, old, aid)
         it = _interaction(aid, old + timedelta(days=5), direction=InteractionDirection.in_)
         result = compute_ghost([a], [], [it], ghost_days=30)
@@ -522,14 +522,14 @@ class TestComputeGhost:
 
     def test_recent_applied_excluded(self):
         aid = uuid.uuid4()
-        recent = datetime.utcnow() - timedelta(days=5)
+        recent = datetime.now(UTC) - timedelta(days=5)
         a = _app(ApplicationStatus.applied, recent, aid)
         result = compute_ghost([a], [], [], ghost_days=30)
         assert result.count == 0
 
     def test_non_applied_set_status_excluded(self):
         aid = uuid.uuid4()
-        old = datetime.utcnow() - timedelta(days=60)
+        old = datetime.now(UTC) - timedelta(days=60)
         a = _app(ApplicationStatus.draft, old, aid)
         result = compute_ghost([a], [], [], ghost_days=30)
         assert result.count == 0
@@ -543,7 +543,7 @@ class TestComputeGhost:
         aid = uuid.uuid4()
         # created_at is ancient, but applied event is recent
         a = _app(ApplicationStatus.applied, datetime(2020, 1, 1), aid)
-        recent_applied = datetime.utcnow() - timedelta(days=5)
+        recent_applied = datetime.now(UTC) - timedelta(days=5)
         ev = _ev(aid, "applied", recent_applied.replace(tzinfo=UTC))
         result = compute_ghost([a], [ev], [], ghost_days=30)
         # applied recently, so NOT a ghost

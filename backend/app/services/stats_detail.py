@@ -8,7 +8,7 @@ from __future__ import annotations
 import statistics
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel
 
@@ -107,11 +107,6 @@ class Interview(BaseModel):
 def _naive(dt: datetime) -> datetime:
     """Strip timezone info to produce a naive-UTC datetime."""
     return dt.replace(tzinfo=None) if dt.tzinfo is not None else dt
-
-
-def _status_change_events(events: list[ApplicationEvent]) -> list[ApplicationEvent]:
-    """Filter to status_change events only."""
-    return [e for e in events if e.kind == ApplicationEventKind.status_change]
 
 
 def _decline_of(
@@ -418,7 +413,7 @@ def compute_ghost(
     ghost_days: int,
 ) -> Ghost:
     """Count apps in APPLIED_SET with no incoming interaction and applied_at <= threshold."""
-    now = datetime.utcnow()
+    now = _naive(datetime.now(UTC))
     threshold = now - timedelta(days=ghost_days)
 
     # Build set of app_ids that have at least one incoming interaction
