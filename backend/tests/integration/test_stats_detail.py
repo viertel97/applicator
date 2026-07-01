@@ -118,11 +118,11 @@ def test_ghost_respects_ghost_days(client, db_session, auth_user):
     # No incoming interaction — this app should be a ghost after 21 days
     db_session.commit()
 
-    # Default ghost_days=21 → app qualifies (60 days old)
+    # Default ghost_days=21 → exactly this one app qualifies (60 days old)
     r = client.get("/api/stats/detail")
     assert r.status_code == 200, r.text
     ghost = r.json()["ghost"]
-    assert ghost["count"] >= 1
+    assert ghost["count"] == 1
     assert ghost["threshold_days"] == 21
 
     # Very high ghost_days → app does NOT qualify
@@ -131,6 +131,43 @@ def test_ghost_respects_ghost_days(client, db_session, auth_user):
     ghost2 = r2.json()["ghost"]
     assert ghost2["count"] == 0
     assert ghost2["threshold_days"] == 9999
+
+
+def test_date_window_filtering(client, db_session, auth_user):
+    """from/to params restrict which applications are counted."""
+    import sqlalchemy
+
+    _, u = auth_user
+    now = datetime.utcnow()
+
+    # Three apps at distinct dates: ~60, ~30, and ~0 days ago.
+    a_old = _app(db_session, u, ApplicationStatus.applied)
+    a_mid = _app(db_session, u, ApplicationStatus.applied)
+    a_new = _app(db_session, u, ApplicationStatus.applied)
+    db_session.commit()
+
+    # Force created_at via UPDATE to defeat server_default on INSERT.
+    db_session.execute(
+        sqlalchemy.text("UPDATE application SET created_at = :ts WHERE id = :id"),
+        {"ts": now - timedelta(days=60), "id": str(a_old.id)},
+    )
+    db_session.execute(
+        sqlalchemy.text("UPDATE application SET created_at = :ts WHERE id = :id"),
+        {"ts": now - timedelta(days=30), "id": str(a_mid.id)},
+    )
+    db_session.execute(
+        sqlalchemy.text("UPDATE application SET created_at = :ts WHERE id = :id"),
+        {"ts": now - timedelta(days=0), "id": str(a_new.id)},
+    )
+    db_session.commit()
+
+    # Window: ~45 days ago to ~15 days ago → only the day-30 app falls inside.
+    fr = (now - timedelta(days=45)).isoformat()
+    to = (now - timedelta(days=15)).isoformat()
+
+    r = client.get("/api/stats/detail", params={"from": fr, "to": to})
+    assert r.status_code == 200, r.text
+    assert r.json()["outcomes"]["total"] == 1
 
 
 def test_declines_weekly_entry(client, db_session, auth_user):
@@ -150,3 +187,21 @@ def test_declines_weekly_entry(client, db_session, auth_user):
     week_entry = next((w for w in weekly if w["week"] == "2024-W24"), None)
     assert week_entry is not None, f"expected 2024-W24 in declines_weekly, got {weekly}"
     assert week_entry["rejected"] >= 1
+
+
+def test_empty_data(client, db_session, auth_user):
+    """Authenticated user with no applications gets 200 with zeroed outcomes and empty lists."""
+    # No applications created — db is empty for this user.
+    r = client.get("/api/stats/detail")
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    assert body["outcomes"]["total"] == 0
+    assert body["declines_weekly"] == []
+    assert body["decline_timeline"] == []
+    assert body["rejection_stage"] == [
+        {"stage": "applied", "count": 0},
+        {"stage": "responded", "count": 0},
+        {"stage": "interview", "count": 0},
+        {"stage": "offer", "count": 0},
+    ]
