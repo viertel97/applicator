@@ -138,7 +138,7 @@ def test_date_window_filtering(client, db_session, auth_user):
     import sqlalchemy
 
     _, u = auth_user
-    now = datetime.utcnow()
+    now = datetime.now(UTC).replace(tzinfo=None)
 
     # Three apps at distinct dates: ~60, ~30, and ~0 days ago.
     a_old = _app(db_session, u, ApplicationStatus.applied)
