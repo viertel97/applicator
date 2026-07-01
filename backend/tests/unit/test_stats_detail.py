@@ -265,6 +265,34 @@ class TestComputeDeclineTimeline:
         result = compute_decline_timeline([a], [ev_rejected], [it], {})
         assert result[0].stage_reached == "responded"
 
+    def test_withdrawn_and_discarded_produce_correct_kind(self):
+        """withdrawn and discarded apps each appear with the correct kind field."""
+        aid_w = uuid.uuid4()
+        aid_d = uuid.uuid4()
+        a_withdrawn = _app(ApplicationStatus.withdrawn, datetime(2026, 1, 5), aid_w)
+        a_discarded = _app(ApplicationStatus.discarded, datetime(2026, 1, 6), aid_d)
+        ev_w = _ev(aid_w, "withdrawn", datetime(2026, 1, 10, tzinfo=UTC))
+        ev_d = _ev(aid_d, "discarded", datetime(2026, 1, 12, tzinfo=UTC))
+
+        result = compute_decline_timeline(
+            [a_withdrawn, a_discarded], [ev_w, ev_d], [], {}
+        )
+
+        assert len(result) == 2
+        kinds = {item.kind for item in result}
+        assert kinds == {"withdrawn", "discarded"}
+
+        # ordered desc by occurred_at: discarded (Jan 12) before withdrawn (Jan 10)
+        assert result[0].kind == "discarded"
+        assert result[1].kind == "withdrawn"
+
+        # limit still respected
+        result_limited = compute_decline_timeline(
+            [a_withdrawn, a_discarded], [ev_w, ev_d], [], {}, limit=1
+        )
+        assert len(result_limited) == 1
+        assert result_limited[0].kind == "discarded"
+
 
 # ---------------------------------------------------------------------------
 # compute_rejection_stage
@@ -328,6 +356,21 @@ class TestComputeRejectionStage:
         by_stage = {r.stage: r.count for r in result}
         assert by_stage["applied"] == 1
         assert by_stage["responded"] == 1
+
+    def test_discarded_app_counted_in_correct_stage(self):
+        """A discarded app that reached the interview stage is counted under 'interview'."""
+        aid = uuid.uuid4()
+        a = _app(ApplicationStatus.discarded, datetime(2026, 1, 20), aid)
+        # interview event before discard
+        ev_interview = _ev(aid, "interview", datetime(2026, 1, 10, tzinfo=UTC))
+        ev_discarded = _ev(aid, "discarded", datetime(2026, 1, 15, tzinfo=UTC))
+        result = compute_rejection_stage([a], [ev_interview, ev_discarded], [])
+        assert len(result) == 4
+        by_stage = {r.stage: r.count for r in result}
+        assert by_stage["interview"] == 1
+        assert by_stage["applied"] == 0
+        assert by_stage["responded"] == 0
+        assert by_stage["offer"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -402,6 +445,53 @@ class TestComputeVelocity:
         it = _interaction(aid, datetime(2026, 1, 5, tzinfo=UTC), direction=InteractionDirection.in_)
         result = compute_velocity([a], [ev], [it])
         assert result.applied_to_response_h.mean is None
+
+    def test_later_pipeline_segments(self):
+        """response_to_interview, interview_to_offer, offer_to_decision all get non-None means."""
+        # App 1: full pipeline — applied→response 10h, response→interview 20h,
+        #         interview→offer 30h, offer→decision 40h
+        aid1 = uuid.uuid4()
+        t0_1 = datetime(2026, 2, 1, 0, tzinfo=UTC)
+        a1 = _app(ApplicationStatus.accepted, datetime(2026, 2, 1), aid1)
+        ev_applied1 = _ev(aid1, "applied", t0_1)
+        it_response1 = _interaction(
+            aid1, t0_1 + timedelta(hours=10), direction=InteractionDirection.in_
+        )
+        ev_interview1 = _ev(aid1, "interview", t0_1 + timedelta(hours=30))
+        ev_offer1 = _ev(aid1, "offer", t0_1 + timedelta(hours=60))
+        ev_decision1 = _ev(aid1, "accepted", t0_1 + timedelta(hours=100))
+
+        # App 2: second full pipeline — response→interview 40h, interview→offer 50h,
+        #         offer→decision 60h (gives distinct median values)
+        aid2 = uuid.uuid4()
+        t0_2 = datetime(2026, 3, 1, 0, tzinfo=UTC)
+        a2 = _app(ApplicationStatus.rejected, datetime(2026, 3, 1), aid2)
+        ev_applied2 = _ev(aid2, "applied", t0_2)
+        it_response2 = _interaction(
+            aid2, t0_2 + timedelta(hours=10), direction=InteractionDirection.in_
+        )
+        ev_interview2 = _ev(aid2, "interview", t0_2 + timedelta(hours=50))
+        ev_offer2 = _ev(aid2, "offer", t0_2 + timedelta(hours=100))
+        ev_decision2 = _ev(aid2, "rejected", t0_2 + timedelta(hours=160))
+
+        apps = [a1, a2]
+        events = [ev_applied1, ev_interview1, ev_offer1, ev_decision1,
+                  ev_applied2, ev_interview2, ev_offer2, ev_decision2]
+        interactions = [it_response1, it_response2]
+
+        result = compute_velocity(apps, events, interactions)
+
+        # response_to_interview: app1=20h, app2=40h → mean=30.0, median=30.0
+        assert result.response_to_interview_h.mean == 30.0
+        assert result.response_to_interview_h.median == 30.0
+
+        # interview_to_offer: app1=30h, app2=50h → mean=40.0, median=40.0
+        assert result.interview_to_offer_h.mean == 40.0
+        assert result.interview_to_offer_h.median == 40.0
+
+        # offer_to_decision: app1=40h, app2=60h → mean=50.0, median=50.0
+        assert result.offer_to_decision_h.mean == 50.0
+        assert result.offer_to_decision_h.median == 50.0
 
 
 # ---------------------------------------------------------------------------
