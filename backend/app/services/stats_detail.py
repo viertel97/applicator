@@ -1,7 +1,7 @@
-"""Pure metric functions for detailed application statistics.
+"""Pure metric functions and HTTP layer for detailed application statistics.
 
-No database access, no FastAPI dependencies. All functions operate over
-preloaded ORM row lists and return Pydantic models.
+Pure functions operate over preloaded ORM row lists and return Pydantic models.
+The router/endpoint at the bottom handles DB access and wires everything together.
 """
 from __future__ import annotations
 
@@ -9,9 +9,13 @@ import statistics
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app.api.deps import current_user, db_dep
 from app.db.models import (
     Application,
     ApplicationEvent,
@@ -20,6 +24,8 @@ from app.db.models import (
     Interaction,
     InteractionChannel,
     InteractionDirection,
+    JobPosting,
+    User,
 )
 
 # ---------------------------------------------------------------------------
@@ -497,3 +503,89 @@ def compute_interview(
     win_rate = won / total_decided if total_decided > 0 else None
 
     return Interview(reached=len(reached), won=won, lost=lost, win_rate=win_rate)
+
+
+# ---------------------------------------------------------------------------
+# HTTP layer
+# ---------------------------------------------------------------------------
+
+
+class DetailOut(BaseModel):
+    outcomes: Outcomes
+    declines_weekly: list[DeclineWeek]
+    decline_timeline: list[DeclineTimelineItem]
+    rejection_stage: list[RejectionStage]
+    velocity: Velocity
+    ghost: Ghost
+    interview: Interview
+
+
+router = APIRouter(prefix="/api/stats", tags=["stats"])
+
+
+def _between(col, fr: datetime | None, to: datetime | None) -> list:
+    out = []
+    if fr is not None:
+        out.append(col >= fr)
+    if to is not None:
+        out.append(col <= to)
+    return out
+
+
+@router.get("/detail", response_model=DetailOut)
+def detail(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+    fr: datetime | None = Query(default=None, alias="from"),  # noqa: B008
+    to: datetime | None = Query(default=None),  # noqa: B008
+    ghost_days: int = Query(default=21),  # noqa: B008
+) -> DetailOut:
+    apps: list[Application] = (
+        db.query(Application)
+        .filter(
+            Application.user_id == user.id,
+            Application.deleted_at.is_(None),
+            *_between(Application.created_at, fr, to),
+        )
+        .all()
+    )
+    aids = [a.id for a in apps]
+
+    status_events: list[ApplicationEvent] = (
+        db.query(ApplicationEvent)
+        .filter(
+            ApplicationEvent.application_id.in_(aids),
+            ApplicationEvent.kind == ApplicationEventKind.status_change,
+        )
+        .all()
+        if aids
+        else []
+    )
+
+    interactions: list[Interaction] = (
+        db.query(Interaction)
+        .filter(Interaction.application_id.in_(aids))
+        .all()
+        if aids
+        else []
+    )
+
+    postings: dict[uuid.UUID, tuple[str | None, str | None]] = {}
+    if aids:
+        rows = (
+            db.query(JobPosting.application_id, JobPosting.company, JobPosting.title)
+            .filter(JobPosting.application_id.in_(aids))
+            .all()
+        )
+        for app_id, company, title in rows:
+            postings[app_id] = (company, title)
+
+    return DetailOut(
+        outcomes=compute_outcomes(apps),
+        declines_weekly=compute_declines_weekly(apps, status_events),
+        decline_timeline=compute_decline_timeline(apps, status_events, interactions, postings),
+        rejection_stage=compute_rejection_stage(apps, status_events, interactions),
+        velocity=compute_velocity(apps, status_events, interactions),
+        ghost=compute_ghost(apps, status_events, interactions, ghost_days),
+        interview=compute_interview(apps, status_events, interactions),
+    )
