@@ -13,6 +13,20 @@ const STATUS_CLASS: Record<AppStatus, string> = {
   interview: "bg-indigo-100 text-indigo-700",
 };
 
+// Hex equivalents of STATUS_CLASS, for native <option> styling (Tailwind classes don't apply there).
+export const STATUS_HEX: Record<AppStatus, { bg: string; text: string }> = {
+  draft: { bg: "#e2e8f0", text: "#334155" },
+  applied: { bg: "#dbeafe", text: "#1d4ed8" },
+  offer: { bg: "#d1fae5", text: "#047857" },
+  rejected: { bg: "#ffe4e6", text: "#be123c" },
+  accepted: { bg: "#bbf7d0", text: "#166534" },
+  withdrawn: { bg: "#cbd5e1", text: "#475569" },
+  discarded: { bg: "#ffedd5", text: "#c2410c" },
+  need_call: { bg: "#f3e8ff", text: "#7e22ce" },
+  apply_direct: { bg: "#ccfbf1", text: "#0f766e" },
+  interview: { bg: "#e0e7ff", text: "#4338ca" },
+};
+
 export function StatusBadge({ status, title }: { status: AppStatus; title?: string }) {
   return (
     <span

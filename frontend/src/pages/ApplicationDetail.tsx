@@ -8,7 +8,7 @@ import { cv as cvApi, anschreiben as anApi } from "../api/documents";
 import { JobPostingPanel } from "../components/JobPostingPanel";
 import { AnschreibenEditor } from "../components/AnschreibenEditor";
 import { ChatPanel } from "../components/ChatPanel";
-import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
+import { JobStateBadge, StatusBadge, OnlineBadge, STATUS_HEX } from "../components/StatusBadge";
 import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ActivityPanel } from "../components/ActivityPanel";
@@ -157,10 +157,20 @@ export default function ApplicationDetail() {
               setStatus.mutate({ status: s });
               if (s === "interview") openLog({ channel: "interview", direction: "in" });
             }}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-sm font-medium"
+            style={{
+              backgroundColor: STATUS_HEX[a.status].bg,
+              color: STATUS_HEX[a.status].text,
+            }}
           >
             {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option
+                key={s}
+                value={s}
+                style={{ backgroundColor: STATUS_HEX[s].bg, color: STATUS_HEX[s].text }}
+              >
+                {s}
+              </option>
             ))}
           </select>
           {a.status !== "discarded" && (
