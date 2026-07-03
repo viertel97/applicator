@@ -8,7 +8,8 @@ import { cv as cvApi, anschreiben as anApi } from "../api/documents";
 import { JobPostingPanel } from "../components/JobPostingPanel";
 import { AnschreibenEditor } from "../components/AnschreibenEditor";
 import { ChatPanel } from "../components/ChatPanel";
-import { JobStateBadge, StatusBadge, OnlineBadge, STATUS_HEX } from "../components/StatusBadge";
+import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
+import { StatusSelect } from "../components/StatusSelect";
 import { LabelEditor } from "../components/LabelEditor";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ActivityPanel } from "../components/ActivityPanel";
@@ -148,31 +149,16 @@ export default function ApplicationDetail() {
             View original posting ↗
           </a>
           <span className="text-slate-300">|</span>
-          <select
+          <StatusSelect
             value={a.status}
-            onChange={(e) => {
-              const s = e.target.value as AppStatus;
+            options={STATUSES}
+            onChange={(s) => {
               if (s === "discarded") return;
               setDiscardReason("");
               setStatus.mutate({ status: s });
               if (s === "interview") openLog({ channel: "interview", direction: "in" });
             }}
-            className="border rounded px-2 py-1 text-sm font-medium"
-            style={{
-              backgroundColor: STATUS_HEX[a.status].bg,
-              color: STATUS_HEX[a.status].text,
-            }}
-          >
-            {STATUSES.map((s) => (
-              <option
-                key={s}
-                value={s}
-                style={{ backgroundColor: STATUS_HEX[s].bg, color: STATUS_HEX[s].text }}
-              >
-                {s}
-              </option>
-            ))}
-          </select>
+          />
           {a.status !== "discarded" && (
             <button
               type="button"
