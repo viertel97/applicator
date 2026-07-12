@@ -14,6 +14,7 @@ from app.db.models import (
     InteractionCreatedFrom,
     InteractionDirection,
     InteractionSentiment,
+    InterviewStage,
     JobPosting,
     User,
 )
@@ -43,6 +44,7 @@ class InteractionIn(BaseModel):
     contact_name: str | None = None
     contact_handle: str | None = None
     sentiment: InteractionSentiment | None = None
+    interview_stage: InterviewStage | None = None
 
 
 class InteractionPatch(BaseModel):
@@ -54,6 +56,7 @@ class InteractionPatch(BaseModel):
     contact_name: str | None = None
     contact_handle: str | None = None
     sentiment: InteractionSentiment | None = None
+    interview_stage: InterviewStage | None = None
 
 
 class InteractionOut(BaseModel):
@@ -67,6 +70,7 @@ class InteractionOut(BaseModel):
     contact_name: str | None
     contact_handle: str | None
     sentiment: InteractionSentiment | None
+    interview_stage: InterviewStage | None
     created_from: InteractionCreatedFrom
     created_at: datetime
     updated_at: datetime
@@ -138,6 +142,7 @@ def create_interaction(
         contact_name=body.contact_name,
         contact_handle=body.contact_handle,
         sentiment=body.sentiment,
+        interview_stage=body.interview_stage,
         created_from=InteractionCreatedFrom.manual,
     )
     db.add(it)
