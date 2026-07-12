@@ -47,7 +47,7 @@ export function DiscardReasonPicker({ value, onChange, includeArchived, disabled
       {disabled ? null : !showAdd ? (
         <button
           type="button"
-          className="text-xs text-blue-600 hover:underline"
+          className="text-xs text-accent hover:underline"
           onClick={() => setShowAdd(true)}
         >+ Add</button>
       ) : (
@@ -62,12 +62,12 @@ export function DiscardReasonPicker({ value, onChange, includeArchived, disabled
             type="button"
             disabled={!newLabel.trim() || create.isPending}
             onClick={() => create.mutate(newLabel.trim())}
-            className="text-xs bg-blue-600 text-white rounded px-2 py-1 disabled:opacity-50"
+            className="text-xs bg-accent text-accentFg rounded px-2 py-1 disabled:opacity-50"
           >Save</button>
           <button
             type="button"
             onClick={() => { setShowAdd(false); setNewLabel(""); }}
-            className="text-xs text-slate-500"
+            className="text-xs text-muted"
           >×</button>
         </>
       )}

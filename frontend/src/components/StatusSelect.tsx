@@ -46,7 +46,7 @@ export function StatusSelect({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-20 mt-1 min-w-full rounded border border-slate-200 bg-white shadow-lg p-1 max-h-72 overflow-auto"
+          className="absolute z-20 mt-1 min-w-full rounded border border-border bg-surface shadow-lg p-1 max-h-72 overflow-auto"
         >
           {options.map((s) => (
             <li key={s}>

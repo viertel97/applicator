@@ -117,49 +117,49 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
   const showMailActions = channel === "mail" && direction === "out";
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded shadow-lg p-4 w-[520px] max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface border border-border rounded shadow-lg p-4 w-[520px] max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-semibold mb-3">Log interaction</h2>
         {!showDiscard ? (
           <>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <select value={direction} onChange={(e) => setDirection(e.target.value as Direction)}
-                      className="border rounded px-2 py-1 text-sm">
+                      className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
                 <option value="out">Outgoing</option>
                 <option value="in">Incoming</option>
               </select>
               <select value={channel} onChange={(e) => setChannel(e.target.value as Channel)}
-                      className="border rounded px-2 py-1 text-sm">
+                      className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
                 {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <input type="datetime-local" value={occurredAt}
                    onChange={(e) => setOccurredAt(e.target.value)}
-                   className="border rounded px-2 py-1 text-sm w-full mb-2" />
+                   className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring" />
             <div className="grid grid-cols-2 gap-2 mb-2">
               <input placeholder="Contact name" value={contactName}
                      onChange={(e) => setContactName(e.target.value)}
-                     className="border rounded px-2 py-1 text-sm" />
+                     className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
               <input placeholder="email / URL / phone" value={contactHandle}
                      onChange={(e) => setContactHandle(e.target.value)}
-                     className="border rounded px-2 py-1 text-sm" />
+                     className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
             {(channel === "mail" || channel === "interview") && (
               <input
                 placeholder={channel === "interview" ? "Round / type (e.g. Technical screen)" : "Subject"}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="border rounded px-2 py-1 text-sm w-full mb-2"
+                className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
               />
             )}
             <textarea
               placeholder={channel === "interview" ? "Comment (how it went, notes)" : "Body"}
               value={body}
               onChange={(e) => setBody(e.target.value)} rows={5}
-              className="border rounded px-2 py-1 text-sm w-full mb-2" />
+              className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
             {direction === "in" && (
               <select value={sentiment ?? ""}
                       onChange={(e) => setSentiment((e.target.value || null) as Sentiment)}
-                      className="border rounded px-2 py-1 text-sm w-full mb-2">
+                      className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
                 <option value="">No sentiment</option>
                 <option value="positive">positive</option>
                 <option value="neutral">neutral</option>
@@ -183,7 +183,7 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
                 <a
                   href={mailto(recipient, subject, body)}
                   className={`px-3 py-1 rounded border text-sm ${
-                    recipient ? "border-blue-600 text-blue-700" : "border-slate-300 text-slate-400 pointer-events-none"
+                    recipient ? "border-accent text-accent" : "border-border text-muted pointer-events-none"
                   }`}
                   title={recipient ? "" : "No recipient on file"}>
                   Open in mail
@@ -202,34 +202,34 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
             )}
             <div className="flex justify-end gap-2 mt-3">
               <button type="button" onClick={onClose}
-                      className="border rounded px-3 py-1 text-sm">Cancel</button>
+                      className="border border-border rounded px-3 py-1 text-sm text-fg">Cancel</button>
               <button type="button" disabled={create.isPending}
                       onClick={() => create.mutate({
                         direction, channel, subject: subject || null, body: body || null,
                         contact_name: contactName || null, contact_handle: contactHandle || null,
                         sentiment, occurred_at: new Date(occurredAt).toISOString(),
                       })}
-                      className="bg-blue-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50">
+                      className="bg-accent text-accentFg rounded px-3 py-1 text-sm disabled:opacity-50">
                 Save
               </button>
             </div>
           </>
         ) : (
           <>
-            <p className="text-sm text-slate-700 mb-2">
+            <p className="text-sm text-fg mb-2">
               This was a rejection. Discard the application?
             </p>
             <div className="mb-2">
-              <label className="text-xs uppercase text-slate-500">Reason</label>
+              <label className="text-xs uppercase text-muted">Reason</label>
               <DiscardReasonPicker value={reasonId} onChange={(id) => setReasonId(id)} />
             </div>
             <textarea placeholder="Optional note" value={discardNote}
                       onChange={(e) => setDiscardNote(e.target.value)} rows={2}
-                      className="border rounded px-2 py-1 text-sm w-full mb-2" />
+                      className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
             <div className="flex justify-end gap-2">
               <button type="button"
                       onClick={() => { reset(); onClose(); }}
-                      className="border rounded px-3 py-1 text-sm">Skip</button>
+                      className="border border-border rounded px-3 py-1 text-sm text-fg">Skip</button>
               <button type="button" disabled={discardApp.isPending}
                       onClick={() => discardApp.mutate({
                         status: "discarded",

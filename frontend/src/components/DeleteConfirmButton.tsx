@@ -27,7 +27,7 @@ export function DeleteConfirmButton({
         <button
           type="button"
           onClick={() => setArmed(false)}
-          className="text-slate-400 hover:text-slate-600"
+          className="text-muted hover:text-fg"
           aria-label="Cancel"
         >
           ✕
@@ -40,7 +40,7 @@ export function DeleteConfirmButton({
     <button
       type="button"
       onClick={() => setArmed(true)}
-      className={`text-slate-400 hover:text-red-600 ${className}`}
+      className={`text-muted hover:text-red-600 ${className}`}
       aria-label={label}
       title={label}
     >

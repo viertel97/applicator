@@ -8,16 +8,27 @@ import {
 import { stats } from "../api/stats";
 import { statsDetail } from "../api/statsDetail";
 import type { DetailStats } from "../api/statsDetail";
+import { useTheme } from "../hooks/useTheme";
+import { Card } from "../components/ui/Card";
 
+// Categorical palette for multi-series/donut charts — readable in both themes
+// on a bg-surface card background.
 const DONUT_COLORS = ["#2563eb", "#16a34a", "#0891b2", "#dc2626", "#d97706", "#64748b"];
+
+function tokenColor(name: string): string {
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return v ? `rgb(${v})` : "#64748b";
+}
 
 function Kpi({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="border rounded p-3 bg-white">
-      <div className="text-xs text-slate-500 uppercase">{label}</div>
+    <Card className="p-3">
+      <div className="text-xs text-muted uppercase">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
-    </div>
+      {sub && <div className="text-xs text-muted mt-0.5">{sub}</div>}
+    </Card>
   );
 }
 
@@ -32,9 +43,9 @@ function fmtDate(iso: string): string {
 }
 
 function kindBadge(kind: string): string {
-  if (kind === "rejected") return "bg-red-100 text-red-700";
-  if (kind === "withdrawn") return "bg-amber-100 text-amber-700";
-  return "bg-slate-100 text-slate-600";
+  if (kind === "rejected") return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
+  if (kind === "withdrawn") return "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200";
+  return "bg-surface2 text-muted";
 }
 
 function DetailSections({ d, weeklyVolume, funnel }: {
@@ -101,6 +112,18 @@ function DetailSections({ d, weeklyVolume, funnel }: {
     : `${Math.round(interview.win_rate * 100)}%`;
   const winRateSub = `${interview.won}W / ${interview.lost}L`;
 
+  // Chart color helpers — read after theme class has flipped so colors are current
+  const accentColor = tokenColor("--accent");
+  const mutedColor = tokenColor("--muted");
+  const borderColor = tokenColor("--border");
+  const surfaceColor = tokenColor("--surface");
+  const fgColor = tokenColor("--fg");
+  const tooltipStyle = {
+    background: surfaceColor,
+    border: `1px solid ${borderColor}`,
+    color: fgColor,
+  };
+
   return (
     <>
       {/* Section A — Outcomes & conversion */}
@@ -108,8 +131,8 @@ function DetailSections({ d, weeklyVolume, funnel }: {
         <h2 className="text-md font-semibold mb-2">Outcomes &amp; conversion</h2>
         <div className="grid grid-cols-2 gap-4">
           {/* Donut */}
-          <div className="bg-white border rounded">
-            <div className="text-xs text-slate-500 px-3 pt-3 font-medium">Outcome distribution</div>
+          <Card>
+            <div className="text-xs text-muted px-3 pt-3 font-medium">Outcome distribution</div>
             <div className="h-64">
               <ResponsiveContainer>
                 <PieChart>
@@ -125,38 +148,38 @@ function DetailSections({ d, weeklyVolume, funnel }: {
                       <Cell key={entry.name} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ color: mutedColor }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </Card>
           {/* Funnel conversion rates */}
-          <div className="bg-white border rounded flex flex-col">
-            <div className="text-xs text-slate-500 px-3 pt-3 font-medium">Stage conversion</div>
+          <Card className="flex flex-col">
+            <div className="text-xs text-muted px-3 pt-3 font-medium">Stage conversion</div>
             <div className="h-48">
               <ResponsiveContainer>
                 <BarChart data={funnelChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="stage" width={80} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#2563eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                  <XAxis type="number" tick={{ fill: mutedColor }} />
+                  <YAxis type="category" dataKey="stage" width={80} tick={{ fill: mutedColor }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="count" fill={accentColor} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <div className="px-3 pb-3 mt-auto">
-              <div className="text-xs text-slate-500 mb-1 font-medium">Step conversion rates</div>
+              <div className="text-xs text-muted mb-1 font-medium">Step conversion rates</div>
               <div className="grid grid-cols-2 gap-1">
                 {conversionPairs.map((c) => (
-                  <div key={c.label} className="flex justify-between text-xs border rounded px-2 py-1 bg-slate-50">
-                    <span className="text-slate-600">{c.label}</span>
+                  <div key={c.label} className="flex justify-between text-xs border border-border rounded px-2 py-1 bg-bg">
+                    <span className="text-muted">{c.label}</span>
                     <span className="font-semibold">{c.pct}</span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </section>
 
@@ -166,72 +189,72 @@ function DetailSections({ d, weeklyVolume, funnel }: {
         <div className="grid grid-cols-2 gap-4">
           {/* Weekly stacked bar */}
           <div>
-            <div className="text-xs text-slate-500 mb-1 font-medium">Weekly declines</div>
-            <div className="h-64 bg-white border rounded">
+            <div className="text-xs text-muted mb-1 font-medium">Weekly declines</div>
+            <Card className="h-64">
               <ResponsiveContainer>
                 <BarChart data={d.declines_weekly}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
+                  <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: mutedColor }} />
+                  <YAxis tick={{ fill: mutedColor }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend wrapperStyle={{ color: mutedColor }} />
                   <Bar dataKey="rejected" stackId="a" fill="#dc2626" />
                   <Bar dataKey="withdrawn" stackId="a" fill="#d97706" />
                   <Bar dataKey="discarded" stackId="a" fill="#64748b" />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </Card>
           </div>
           {/* Rejection by stage */}
           <div>
-            <div className="text-xs text-slate-500 mb-1 font-medium">Rejections by stage reached</div>
-            <div className="h-64 bg-white border rounded">
+            <div className="text-xs text-muted mb-1 font-medium">Rejections by stage reached</div>
+            <Card className="h-64">
               <ResponsiveContainer>
                 <BarChart data={d.rejection_stage} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="stage" width={70} />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                  <XAxis type="number" tick={{ fill: mutedColor }} />
+                  <YAxis type="category" dataKey="stage" width={70} tick={{ fill: mutedColor }} />
+                  <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" fill="#dc2626" />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </Card>
           </div>
         </div>
         {/* Recent decline timeline */}
         <div className="mt-3">
-          <div className="text-xs text-slate-500 mb-1 font-medium">Recent declines</div>
+          <div className="text-xs text-muted mb-1 font-medium">Recent declines</div>
           {d.decline_timeline.length === 0 ? (
-            <p className="text-sm text-slate-400">No declines yet.</p>
+            <p className="text-sm text-muted">No declines yet.</p>
           ) : (
-            <div className="bg-white border rounded overflow-hidden">
+            <Card className="overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50">
+                <thead className="bg-surface2">
                   <tr>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Date</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Company</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Role</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Kind</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-slate-500">Stage</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted">Date</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted">Company</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted">Role</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted">Kind</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-muted">Stage</th>
                   </tr>
                 </thead>
                 <tbody>
                   {d.decline_timeline.map((ev) => (
-                    <tr key={ev.app_id} className="border-t">
-                      <td className="px-3 py-1.5 text-slate-600">{fmtDate(ev.occurred_at)}</td>
+                    <tr key={ev.app_id} className="border-t border-border">
+                      <td className="px-3 py-1.5 text-muted">{fmtDate(ev.occurred_at)}</td>
                       <td className="px-3 py-1.5">{ev.company ?? "—"}</td>
-                      <td className="px-3 py-1.5 text-slate-600">{ev.role ?? "—"}</td>
+                      <td className="px-3 py-1.5 text-muted">{ev.role ?? "—"}</td>
                       <td className="px-3 py-1.5">
                         <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium ${kindBadge(ev.kind)}`}>
                           {ev.kind}
                         </span>
                       </td>
-                      <td className="px-3 py-1.5 text-slate-500">{ev.stage_reached}</td>
+                      <td className="px-3 py-1.5 text-muted">{ev.stage_reached}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Card>
           )}
         </div>
       </section>
@@ -289,6 +312,12 @@ function DetailSections({ d, weeklyVolume, funnel }: {
 }
 
 export default function Stats() {
+  // Reference theme so the component re-renders on toggle, causing tokenColor
+  // calls in the render body to re-read CSS vars after the class flips.
+  const { theme } = useTheme();
+  // Suppress unused-variable lint — theme is intentionally referenced for reactivity
+  void theme;
+
   const navigate = useNavigate();
   const q = useQuery({ queryKey: ["stats-funnel"], queryFn: () => stats.funnel() });
   const d = useQuery({ queryKey: ["stats-detail"], queryFn: () => statsDetail.detail() });
@@ -302,6 +331,19 @@ export default function Stats() {
             s.totals.applied,
         )
       : 0;
+
+  // Chart colors — re-evaluated each render so they track the current theme
+  const accentColor = tokenColor("--accent");
+  const mutedColor = tokenColor("--muted");
+  const borderColor = tokenColor("--border");
+  const surfaceColor = tokenColor("--surface");
+  const fgColor = tokenColor("--fg");
+  const tooltipStyle = {
+    background: surfaceColor,
+    border: `1px solid ${borderColor}`,
+    color: fgColor,
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-xl font-semibold">Stats</h1>
@@ -323,44 +365,46 @@ export default function Stats() {
       </div>
       <section>
         <h2 className="text-md font-semibold mb-2">Funnel</h2>
-        <div className="h-64 bg-white border rounded">
+        <Card className="h-64">
           <ResponsiveContainer>
             <BarChart data={s.funnel} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="stage" />
-              <Tooltip />
-              <Bar dataKey="count" fill="#2563eb" />
+              <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+              <XAxis type="number" tick={{ fill: mutedColor }} />
+              <YAxis type="category" dataKey="stage" tick={{ fill: mutedColor }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="count" fill={accentColor} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       </section>
       <section>
         <h2 className="text-md font-semibold mb-2">Response rate by channel</h2>
-        <table className="w-full text-sm border bg-white">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="text-left px-2 py-1">Channel</th>
-              <th className="text-left px-2 py-1">Sent</th>
-              <th className="text-left px-2 py-1">Replies</th>
-              <th className="text-left px-2 py-1">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {s.response_rate_by_channel.map((r) => (
-              <tr key={r.channel} className="border-t">
-                <td className="px-2 py-1">{r.channel}</td>
-                <td className="px-2 py-1">{r.outgoing}</td>
-                <td className="px-2 py-1">{r.responses}</td>
-                <td className="px-2 py-1">{Math.round(r.rate * 100)}%</td>
+        <Card className="w-full text-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-surface2">
+              <tr>
+                <th className="text-left px-2 py-1 text-muted">Channel</th>
+                <th className="text-left px-2 py-1 text-muted">Sent</th>
+                <th className="text-left px-2 py-1 text-muted">Replies</th>
+                <th className="text-left px-2 py-1 text-muted">Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {s.response_rate_by_channel.map((r) => (
+                <tr key={r.channel} className="border-t border-border">
+                  <td className="px-2 py-1">{r.channel}</td>
+                  <td className="px-2 py-1">{r.outgoing}</td>
+                  <td className="px-2 py-1">{r.responses}</td>
+                  <td className="px-2 py-1">{Math.round(r.rate * 100)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
       </section>
       <section>
         <h2 className="text-md font-semibold mb-2">Discard breakdown</h2>
-        <div className="h-64 bg-white border rounded">
+        <Card className="h-64">
           <ResponsiveContainer>
             <BarChart data={s.discard_breakdown} layout="vertical"
                       onClick={(e: any) => {
@@ -368,32 +412,32 @@ export default function Stats() {
                         if (slug)
                           navigate(`/applications?status=discarded&reason=${slug}`);
                       }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="label" width={150} />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+              <XAxis type="number" tick={{ fill: mutedColor }} />
+              <YAxis type="category" dataKey="label" width={150} tick={{ fill: mutedColor }} />
+              <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="count" fill="#dc2626" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       </section>
       <section>
         <h2 className="text-md font-semibold mb-2">Weekly volume</h2>
-        <div className="h-64 bg-white border rounded">
+        <Card className="h-64">
           <ResponsiveContainer>
             <LineChart data={s.weekly_volume}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
+              <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+              <XAxis dataKey="week" tick={{ fill: mutedColor }} />
+              <YAxis tick={{ fill: mutedColor }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ color: mutedColor }} />
               <Line type="monotone" dataKey="applied" stroke="#2563eb" />
               <Line type="monotone" dataKey="discarded" stroke="#dc2626" />
               <Line type="monotone" dataKey="responses" stroke="#16a34a" />
               <Line type="monotone" dataKey="inquiries" stroke="#d97706" />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       </section>
       {d.data && (
         <DetailSections

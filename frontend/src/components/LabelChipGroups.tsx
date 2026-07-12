@@ -42,7 +42,7 @@ export function LabelChipGroups({ labels, onRemove }: Props) {
         if (!items || items.length === 0) return null;
         return (
           <div key={cat}>
-            <div className="text-xs uppercase text-slate-500 mb-1">
+            <div className="text-xs uppercase text-muted mb-1">
               {CATEGORY_LABEL[cat]}
             </div>
             <div className="flex flex-wrap gap-1">

@@ -41,13 +41,13 @@ export function AddApplicationForm() {
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         placeholder="Paste job posting URL"
-        className="border rounded px-3 py-2"
+        className="border border-border rounded px-3 py-2 bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
       />
       <div className="grid grid-cols-2 gap-2">
         <select
           value={cvId}
           onChange={(e) => setCvId(e.target.value)}
-          className="border rounded px-3 py-2"
+          className="border border-border rounded px-3 py-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">CV — skip, add later</option>
           {(cvs.data ?? []).map((v) => (
@@ -59,7 +59,7 @@ export function AddApplicationForm() {
         <select
           value={anId}
           onChange={(e) => setAnId(e.target.value)}
-          className="border rounded px-3 py-2"
+          className="border border-border rounded px-3 py-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">Anschreiben — skip, add later</option>
           {(ans.data ?? []).map((v) => (
@@ -73,7 +73,7 @@ export function AddApplicationForm() {
         <button
           type="submit"
           disabled={m.isPending}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+          className="bg-accent text-accentFg px-4 py-2 rounded disabled:opacity-50"
         >
           Add
         </button>

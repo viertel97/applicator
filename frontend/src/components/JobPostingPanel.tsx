@@ -50,7 +50,7 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
     },
   });
 
-  if (!jp) return <div className="text-slate-500">Awaiting extraction…</div>;
+  if (!jp) return <div className="text-muted">Awaiting extraction…</div>;
 
   const update = (key: keyof JobPosting, value: unknown) => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -80,10 +80,10 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
       />
       {TEXT_FIELDS.map((f) => (
         <div className="mb-3" key={f.key}>
-          <label className="block text-xs uppercase text-slate-500">{f.label}</label>
+          <label className="block text-xs uppercase text-muted">{f.label}</label>
           {f.multiline ? (
             <textarea
-              className="border rounded px-2 py-1 w-full"
+              className="border border-border rounded px-2 py-1 w-full bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring"
               rows={4}
               disabled={disabled}
               value={(value(f.key) as string | null) ?? ""}
@@ -91,7 +91,7 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
             />
           ) : (
             <input
-              className="border rounded px-2 py-1 w-full"
+              className="border border-border rounded px-2 py-1 w-full bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring"
               disabled={disabled}
               value={(value(f.key) as string | null) ?? ""}
               onChange={(e) => update(f.key, e.target.value || null)}
@@ -101,9 +101,9 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
       ))}
       {LIST_FIELDS.map((f) => (
         <div className="mb-3" key={f.key}>
-          <label className="block text-xs uppercase text-slate-500">{f.label}</label>
+          <label className="block text-xs uppercase text-muted">{f.label}</label>
           <input
-            className="border rounded px-2 py-1 w-full"
+            className="border border-border rounded px-2 py-1 w-full bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring"
             disabled={disabled}
             value={((value(f.key) as string[] | null) ?? []).join(", ")}
             onChange={(e) =>
@@ -118,7 +118,7 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
         </div>
       ))}
       <div className="mt-3">
-        <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+        <div className="text-xs font-medium text-muted uppercase tracking-wide mb-1">
           Required documents
         </div>
         <div className="flex flex-wrap gap-1">
@@ -138,8 +138,8 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
                 }}
                 className={
                   selected
-                    ? "text-xs px-2 py-0.5 rounded border bg-slate-700 text-white border-slate-700 disabled:opacity-50"
-                    : "text-xs px-2 py-0.5 rounded border bg-white text-slate-400 border-slate-200 disabled:opacity-50"
+                    ? "text-xs px-2 py-0.5 rounded border bg-accent text-accentFg border-accent disabled:opacity-50"
+                    : "text-xs px-2 py-0.5 rounded border bg-surface text-muted border-border disabled:opacity-50"
                 }
               >
                 {DOC_LABEL[doc]}
@@ -152,7 +152,7 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
         type="button"
         disabled={!dirty || disabled || save.isPending}
         onClick={() => save.mutate()}
-        className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
+        className="bg-accent text-accentFg px-3 py-1 rounded disabled:opacity-50"
       >
         Save changes
       </button>

@@ -21,12 +21,12 @@ const COPY: Record<Reason, { message: string; fix: string }> = {
 export function FilterEmptyState({ reason, onFix }: Props) {
   const { message, fix } = COPY[reason];
   return (
-    <div className="border border-amber-200 bg-amber-50 rounded p-4 flex items-center justify-between gap-3 text-sm">
-      <span className="text-amber-800">{message}</span>
+    <div className="border border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900 rounded p-4 flex items-center justify-between gap-3 text-sm">
+      <span className="text-amber-800 dark:text-amber-200">{message}</span>
       <button
         type="button"
         onClick={() => onFix(reason)}
-        className="text-xs px-2 py-1 rounded border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 flex-shrink-0"
+        className="text-xs px-2 py-1 rounded border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700 dark:hover:bg-amber-800 flex-shrink-0"
       >
         {fix}
       </button>
