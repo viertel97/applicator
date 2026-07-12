@@ -117,6 +117,18 @@ class VariantsPatch(BaseModel):
     clear_anschreiben: bool = False
 
 
+class InterviewRoundRef(BaseModel):
+    round: int
+    stage: str | None
+    at: datetime
+
+
+class InterviewSummary(BaseModel):
+    rounds_logged: int
+    next: InterviewRoundRef | None = None
+    last: InterviewRoundRef | None = None
+
+
 class ApplicationOut(BaseModel):
     id: uuid.UUID
     display_id: int
@@ -140,9 +152,15 @@ class ApplicationOut(BaseModel):
     discard_interaction_id: uuid.UUID | None
     notes: str | None
     awaiting_response: bool = False
+    interview_summary: InterviewSummary | None = None
 
     @classmethod
-    def from_orm_row(cls, app: Application, awaiting: bool = False) -> "ApplicationOut":
+    def from_orm_row(
+        cls,
+        app: Application,
+        awaiting: bool = False,
+        interview_summary: "InterviewSummary | None" = None,
+    ) -> "ApplicationOut":
         return cls(
             id=app.id,
             display_id=app.display_id,
@@ -172,6 +190,7 @@ class ApplicationOut(BaseModel):
             discard_interaction_id=app.discard_interaction_id,
             notes=app.notes,
             awaiting_response=awaiting,
+            interview_summary=interview_summary,
         )
 
 
@@ -229,6 +248,48 @@ def _compute_awaiting(db: Session, apps: list[Application]) -> set[uuid.UUID]:
     return {aid for aid, (_, is_out) in latest.items() if is_out}
 
 
+def _round_ref(pair) -> InterviewRoundRef:
+    r, it = pair
+    stage = it.interview_stage.value if it.interview_stage else None
+    return InterviewRoundRef(round=r, stage=stage, at=it.occurred_at)
+
+
+def _compute_interview_summaries(
+    db: Session, apps: list[Application]
+) -> dict[uuid.UUID, InterviewSummary]:
+    from app.db.models import Interaction, InteractionChannel
+    ids = [a.id for a in apps if a.status == ApplicationStatus.interview]
+    if not ids:
+        return {}
+    rows = (
+        db.query(Interaction)
+        .filter(
+            Interaction.application_id.in_(ids),
+            Interaction.channel == InteractionChannel.interview,
+        )
+        .order_by(Interaction.application_id, Interaction.occurred_at.asc())
+        .all()
+    )
+    by_app: dict[uuid.UUID, list[Interaction]] = {}
+    for it in rows:
+        by_app.setdefault(it.application_id, []).append(it)
+    # occurred_at is stored naive-UTC (see create_interaction), so compare
+    # against a naive-UTC now to avoid aware/naive comparison errors.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    out: dict[uuid.UUID, InterviewSummary] = {}
+    for app_id, items in by_app.items():
+        rounds = list(enumerate(items, start=1))  # (round, interaction), asc
+        upcoming = [(r, it) for r, it in rounds if it.occurred_at >= now]
+        past = [(r, it) for r, it in rounds if it.occurred_at < now]
+        out[app_id] = InterviewSummary(
+            # each interview-channel interaction counts as one round
+            rounds_logged=len(items),
+            next=_round_ref(upcoming[0]) if upcoming else None,   # earliest upcoming
+            last=_round_ref(past[-1]) if past else None,          # latest past
+        )
+    return out
+
+
 @router.post("", response_model=ApplicationOut, status_code=202)
 def create(
     body: CreateApplication,
@@ -272,7 +333,13 @@ def list_apps(
         q = q.filter(Application.labels.any(LabelModel.id.in_(label_ids)))
     rows = q.order_by(Application.created_at.desc()).all()
     awaiting = _compute_awaiting(db, rows)
-    return [ApplicationOut.from_orm_row(r, awaiting=r.id in awaiting) for r in rows]
+    summaries = _compute_interview_summaries(db, rows)
+    return [
+        ApplicationOut.from_orm_row(
+            r, awaiting=r.id in awaiting, interview_summary=summaries.get(r.id)
+        )
+        for r in rows
+    ]
 
 
 @router.get("/{aid}", response_model=ApplicationOut)
@@ -283,7 +350,10 @@ def get_app(
 ):
     app = _load_owned(db, aid, user)
     awaiting = _compute_awaiting(db, [app])
-    return ApplicationOut.from_orm_row(app, awaiting=app.id in awaiting)
+    summaries = _compute_interview_summaries(db, [app])
+    return ApplicationOut.from_orm_row(
+        app, awaiting=app.id in awaiting, interview_summary=summaries.get(app.id)
+    )
 
 
 class StatusUpdate(BaseModel):
@@ -375,6 +445,7 @@ def get_timeline(
                 "contact_name": it.contact_name,
                 "contact_handle": it.contact_handle,
                 "sentiment": it.sentiment.value if it.sentiment else None,
+                "interview_stage": it.interview_stage.value if it.interview_stage else None,
             },
         ))
     for ev in db.query(ApplicationEvent).filter_by(application_id=aid):
