@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { DeleteConfirmButton } from "./DeleteConfirmButton";
 import { timeline, type Interaction, type TimelineRow } from "../api/interactions";
+import { STAGE_LABEL } from "../lib/interviewSummary";
 
 function iconFor(row: TimelineRow) {
   if (row.kind === "interaction") {
@@ -14,7 +15,9 @@ function describe(row: TimelineRow): string {
   if (row.kind === "interaction") {
     const it = row.data;
     if (it.channel === "interview") {
-      return `Interview${it.subject ? ` — ${it.subject}` : ""}`;
+      const stage = it.interview_stage ? STAGE_LABEL[it.interview_stage] : null;
+      const tail = stage ?? it.subject;
+      return `Interview${tail ? ` — ${tail}` : ""}`;
     }
     const dir = it.direction === "out" ? "Sent" : "Received";
     return `${dir} via ${it.channel}${it.subject ? ` — ${it.subject}` : ""}`;
