@@ -130,7 +130,7 @@ export default function ApplicationDetail() {
           </h1>
           <OnlineBadge online={a.posting_online} />
           <JobStateBadge state={a.job_state} failedStage={a.failed_stage} />
-          <StatusBadge status={a.status} />
+          <StatusBadge status={a.status} summary={a.interview_summary} />
           <button
             type="button"
             className="text-rose-600 border border-rose-300 rounded px-2 py-1 text-sm"

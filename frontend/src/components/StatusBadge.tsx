@@ -1,4 +1,5 @@
-import type { AppStatus, FailedStage, JobState } from "../api/applications";
+import type { AppStatus, FailedStage, InterviewSummary, JobState } from "../api/applications";
+import { formatInterviewSummary } from "../lib/interviewSummary";
 
 const STATUS_CLASS: Record<AppStatus, string> = {
   draft: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
@@ -27,13 +28,23 @@ export const STATUS_HEX: Record<AppStatus, { bg: string; text: string }> = {
   interview: { bg: "#e0e7ff", text: "#4338ca" },
 };
 
-export function StatusBadge({ status, title }: { status: AppStatus; title?: string }) {
+export function StatusBadge({
+  status,
+  title,
+  summary,
+}: {
+  status: AppStatus;
+  title?: string;
+  summary?: InterviewSummary | null;
+}) {
+  const label =
+    status === "interview" && summary ? formatInterviewSummary(summary) : status;
   return (
     <span
       className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_CLASS[status]}`}
       title={title}
     >
-      {status}
+      {label}
     </span>
   );
 }

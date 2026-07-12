@@ -541,6 +541,7 @@ export default function ApplicationsList() {
               <JobStateBadge state={a.job_state} />
               <StatusBadge
                 status={a.status}
+                summary={a.interview_summary}
                 title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
               />
               <button
