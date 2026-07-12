@@ -248,6 +248,11 @@ def _compute_awaiting(db: Session, apps: list[Application]) -> set[uuid.UUID]:
     return {aid for aid, (_, is_out) in latest.items() if is_out}
 
 
+def _naive(dt: datetime) -> datetime:
+    """Strip tz info to naive-UTC so aware/naive datetimes compare safely."""
+    return dt.replace(tzinfo=None) if dt.tzinfo is not None else dt
+
+
 def _round_ref(pair) -> InterviewRoundRef:
     r, it = pair
     stage = it.interview_stage.value if it.interview_stage else None
@@ -279,8 +284,8 @@ def _compute_interview_summaries(
     out: dict[uuid.UUID, InterviewSummary] = {}
     for app_id, items in by_app.items():
         rounds = list(enumerate(items, start=1))  # (round, interaction), asc
-        upcoming = [(r, it) for r, it in rounds if it.occurred_at >= now]
-        past = [(r, it) for r, it in rounds if it.occurred_at < now]
+        upcoming = [(r, it) for r, it in rounds if _naive(it.occurred_at) >= now]
+        past = [(r, it) for r, it in rounds if _naive(it.occurred_at) < now]
         out[app_id] = InterviewSummary(
             # each interview-channel interaction counts as one round
             rounds_logged=len(items),
