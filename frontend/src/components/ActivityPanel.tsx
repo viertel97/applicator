@@ -112,7 +112,7 @@ export function ActivityPanel({
         onDrop={(e) => { e.preventDefault(); setDragging(false); onFiles(e.dataTransfer.files); }}
         onClick={() => fileRef.current?.click()}
         className={`mx-3 mt-3 border-2 border-dashed rounded p-3 text-center text-xs cursor-pointer ${
-          dragging ? "border-accent bg-accent/10" : "border-border hover:bg-surface2"
+          dragging ? "border-accent bg-accent/20" : "border-border hover:bg-surface2"
         }`}
       >
         <input

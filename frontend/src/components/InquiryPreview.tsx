@@ -27,7 +27,7 @@ function Highlighted({
         ) : (
           <mark
             key={i}
-            className={s.kind === "greeting" ? "bg-amber-200 dark:bg-amber-800" : "bg-blue-200 dark:bg-blue-800"}
+            className={s.kind === "greeting" ? "bg-amber-200 dark:bg-amber-800 dark:text-amber-100" : "bg-blue-200 dark:bg-blue-800 dark:text-blue-100"}
           >
             {s.text}
           </mark>
@@ -119,7 +119,7 @@ export default function InquiryPreview({
               {"subject:  "}
               {block.subject}
               {"\ngreeting: "}
-              <mark className="bg-amber-200 dark:bg-amber-800">{block.greeting}</mark>
+              <mark className="bg-amber-200 dark:bg-amber-800 dark:text-amber-100">{block.greeting}</mark>
             </pre>
           </div>
 
@@ -140,8 +140,8 @@ export default function InquiryPreview({
           </div>
 
           <div className="text-[11px] text-muted">
-            <mark className="bg-amber-200 dark:bg-amber-800">greeting</mark> = LLM output ·{" "}
-            <mark className="bg-blue-200 dark:bg-blue-800">questions</mark> = your Question-texts fields
+            <mark className="bg-amber-200 dark:bg-amber-800 dark:text-amber-100">greeting</mark> = LLM output ·{" "}
+            <mark className="bg-blue-200 dark:bg-blue-800 dark:text-blue-100">questions</mark> = your Question-texts fields
           </div>
           <div className="text-[11px] text-muted">{SAMPLE_NOTE}</div>
         </>

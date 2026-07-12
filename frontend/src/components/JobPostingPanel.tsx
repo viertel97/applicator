@@ -138,7 +138,7 @@ export function JobPostingPanel({ appId, jp, disabled }: Props) {
                 }}
                 className={
                   selected
-                    ? "text-xs px-2 py-0.5 rounded border bg-fg text-bg border-fg disabled:opacity-50"
+                    ? "text-xs px-2 py-0.5 rounded border bg-accent text-accentFg border-accent disabled:opacity-50"
                     : "text-xs px-2 py-0.5 rounded border bg-surface text-muted border-border disabled:opacity-50"
                 }
               >

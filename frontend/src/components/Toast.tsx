@@ -29,7 +29,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           {toast.action && (
             <button
               type="button"
-              className="text-accent font-semibold underline"
+              className="text-bg font-semibold underline"
               onClick={() => {
                 toast.action!.onClick();
                 setToast(null);
