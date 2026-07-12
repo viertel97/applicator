@@ -19,6 +19,7 @@ import {
   type AwaitingFilter,
 } from "../lib/filterDiagnostics";
 import { ALL_DOCS, DOC_LABEL, type RequiredDoc } from "../lib/docs";
+import { Card } from "../components/ui/Card";
 
 const LABEL_PANEL_KEY = "applicator.labelFilter.panelOpen";
 const STATUS_FILTER_KEY = "applicator.statusFilter.hidden";
@@ -306,7 +307,7 @@ export default function ApplicationsList() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6">
       <h1 className="text-2xl font-semibold mb-4">Applications</h1>
       <AddApplicationForm />
 
@@ -316,14 +317,14 @@ export default function ApplicationsList() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search title, company, location…"
-          className="w-full text-sm border border-slate-300 rounded px-3 py-1.5 pr-8 focus:outline-none focus:border-slate-500"
+          className="bg-surface border border-border rounded px-3 py-2 pr-8 text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring w-full text-sm"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery("")}
             aria-label="clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-fg"
           >
             ✕
           </button>
@@ -332,9 +333,9 @@ export default function ApplicationsList() {
 
       {/* Status filter */}
       <div className="flex flex-wrap gap-1.5 mb-3 items-center">
-        <span className="text-xs text-slate-500 mr-1">
+        <span className="text-xs text-muted mr-1">
           Status{" "}
-          <span className="text-slate-400">
+          <span className="text-muted">
             (showing {ALL_STATUSES.length - hiddenStatuses.size} of {ALL_STATUSES.length})
           </span>
         </span>
@@ -345,11 +346,7 @@ export default function ApplicationsList() {
               key={s}
               type="button"
               onClick={() => toggleStatus(s)}
-              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-                hidden
-                  ? "bg-white text-slate-400 border-slate-200"
-                  : "bg-slate-700 text-white border-slate-700"
-              }`}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${hidden ? "bg-surface text-muted border-border" : "bg-accent text-accentFg border-accent"}`}
             >
               {STATUS_LABEL[s]}
             </button>
@@ -357,7 +354,7 @@ export default function ApplicationsList() {
         })}
         {discardedVisible && (
           <div className="flex items-center gap-1 ml-2">
-            <span className="text-xs text-slate-500">Reason:</span>
+            <span className="text-xs text-muted">Reason:</span>
             <DiscardReasonPicker
               value={reasonFilter}
               onChange={(id) => setReasonFilter(id)}
@@ -367,9 +364,9 @@ export default function ApplicationsList() {
       </div>
       {!discardedVisible && (
         <div className="flex items-center gap-1 mb-3 ml-4">
-          <span className="text-xs text-slate-400">Reason:</span>
+          <span className="text-xs text-muted">Reason:</span>
           <DiscardReasonPicker value={null} onChange={() => {}} disabled />
-          <span className="text-xs text-slate-400">Show Discarded to filter by reason</span>
+          <span className="text-xs text-muted">Show Discarded to filter by reason</span>
         </div>
       )}
 
@@ -383,7 +380,7 @@ export default function ApplicationsList() {
               ? "bg-sky-100 text-sky-800 border-sky-300"
               : awaitingFilter === "hide"
                 ? "bg-rose-100 text-rose-800 border-rose-300"
-                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                : "bg-surface text-muted border-border hover:border-border"
           }`}
         >
           {awaitingFilter === "hide" ? "Hide awaiting" : "Awaiting reply"}
@@ -391,7 +388,7 @@ export default function ApplicationsList() {
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-3 items-center">
-        <span className="text-xs text-slate-500 mr-1">Documents</span>
+        <span className="text-xs text-muted mr-1">Documents</span>
         {ALL_DOCS.map((d) => {
           const state = docFilters[d];
           return (
@@ -405,7 +402,7 @@ export default function ApplicationsList() {
                   ? "bg-amber-100 text-amber-800 border-amber-300"
                   : state === "hide"
                     ? "bg-rose-100 text-rose-800 border-rose-300"
-                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                    : "bg-surface text-muted border-border hover:border-border"
               }`}
             >
               {state === "hide" ? `Not ${DOC_LABEL[d]}` : DOC_LABEL[d]}
@@ -431,7 +428,7 @@ export default function ApplicationsList() {
               className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                 activeCount > 0
                   ? "bg-indigo-100 border-indigo-300 text-indigo-800"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
+                  : "bg-surface border-border text-muted hover:border-border"
               }`}
             >
               Labels · any of{activeCount > 0 ? ` (${activeCount})` : ""} {labelPanelOpen ? "▾" : "▸"}
@@ -440,19 +437,19 @@ export default function ApplicationsList() {
               <button
                 type="button"
                 onClick={() => setFilterLabelIds([])}
-                className="ml-2 text-xs text-slate-400 hover:text-slate-600"
+                className="ml-2 text-xs text-muted hover:text-fg"
               >
                 clear
               </button>
             )}
             {labelPanelOpen && (
-              <div className="mt-2 border rounded bg-white p-3 space-y-2">
+              <div className="mt-2 border border-border rounded bg-surface p-3 space-y-2">
                 {CATEGORY_ORDER.map((cat) => {
                   const items = grouped.get(cat);
                   if (!items || items.length === 0) return null;
                   return (
                     <div key={cat}>
-                      <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">
+                      <div className="text-xs font-medium text-muted uppercase tracking-wide mb-1">
                         {CATEGORY_LABEL[cat]}
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -463,7 +460,7 @@ export default function ApplicationsList() {
                             className={`text-xs rounded px-2 py-0.5 border transition-colors ${
                               filterLabelIds.includes(lab.id)
                                 ? "bg-indigo-100 border-indigo-300 text-indigo-800"
-                                : "bg-white border-slate-200 hover:border-slate-400"
+                                : "bg-surface border-border hover:border-border"
                             }`}
                             onClick={() => toggleLabel(lab.id)}
                           >
@@ -478,7 +475,7 @@ export default function ApplicationsList() {
                   <button
                     type="button"
                     onClick={() => setFilterLabelIds([])}
-                    className="text-xs text-slate-400 hover:text-slate-600 pt-1"
+                    className="text-xs text-muted hover:text-fg pt-1"
                   >
                     Clear all filters
                   </button>
@@ -488,12 +485,12 @@ export default function ApplicationsList() {
           </div>
         );
       })()}
-      <div className="text-xs text-slate-400 mb-2">
+      <div className="text-xs text-muted mb-2">
         Sections combine with AND. Documents: amber = requires all, rose = hides any. Labels = any.
       </div>
       {isLoading && <div>Loading…</div>}
       {!isLoading && (
-        <div className="text-xs text-slate-400 mb-1">
+        <div className="text-xs text-muted mb-1">
           {visible.length} {visible.length === 1 ? "position" : "positions"}
           {(data ?? []).length !== visible.length && ` of ${(data ?? []).length}`}
         </div>
@@ -501,62 +498,64 @@ export default function ApplicationsList() {
       {!isLoading && visible.length === 0 && emptyReason ? (
         <FilterEmptyState reason={emptyReason} onFix={handleFix} />
       ) : (
-      <ul className="divide-y border rounded bg-white">
+      <div>
         {visible.map((a: Application) => (
-          <li key={a.id} className="p-3 flex items-center gap-3 hover:bg-slate-50">
-            <Link
-              to={`/applications/${a.id}`}
-              className="flex-1 truncate min-w-0"
-              onClick={() => sessionStorage.setItem(scrollKey, String(window.scrollY))}
-            >
-              <div className="font-medium truncate">
-                <span className="text-slate-400 font-mono mr-2">
-                  #{String(a.display_id).padStart(4, "0")}
-                </span>
-                {a.job_posting?.title ?? a.url}
-              </div>
-              <div className="text-sm text-slate-500 flex items-center gap-1">
-                {a.job_posting?.company}
-                {a.job_posting?.location && (
-                  <span className="text-slate-400">· {a.job_posting.location}</span>
-                )}
-              </div>
-              {a.labels.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {a.labels.map((lbl) => (
-                    <LabelChip key={lbl.id} label={lbl} />
-                  ))}
+          <Card key={a.id} className="mb-2 p-3 hover:bg-surface2 transition-colors">
+            <div className="flex items-center gap-3">
+              <Link
+                to={`/applications/${a.id}`}
+                className="flex-1 truncate min-w-0 py-1.5 text-fg hover:text-accent"
+                onClick={() => sessionStorage.setItem(scrollKey, String(window.scrollY))}
+              >
+                <div className="font-medium truncate">
+                  <span className="text-muted font-mono mr-2">
+                    #{String(a.display_id).padStart(4, "0")}
+                  </span>
+                  {a.job_posting?.title ?? a.url}
                 </div>
-              )}
-            </Link>
-            <a
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-slate-400 hover:text-slate-600 flex-shrink-0"
-              title="Open original posting"
-            >
-              ↗
-            </a>
-            <OnlineBadge online={a.posting_online} />
-            <JobStateBadge state={a.job_state} />
-            <StatusBadge
-              status={a.status}
-              title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
-            />
-            <button
-              type="button"
-              className="text-slate-400 hover:text-rose-600 px-2"
-              onClick={(e) => { e.stopPropagation(); setPendingDelete(a); }}
-              aria-label="delete"
-              data-testid="delete-button"
-            >
-              🗑
-            </button>
-          </li>
+                <div className="text-sm text-muted flex items-center gap-1">
+                  {a.job_posting?.company}
+                  {a.job_posting?.location && (
+                    <span className="text-muted">· {a.job_posting.location}</span>
+                  )}
+                </div>
+                {a.labels.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {a.labels.map((lbl) => (
+                      <LabelChip key={lbl.id} label={lbl} />
+                    ))}
+                  </div>
+                )}
+              </Link>
+              <a
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-muted hover:text-fg flex-shrink-0"
+                title="Open original posting"
+              >
+                ↗
+              </a>
+              <OnlineBadge online={a.posting_online} />
+              <JobStateBadge state={a.job_state} />
+              <StatusBadge
+                status={a.status}
+                title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
+              />
+              <button
+                type="button"
+                className="text-muted hover:text-rose-600 px-2"
+                onClick={(e) => { e.stopPropagation(); setPendingDelete(a); }}
+                aria-label="delete"
+                data-testid="delete-button"
+              >
+                🗑
+              </button>
+            </div>
+          </Card>
         ))}
-      </ul>
+      </div>
       )}
       <ConfirmDialog
         open={!!pendingDelete}
