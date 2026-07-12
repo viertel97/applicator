@@ -104,6 +104,15 @@ class InteractionCreatedFrom(str, enum.Enum):
     inquiry_sent = "inquiry_sent"
 
 
+class InterviewStage(str, enum.Enum):
+    phone_screen = "phone_screen"
+    technical = "technical"
+    onsite = "onsite"
+    hr = "hr"
+    final = "final"
+    other = "other"
+
+
 class ApplicationEventKind(str, enum.Enum):
     status_change = "status_change"
     created = "created"
@@ -351,6 +360,16 @@ class Interaction(Base):
     contact_handle: Mapped[str | None] = mapped_column(Text, nullable=True)
     sentiment: Mapped[InteractionSentiment | None] = mapped_column(
         Enum(InteractionSentiment, name="interactionsentiment"), nullable=True
+    )
+    interview_stage: Mapped[InterviewStage | None] = mapped_column(
+        # Only meaningful when channel == 'interview'. Persist enum values,
+        # not member names, to match the migration-created Postgres type.
+        Enum(
+            InterviewStage,
+            name="interviewstage",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=True,
     )
     created_from: Mapped[InteractionCreatedFrom] = mapped_column(
         Enum(InteractionCreatedFrom, name="interactioncreatedfrom"),
