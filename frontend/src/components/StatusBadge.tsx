@@ -1,16 +1,16 @@
 import type { AppStatus, FailedStage, JobState } from "../api/applications";
 
 const STATUS_CLASS: Record<AppStatus, string> = {
-  draft: "bg-slate-200 text-slate-700",
-  applied: "bg-blue-100 text-blue-700",
-  offer: "bg-emerald-100 text-emerald-700",
-  rejected: "bg-rose-100 text-rose-700",
-  accepted: "bg-green-200 text-green-800",
-  withdrawn: "bg-slate-300 text-slate-600",
-  discarded: "bg-orange-100 text-orange-700",
-  need_call: "bg-purple-100 text-purple-700",
-  apply_direct: "bg-teal-100 text-teal-700",
-  interview: "bg-indigo-100 text-indigo-700",
+  draft: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+  applied: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200",
+  offer: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200",
+  rejected: "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200",
+  accepted: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
+  withdrawn: "bg-slate-300 text-slate-600 dark:bg-slate-600 dark:text-slate-200",
+  discarded: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200",
+  need_call: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200",
+  apply_direct: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-200",
+  interview: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200",
 };
 
 // Hex equivalents of STATUS_CLASS, for native <option> styling (Tailwind classes don't apply there).
@@ -57,12 +57,12 @@ export function JobStateBadge({
 }) {
   const cls =
     state === "ready"
-      ? "bg-emerald-100 text-emerald-700"
+      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
       : state === "failed"
-        ? "bg-rose-100 text-rose-700"
+        ? "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-200"
         : state === "extracted"
-          ? "bg-sky-100 text-sky-700"
-          : "bg-amber-100 text-amber-700";
+          ? "bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200"
+          : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200";
   const label =
     state === "failed" && failedStage
       ? `Failed (${failedStage})`
@@ -75,7 +75,9 @@ export function OnlineBadge({ online }: { online: boolean | null }) {
   return (
     <span
       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-        online ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+        online
+          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
+          : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200"
       }`}
     >
       {online ? "Online" : "Offline"}
