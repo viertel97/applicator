@@ -24,12 +24,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={show}>
       {children}
       {toast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900 text-white rounded px-4 py-2 shadow-lg text-sm">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-fg text-bg rounded px-4 py-2 shadow-lg text-sm">
           <span>{toast.message}</span>
           {toast.action && (
             <button
               type="button"
-              className="text-blue-300 font-semibold underline"
+              className="text-accent font-semibold underline"
               onClick={() => {
                 toast.action!.onClick();
                 setToast(null);

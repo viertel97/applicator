@@ -35,21 +35,21 @@ export function ActivityTimeline({
     queryKey: ["application-timeline", appId],
     queryFn: () => timeline.get(appId),
   });
-  if (!q.data) return <div className="text-sm text-slate-500">Loading…</div>;
+  if (!q.data) return <div className="text-sm text-muted">Loading…</div>;
   if (q.data.length === 0)
-    return <div className="text-sm text-slate-500">No activity yet.</div>;
+    return <div className="text-sm text-muted">No activity yet.</div>;
   return (
     <ul className="divide-y border rounded">
       {q.data.map((row, i) => (
         <li key={i} className="p-2 flex gap-3">
-          <span className="text-slate-400 w-5 text-center">{iconFor(row)}</span>
+          <span className="text-muted w-5 text-center">{iconFor(row)}</span>
           <div className="flex-1">
             <div className="text-sm">{describe(row)}</div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-muted">
               {new Date(row.at).toLocaleString()}
             </div>
             {row.kind === "interaction" && row.data.body && (
-              <div className="text-sm text-slate-700 mt-1 whitespace-pre-wrap">
+              <div className="text-sm text-fg mt-1 whitespace-pre-wrap">
                 {row.data.body}
               </div>
             )}

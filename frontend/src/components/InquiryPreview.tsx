@@ -27,7 +27,7 @@ function Highlighted({
         ) : (
           <mark
             key={i}
-            className={s.kind === "greeting" ? "bg-amber-200" : "bg-blue-200"}
+            className={s.kind === "greeting" ? "bg-amber-200 dark:bg-amber-800" : "bg-blue-200 dark:bg-blue-800"}
           >
             {s.text}
           </mark>
@@ -53,10 +53,10 @@ export default function InquiryPreview({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
           Live preview{loading ? " · updating…" : ""}
         </span>
-        <div className="inline-flex rounded border border-slate-300 text-xs font-semibold overflow-hidden">
+        <div className="inline-flex rounded border border-border text-xs font-semibold overflow-hidden">
           {(["de", "en"] as const).map((l) => (
             <button
               key={l}
@@ -64,8 +64,8 @@ export default function InquiryPreview({
               aria-pressed={l === lang}
               className={
                 l === lang
-                  ? "px-3 py-1 bg-slate-900 text-white"
-                  : "px-3 py-1 bg-white text-slate-500"
+                  ? "px-3 py-1 bg-fg text-bg"
+                  : "px-3 py-1 bg-surface text-muted"
               }
               onClick={() => setLang(l)}
             >
@@ -77,7 +77,7 @@ export default function InquiryPreview({
 
       {error && <div className="text-rose-600 text-sm">{error}</div>}
       {!block && !error && (
-        <div className="text-slate-400 text-sm">Loading preview…</div>
+        <div className="text-muted text-sm">Loading preview…</div>
       )}
 
       {block && (
@@ -86,19 +86,19 @@ export default function InquiryPreview({
             <button
               type="button"
               aria-expanded={showPrompt}
-              className="text-xs font-bold text-slate-900"
+              className="text-xs font-bold text-fg"
               onClick={() => setShowPrompt((v) => !v)}
             >
               {showPrompt ? "▾" : "▸"} ① Prompt sent to the LLM
             </button>
             {showPrompt && (
               <div className="mt-2 space-y-2">
-                <div className="text-[11px] uppercase text-slate-400">system</div>
-                <pre className="whitespace-pre-wrap font-mono text-xs text-slate-600">
+                <div className="text-[11px] uppercase text-muted">system</div>
+                <pre className="whitespace-pre-wrap font-mono text-xs text-muted">
                   {block.system_prompt}
                 </pre>
-                <div className="text-[11px] uppercase text-slate-400">user</div>
-                <pre className="whitespace-pre-wrap font-mono text-xs text-slate-600">
+                <div className="text-[11px] uppercase text-muted">user</div>
+                <pre className="whitespace-pre-wrap font-mono text-xs text-muted">
                   <Highlighted
                     text={block.user_prompt}
                     greeting={block.greeting}
@@ -109,28 +109,28 @@ export default function InquiryPreview({
             )}
           </div>
 
-          <div className="text-center text-slate-400">↓</div>
+          <div className="text-center text-muted">↓</div>
 
           <div className="border rounded-lg p-3">
-            <div className="text-xs font-bold text-slate-900 mb-2">
-              ② LLM returns <span className="font-normal text-slate-400">(sample)</span>
+            <div className="text-xs font-bold text-fg mb-2">
+              ② LLM returns <span className="font-normal text-muted">(sample)</span>
             </div>
-            <pre className="whitespace-pre-wrap font-mono text-xs text-slate-600">
+            <pre className="whitespace-pre-wrap font-mono text-xs text-muted">
               {"subject:  "}
               {block.subject}
               {"\ngreeting: "}
-              <mark className="bg-amber-200">{block.greeting}</mark>
+              <mark className="bg-amber-200 dark:bg-amber-800">{block.greeting}</mark>
             </pre>
           </div>
 
-          <div className="text-center text-slate-400">↓</div>
+          <div className="text-center text-muted">↓</div>
 
           <div className="border rounded-lg p-3">
-            <div className="text-xs font-bold text-slate-900 mb-2">
+            <div className="text-xs font-bold text-fg mb-2">
               ③ Final email{" "}
-              <span className="font-normal text-slate-400">(assembled in code)</span>
+              <span className="font-normal text-muted">(assembled in code)</span>
             </div>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-fg">
               <Highlighted
                 text={block.email}
                 greeting={block.greeting}
@@ -139,11 +139,11 @@ export default function InquiryPreview({
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-500">
-            <mark className="bg-amber-200">greeting</mark> = LLM output ·{" "}
-            <mark className="bg-blue-200">questions</mark> = your Question-texts fields
+          <div className="text-[11px] text-muted">
+            <mark className="bg-amber-200 dark:bg-amber-800">greeting</mark> = LLM output ·{" "}
+            <mark className="bg-blue-200 dark:bg-blue-800">questions</mark> = your Question-texts fields
           </div>
-          <div className="text-[11px] text-slate-400">{SAMPLE_NOTE}</div>
+          <div className="text-[11px] text-muted">{SAMPLE_NOTE}</div>
         </>
       )}
     </div>

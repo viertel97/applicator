@@ -35,20 +35,20 @@ export default function SettingsDiscardReasons() {
       <div className="flex gap-2 mb-3">
         <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)}
                placeholder="New reason label"
-               className="border rounded px-2 py-1 text-sm flex-1" />
+               className="border border-border rounded px-2 py-1 text-sm flex-1 bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
         <button type="button" disabled={!newLabel.trim() || create.isPending}
                 onClick={() => create.mutate(newLabel.trim())}
-                className="bg-blue-600 text-white rounded px-3 py-1 text-sm disabled:opacity-50">
+                className="bg-accent text-accentFg rounded px-3 py-1 text-sm disabled:opacity-50">
           Add
         </button>
       </div>
-      <label className="text-sm text-slate-600 mb-2 flex items-center gap-1">
+      <label className="text-sm text-muted mb-2 flex items-center gap-1">
         <input type="checkbox" checked={includeArchived}
                onChange={(e) => setIncludeArchived(e.target.checked)} />
         Show archived
       </label>
       <table className="w-full text-sm border">
-        <thead className="bg-slate-50">
+        <thead className="bg-surface2">
           <tr>
             <th className="text-left px-2 py-1">Label</th>
             <th className="text-left px-2 py-1">Slug</th>
@@ -66,9 +66,9 @@ export default function SettingsDiscardReasons() {
                          if (e.target.value !== r.label)
                            patch.mutate({ id: r.id, body: { label: e.target.value } });
                        }}
-                       className="border rounded px-1 w-full" />
+                       className="border border-border rounded px-1 w-full bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring" />
               </td>
-              <td className="px-2 py-1 font-mono text-xs text-slate-500">{r.slug}</td>
+              <td className="px-2 py-1 font-mono text-xs text-muted">{r.slug}</td>
               <td className="px-2 py-1">{r.usage_count}</td>
               <td className="px-2 py-1">
                 <input type="checkbox" checked={r.is_archived}

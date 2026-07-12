@@ -14,9 +14,9 @@ export function ConfirmDialog({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded shadow-lg w-96 p-4">
+      <div className="bg-surface border border-border rounded shadow-lg w-96 p-4">
         <div className="text-lg font-semibold mb-2">{title}</div>
-        <div className="text-sm text-slate-700 mb-4">{body}</div>
+        <div className="text-sm text-fg mb-4">{body}</div>
         <div className="flex justify-end gap-2">
           <button
             type="button"

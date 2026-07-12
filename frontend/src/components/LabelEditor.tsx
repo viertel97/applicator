@@ -95,15 +95,15 @@ export function LabelEditor({ appId, assigned }: Props) {
           value={search}
           onChange={(e) => { setSearch(e.target.value); setCreating(false); }}
           placeholder="Add label…"
-          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="w-full border border-border rounded px-2 py-1 text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
         />
         {search && (
-          <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow-md text-sm">
+          <div className="absolute z-10 mt-1 w-full bg-surface border border-border rounded shadow-md text-sm">
             {filtered.map((l) => (
               <button
                 key={l.id}
                 onClick={() => assign.mutate(l.id)}
-                className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2"
+                className="w-full text-left px-3 py-1.5 hover:bg-surface2 text-fg flex items-center gap-2"
               >
                 <span
                   className="w-3 h-3 rounded-full flex-shrink-0"
@@ -115,7 +115,7 @@ export function LabelEditor({ appId, assigned }: Props) {
             {!exactMatch && search.trim() && (
               <button
                 onClick={() => setCreating(true)}
-                className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-blue-600"
+                className="w-full text-left px-3 py-1.5 hover:bg-surface2 text-accent"
               >
                 Create "{search.trim()}"
               </button>
@@ -125,12 +125,12 @@ export function LabelEditor({ appId, assigned }: Props) {
       </div>
       {creating && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-500">Color:</span>
+          <span className="text-xs text-muted">Color:</span>
           {DEFAULT_COLORS.map((c) => (
             <button
               key={c}
               onClick={() => setColorPick(c)}
-              className={`w-5 h-5 rounded-full border-2 ${colorPick === c ? "border-slate-700" : "border-transparent"}`}
+              className={`w-5 h-5 rounded-full border-2 ${colorPick === c ? "border-fg" : "border-transparent"}`}
               style={{ backgroundColor: c }}
               aria-label={c}
             />
@@ -148,13 +148,13 @@ export function LabelEditor({ appId, assigned }: Props) {
           <button
             onClick={() => create.mutate({ name: search.trim(), color: colorPick, category: newCategory as LabelCategory })}
             disabled={!search.trim() || !newCategory || create.isPending}
-            className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="text-xs px-2 py-1 bg-accent text-accentFg rounded hover:opacity-90 disabled:opacity-50"
           >
             Create
           </button>
           <button
             onClick={() => setCreating(false)}
-            className="text-xs text-slate-500 hover:text-slate-700"
+            className="text-xs text-muted hover:text-fg"
           >
             Cancel
           </button>

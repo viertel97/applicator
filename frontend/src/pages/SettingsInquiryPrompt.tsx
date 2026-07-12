@@ -48,9 +48,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-fg mb-1">{label}</label>
       <textarea
-        className="border rounded p-2 w-full font-mono text-sm"
+        className="border border-border rounded p-2 w-full font-mono text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
         rows={rows ?? 3}
         value={value}
         placeholder={placeholder}
@@ -116,19 +116,19 @@ export default function SettingsInquiryPrompt() {
       <div className="space-y-8">
         <div>
           <h1 className="text-xl font-semibold mb-2">Pre-application inquiry prompt</h1>
-          <p className="text-sm text-slate-500 mb-4">
+          <p className="text-sm text-muted mb-4">
             Configure the full prompt sent to the LLM when drafting inquiry emails. Questions
             are only included when not already covered by the job posting.
           </p>
         </div>
 
       <section className="space-y-3">
-        <h2 className="font-medium text-slate-800">System prompt</h2>
-        <p className="text-xs text-slate-500">
+        <h2 className="font-medium text-fg">System prompt</h2>
+        <p className="text-xs text-muted">
           High-level instructions: tone, format, output rules.
         </p>
         <textarea
-          className="border rounded p-2 w-full font-mono text-sm"
+          className="border border-border rounded p-2 w-full font-mono text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
           rows={14}
           value={draft.source_md}
           onChange={(e) => set("source_md", e.target.value)}
@@ -136,20 +136,20 @@ export default function SettingsInquiryPrompt() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-medium text-slate-800">User prompt template</h2>
-        <p className="text-xs text-slate-500">
+        <h2 className="font-medium text-fg">User prompt template</h2>
+        <p className="text-xs text-muted">
           The message sent as the user turn. Available placeholders:{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{language}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{title}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{company}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{contact}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{ref_line}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{reference_number}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{questions}"}</code>
+          <code className="bg-surface2 px-1 rounded">{"{language}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{title}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{company}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{contact}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{ref_line}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{reference_number}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{questions}"}</code>
           . Leave blank to use the default.
         </p>
         <textarea
-          className="border rounded p-2 w-full font-mono text-sm"
+          className="border border-border rounded p-2 w-full font-mono text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
           rows={8}
           value={draft.user_prompt_md ?? ""}
           placeholder={DEFAULT_USER_PROMPT}
@@ -158,9 +158,9 @@ export default function SettingsInquiryPrompt() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-medium text-slate-800">Question texts</h2>
-        <p className="text-xs text-slate-500">
-          Overrides for the question texts injected into <code className="bg-slate-100 px-1 rounded">{"{questions}"}</code>.
+        <h2 className="font-medium text-fg">Question texts</h2>
+        <p className="text-xs text-muted">
+          Overrides for the question texts injected into <code className="bg-surface2 px-1 rounded">{"{questions}"}</code>.
           Leave blank to use the default wording.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -192,15 +192,15 @@ export default function SettingsInquiryPrompt() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-medium text-slate-800">Request mail body</h2>
-        <p className="text-xs text-slate-500">
+        <h2 className="font-medium text-fg">Request mail body</h2>
+        <p className="text-xs text-muted">
           The full inquiry email body. Available placeholders:{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{greeting}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{title}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{ref}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{questions}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{company}"}</code>{" "}
-          <code className="bg-slate-100 px-1 rounded">{"{reference_number}"}</code>
+          <code className="bg-surface2 px-1 rounded">{"{greeting}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{title}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{ref}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{questions}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{company}"}</code>{" "}
+          <code className="bg-surface2 px-1 rounded">{"{reference_number}"}</code>
           . Leave blank to use the default wording.
         </p>
         <div className="grid grid-cols-1 gap-3">
@@ -224,7 +224,7 @@ export default function SettingsInquiryPrompt() {
       <div className="flex gap-2 items-center">
         <button
           type="button"
-          className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
+          className="bg-accent text-accentFg px-3 py-1 rounded disabled:opacity-50"
           disabled={!dirty || save.isPending}
           onClick={() => save.mutate(draft)}
         >

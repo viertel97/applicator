@@ -67,7 +67,7 @@ export function VariantSettings({
       <label
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        className="block border-2 border-dashed border-slate-300 rounded p-6 mb-6 text-center cursor-pointer hover:bg-slate-50"
+        className="block border-2 border-dashed border-border rounded p-6 mb-6 text-center cursor-pointer hover:bg-surface2"
       >
         <input
           type="file"
@@ -76,7 +76,7 @@ export function VariantSettings({
           onChange={onPick}
           className="hidden"
         />
-        <div className="text-sm text-slate-600">
+        <div className="text-sm text-muted">
           {upload.isPending
             ? "Uploading…"
             : "Drop .docx files here, or click to choose"}
@@ -90,11 +90,11 @@ export function VariantSettings({
       <ul className="space-y-2 mb-6">
         {(list.data ?? []).map((v) =>
           editing?.id === v.id ? (
-            <li key={v.id} className="border rounded p-3 bg-white">
+            <li key={v.id} className="border border-border rounded p-3 bg-surface">
               <input
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                className="border rounded px-2 py-1 mb-2 w-full"
+                className="border border-border rounded px-2 py-1 mb-2 w-full bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <MDEditor
                 value={editing.source_md}
@@ -103,7 +103,7 @@ export function VariantSettings({
               />
               <div className="flex gap-2 mt-2">
                 <button
-                  className="bg-blue-600 text-white px-3 py-1 rounded"
+                  className="bg-accent text-accentFg px-3 py-1 rounded"
                   onClick={() => save.mutate(editing)}
                 >
                   Save
@@ -116,12 +116,12 @@ export function VariantSettings({
           ) : (
             <li
               key={v.id}
-              className="border rounded p-3 bg-white flex items-center gap-2"
+              className="border border-border rounded p-3 bg-surface flex items-center gap-2"
             >
               <span className="flex-1">
                 {v.name}{" "}
                 {v.is_default && (
-                  <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+                  <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200 px-1.5 py-0.5 rounded">
                     default
                   </span>
                 )}
@@ -129,7 +129,7 @@ export function VariantSettings({
               {!v.is_default && (
                 <button
                   onClick={() => setDefault.mutate(v.id)}
-                  className="text-sm text-blue-600"
+                  className="text-sm text-accent"
                 >
                   Make default
                 </button>
@@ -152,13 +152,13 @@ export function VariantSettings({
         placeholder="Name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="border rounded px-2 py-1 mb-2 w-full"
+        className="border border-border rounded px-2 py-1 mb-2 w-full bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring"
       />
       <MDEditor value={md} onChange={(v) => setMd(v ?? "")} height={300} />
       <button
         disabled={!name || !md}
         onClick={() => create.mutate()}
-        className="bg-blue-600 text-white px-4 py-2 rounded mt-2 disabled:opacity-50"
+        className="bg-accent text-accentFg px-4 py-2 rounded mt-2 disabled:opacity-50"
       >
         Add
       </button>

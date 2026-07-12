@@ -90,17 +90,17 @@ export function ActivityPanel({
   };
 
   return (
-    <div className="border rounded bg-white">
+    <div className="border border-border rounded bg-surface">
       <div className="border-b px-2 py-1 flex gap-2 items-center">
         {(["timeline", "interactions", "notes"] as Tab[]).map((t) => (
           <button key={t} type="button"
                   onClick={() => setTab(t)}
-                  className={`px-2 py-1 text-sm ${tab === t ? "border-b-2 border-blue-600 font-semibold" : "text-slate-600"}`}>
+                  className={`px-2 py-1 text-sm ${tab === t ? "border-b-2 border-accent font-semibold" : "text-muted"}`}>
             {t}
           </button>
         ))}
         <button type="button"
-                className="ml-auto bg-blue-600 text-white rounded px-2 py-1 text-xs"
+                className="ml-auto bg-accent text-accentFg rounded px-2 py-1 text-xs"
                 onClick={() => onOpenLog()}>
           + Log interaction
         </button>
@@ -112,7 +112,7 @@ export function ActivityPanel({
         onDrop={(e) => { e.preventDefault(); setDragging(false); onFiles(e.dataTransfer.files); }}
         onClick={() => fileRef.current?.click()}
         className={`mx-3 mt-3 border-2 border-dashed rounded p-3 text-center text-xs cursor-pointer ${
-          dragging ? "border-blue-500 bg-blue-50" : "border-slate-300 hover:bg-slate-50"
+          dragging ? "border-accent bg-accent/10" : "border-border hover:bg-surface2"
         }`}
       >
         <input
@@ -122,7 +122,7 @@ export function ActivityPanel({
           className="hidden"
           onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }}
         />
-        <span className="text-slate-600">
+        <span className="text-muted">
           {importEml.isPending ? "Importing email…" : "Drop an .eml here, or click to import an email thread"}
         </span>
       </div>
@@ -136,15 +136,15 @@ export function ActivityPanel({
             {(ints.data ?? []).map((it: Interaction) => (
               <li key={it.id} className="py-2 text-sm flex items-start gap-2">
                 <div className="flex-1">
-                  <span className="text-slate-400 mr-2">
+                  <span className="text-muted mr-2">
                     {it.direction === "out" ? "→" : "←"}
                   </span>
                   <span>{it.channel}</span>
                   {it.subject && <> — <strong>{it.subject}</strong></>}
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted">
                     {new Date(it.occurred_at).toLocaleString()}
                   </div>
-                  {it.body && <div className="text-slate-700 whitespace-pre-wrap">{it.body}</div>}
+                  {it.body && <div className="text-fg whitespace-pre-wrap">{it.body}</div>}
                 </div>
                 <DeleteConfirmButton
                   label="Delete interaction"
