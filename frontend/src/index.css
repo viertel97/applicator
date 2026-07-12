@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 248 250 252;
+    --surface: 255 255 255;
+    --surface-2: 241 245 249;
+    --fg: 15 23 42;
+    --muted: 100 116 139;
+    --border: 226 232 240;
+    --accent: 2 132 199;
+    --accent-fg: 255 255 255;
+    --ring: 14 165 233;
+  }
+
+  .dark {
+    --bg: 15 23 42;
+    --surface: 30 41 59;
+    --surface-2: 51 65 85;
+    --fg: 241 245 249;
+    --muted: 148 163 184;
+    --border: 51 65 85;
+    --accent: 56 189 248;
+    --accent-fg: 2 6 23;
+    --ring: 56 189 248;
+  }
+
+  body {
+    @apply bg-bg text-fg;
+  }
+}
