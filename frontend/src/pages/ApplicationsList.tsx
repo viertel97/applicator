@@ -377,10 +377,10 @@ export default function ApplicationsList() {
           title="Click to cycle: all → awaiting only → hide awaiting"
           className={`text-xs px-2 py-0.5 rounded border transition-colors ${
             awaitingFilter === "awaiting"
-              ? "bg-sky-100 text-sky-800 border-sky-300"
+              ? "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-900 dark:text-sky-200 dark:border-sky-700"
               : awaitingFilter === "hide"
-                ? "bg-rose-100 text-rose-800 border-rose-300"
-                : "bg-surface text-muted border-border hover:border-border"
+                ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900 dark:text-rose-200 dark:border-rose-700"
+                : "bg-surface text-muted border-border hover:border-muted"
           }`}
         >
           {awaitingFilter === "hide" ? "Hide awaiting" : "Awaiting reply"}
@@ -399,10 +399,10 @@ export default function ApplicationsList() {
               title="Click to cycle: any → requires → hides"
               className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                 state === "require"
-                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                  ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700"
                   : state === "hide"
-                    ? "bg-rose-100 text-rose-800 border-rose-300"
-                    : "bg-surface text-muted border-border hover:border-border"
+                    ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900 dark:text-rose-200 dark:border-rose-700"
+                    : "bg-surface text-muted border-border hover:border-muted"
               }`}
             >
               {state === "hide" ? `Not ${DOC_LABEL[d]}` : DOC_LABEL[d]}
@@ -427,8 +427,8 @@ export default function ApplicationsList() {
               onClick={toggleLabelPanel}
               className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                 activeCount > 0
-                  ? "bg-indigo-100 border-indigo-300 text-indigo-800"
-                  : "bg-surface border-border text-muted hover:border-border"
+                  ? "bg-indigo-100 border-indigo-300 text-indigo-800 dark:bg-indigo-900 dark:border-indigo-700 dark:text-indigo-200"
+                  : "bg-surface border-border text-muted hover:border-muted"
               }`}
             >
               Labels · any of{activeCount > 0 ? ` (${activeCount})` : ""} {labelPanelOpen ? "▾" : "▸"}
@@ -459,8 +459,8 @@ export default function ApplicationsList() {
                             type="button"
                             className={`text-xs rounded px-2 py-0.5 border transition-colors ${
                               filterLabelIds.includes(lab.id)
-                                ? "bg-indigo-100 border-indigo-300 text-indigo-800"
-                                : "bg-surface border-border hover:border-border"
+                                ? "bg-indigo-100 border-indigo-300 text-indigo-800 dark:bg-indigo-900 dark:border-indigo-700 dark:text-indigo-200"
+                                : "bg-surface border-border hover:border-muted"
                             }`}
                             onClick={() => toggleLabel(lab.id)}
                           >
@@ -532,7 +532,7 @@ export default function ApplicationsList() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-muted hover:text-fg flex-shrink-0"
+                className="text-muted hover:text-fg flex-shrink-0 p-2 -m-2"
                 title="Open original posting"
               >
                 ↗
@@ -545,7 +545,7 @@ export default function ApplicationsList() {
               />
               <button
                 type="button"
-                className="text-muted hover:text-rose-600 px-2"
+                className="text-muted hover:text-rose-600 p-2"
                 onClick={(e) => { e.stopPropagation(); setPendingDelete(a); }}
                 aria-label="delete"
                 data-testid="delete-button"
