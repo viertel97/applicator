@@ -3,6 +3,7 @@ import { ApiError, api } from "./client";
 export type Direction = "out" | "in";
 export type Channel = "mail" | "linkedin" | "phone" | "portal" | "xing" | "interview" | "other";
 export type Sentiment = "positive" | "neutral" | "negative" | "rejection" | null;
+export type InterviewStage = "phone_screen" | "technical" | "onsite" | "hr" | "final" | "other";
 
 export type Interaction = {
   id: string;
@@ -15,6 +16,7 @@ export type Interaction = {
   contact_name: string | null;
   contact_handle: string | null;
   sentiment: Sentiment;
+  interview_stage: InterviewStage | null;
   created_from: "manual" | "inquiry_migration" | "graph_sync" | "eml_import";
   created_at: string;
   updated_at: string;
@@ -35,6 +37,7 @@ export type CreateInteractionInput = {
   contact_name?: string | null;
   contact_handle?: string | null;
   sentiment?: Sentiment;
+  interview_stage?: InterviewStage | null;
 };
 
 export type CreateInteractionResp = {

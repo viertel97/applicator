@@ -1,6 +1,20 @@
 import { api } from "./client";
 
 export type AppStatus = "draft" | "applied" | "offer" | "rejected" | "accepted" | "withdrawn" | "discarded" | "need_call" | "apply_direct" | "interview";
+export type InterviewStage = "phone_screen" | "technical" | "onsite" | "hr" | "final" | "other";
+
+export type InterviewRoundRef = {
+  round: number;
+  stage: InterviewStage | null;
+  at: string;
+};
+
+export type InterviewSummary = {
+  rounds_logged: number;
+  next: InterviewRoundRef | null;
+  last: InterviewRoundRef | null;
+};
+
 export type JobState =
   | "pending"
   | "crawling"
@@ -72,6 +86,7 @@ export type Application = {
   discard_note: string | null;
   discard_reason_id: string | null;
   discard_interaction_id: string | null;
+  interview_summary: InterviewSummary | null;
 };
 
 export type DiscardPayload = {
