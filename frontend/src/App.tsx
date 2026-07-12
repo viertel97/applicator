@@ -1,4 +1,4 @@
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
@@ -9,45 +9,17 @@ import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
 import SettingsDiscardReasons from "./pages/SettingsDiscardReasons";
 import Stats from "./pages/Stats";
 import { useAuth } from "./hooks/useAuth";
-
-function Nav() {
-  const loc = useLocation();
-  const { data: authData } = useAuth();
-  const item = (to: string, label: string) => (
-    <Link
-      key={to}
-      to={to}
-      className={`px-3 py-2 ${loc.pathname.startsWith(to) ? "font-semibold" : ""}`}
-    >
-      {label}
-    </Link>
-  );
-  return (
-    <nav className="bg-white border-b px-4 py-2 flex gap-2 items-center">
-      <span className="font-bold mr-3">Applicator</span>
-      {item("/applications", "Applications")}
-      {item("/stats", "Stats")}
-      {item("/settings/cv", "CV")}
-      {item("/settings/anschreiben", "Anschreiben")}
-      {item("/settings/llm", "LLM")}
-      {item("/settings/inquiry-prompt", "Inquiry prompt")}
-      {item("/settings/discard-reasons", "Discard reasons")}
-      {authData?.oauth_enabled && (
-        <form action="/api/auth/logout" method="post" className="ml-auto">
-          <button className="text-sm text-slate-600">Logout</button>
-        </form>
-      )}
-    </nav>
-  );
-}
+import { DesktopNav } from "./components/nav/DesktopNav";
+import { MobileNav } from "./components/nav/MobileNav";
 
 function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { data, isLoading } = useAuth();
-  if (isLoading) return <div className="p-6">Loading…</div>;
+  if (isLoading) return <div className="p-6 text-muted">Loading…</div>;
   if (!data) return <Navigate to="/login" replace />;
   return (
     <>
-      <Nav />
+      <DesktopNav oauthEnabled={data.oauth_enabled} />
+      <MobileNav oauthEnabled={data.oauth_enabled} />
       {children}
     </>
   );
