@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   interactions, type CreateInteractionInput, type Channel, type Direction, type Sentiment,
+  type InterviewStage,
 } from "../api/interactions";
 import { applications, type Application, type DiscardPayload } from "../api/applications";
 import { DiscardReasonPicker } from "./DiscardReasonPicker";
+import { STAGE_LABEL } from "../lib/interviewSummary";
 
 type Props = {
   appId: string;
@@ -15,6 +17,7 @@ type Props = {
 };
 
 const CHANNELS: Channel[] = ["mail", "linkedin", "phone", "portal", "xing", "interview", "other"];
+const STAGES: InterviewStage[] = ["phone_screen", "technical", "onsite", "hr", "final", "other"];
 
 function mailto(to: string | null, subject: string, body: string): string {
   const normalized = body.replace(/\\n/g, "\n");
@@ -31,6 +34,7 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
   const [contactName, setContactName] = useState("");
   const [contactHandle, setContactHandle] = useState("");
   const [sentiment, setSentiment] = useState<Sentiment>(null);
+  const [interviewStage, setInterviewStage] = useState<InterviewStage | "">("");
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 16)
   );
@@ -101,7 +105,7 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
 
   function reset() {
     setSubject(""); setBody(""); setContactName(""); setContactHandle("");
-    setSentiment(null); setShowDiscard(false); setReasonId(null);
+    setSentiment(null); setInterviewStage(""); setShowDiscard(false); setReasonId(null);
     setDiscardNote(""); setPendingDiscardIid(null);
   }
 
@@ -143,6 +147,18 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
                      onChange={(e) => setContactHandle(e.target.value)}
                      className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
+            {channel === "interview" && (
+              <select
+                value={interviewStage}
+                onChange={(e) => setInterviewStage(e.target.value as InterviewStage | "")}
+                className="border rounded px-2 py-1 text-sm w-full mb-2"
+              >
+                <option value="">Stage (optional)</option>
+                {STAGES.map((s) => (
+                  <option key={s} value={s}>{STAGE_LABEL[s]}</option>
+                ))}
+              </select>
+            )}
             {(channel === "mail" || channel === "interview") && (
               <input
                 placeholder={channel === "interview" ? "Round / type (e.g. Technical screen)" : "Subject"}
@@ -208,6 +224,7 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
                         direction, channel, subject: subject || null, body: body || null,
                         contact_name: contactName || null, contact_handle: contactHandle || null,
                         sentiment, occurred_at: new Date(occurredAt).toISOString(),
+                        interview_stage: channel === "interview" ? (interviewStage || null) : null,
                       })}
                       className="bg-accent text-accentFg rounded px-3 py-1 text-sm disabled:opacity-50">
                 Save
