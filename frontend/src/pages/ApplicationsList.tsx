@@ -7,7 +7,7 @@ import { labels as labelsApi } from "../api/labels";
 import { discardReasons } from "../api/discardReasons";
 import { AddApplicationForm } from "../components/AddApplicationForm";
 import { JobStateBadge, StatusBadge, OnlineBadge } from "../components/StatusBadge";
-import { LabelChip } from "../components/LabelChip";
+import { CappedLabelChips } from "../components/CappedLabelChips";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DiscardReasonPicker } from "../components/DiscardReasonPicker";
 import { FilterEmptyState } from "../components/FilterEmptyState";
@@ -364,9 +364,7 @@ export default function ApplicationsList() {
       </div>
       {!discardedVisible && (
         <div className="flex items-center gap-1 mb-3 ml-4">
-          <span className="text-xs text-muted">Reason:</span>
-          <DiscardReasonPicker value={null} onChange={() => {}} disabled />
-          <span className="text-xs text-muted">Show Discarded to filter by reason</span>
+          <span className="text-xs text-muted">Select Discarded to filter by reason</span>
         </div>
       )}
 
@@ -519,13 +517,7 @@ export default function ApplicationsList() {
                     <span className="text-muted">· {a.job_posting.location}</span>
                   )}
                 </div>
-                {a.labels.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {a.labels.map((lbl) => (
-                      <LabelChip key={lbl.id} label={lbl} />
-                    ))}
-                  </div>
-                )}
+                <CappedLabelChips labels={a.labels} />
               </Link>
               <a
                 href={a.url}
