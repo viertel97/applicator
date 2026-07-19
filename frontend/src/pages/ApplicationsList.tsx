@@ -29,6 +29,12 @@ const AWAITING_FILTER_KEY = "applicator.awaitingFilter";
 const ALL_STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct", "interview"];
 const HIDDEN_BY_DEFAULT: AppStatus[] = ["rejected", "withdrawn", "discarded"];
 
+// One-click status advance shown on each card, keyed by current status.
+const QUICK_NEXT: Partial<Record<AppStatus, AppStatus>> = {
+  draft: "applied",
+  applied: "rejected",
+};
+
 const STATUS_LABEL: Record<AppStatus, string> = {
   draft: "Draft",
   applied: "Applied",
@@ -120,6 +126,11 @@ export default function ApplicationsList() {
       qc.invalidateQueries({ queryKey: ["applications"] });
       setPendingDelete(null);
     },
+  });
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AppStatus }) =>
+      applications.setStatus(id, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["applications"] }),
   });
 
   const allLabels = useQuery({ queryKey: ["labels"], queryFn: labelsApi.list });
@@ -499,10 +510,10 @@ export default function ApplicationsList() {
       <div>
         {visible.map((a: Application) => (
           <Card key={a.id} className="mb-2 p-3 hover:bg-surface2 transition-colors">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <Link
                 to={`/applications/${a.id}`}
-                className="flex-1 truncate min-w-0 py-1.5 text-fg hover:text-accent"
+                className="flex-1 min-w-0 py-1.5 text-fg hover:text-accent"
                 onClick={() => sessionStorage.setItem(scrollKey, String(window.scrollY))}
               >
                 <div className="font-medium truncate">
@@ -511,40 +522,57 @@ export default function ApplicationsList() {
                   </span>
                   {a.job_posting?.title ?? a.url}
                 </div>
-                <div className="text-sm text-muted flex items-center gap-1">
+                <div className="text-sm text-muted truncate">
                   {a.job_posting?.company}
                   {a.job_posting?.location && (
-                    <span className="text-muted">· {a.job_posting.location}</span>
+                    <span className="text-muted"> · {a.job_posting.location}</span>
                   )}
                 </div>
                 <CappedLabelChips labels={a.labels} />
               </Link>
-              <a
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-muted hover:text-fg flex-shrink-0 p-2 -m-2"
-                title="Open original posting"
-              >
-                ↗
-              </a>
-              <OnlineBadge online={a.posting_online} />
-              <JobStateBadge state={a.job_state} />
-              <StatusBadge
-                status={a.status}
-                summary={a.interview_summary}
-                title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
-              />
-              <button
-                type="button"
-                className="text-muted hover:text-rose-600 p-2"
-                onClick={(e) => { e.stopPropagation(); setPendingDelete(a); }}
-                aria-label="delete"
-                data-testid="delete-button"
-              >
-                🗑
-              </button>
+              <div className="flex items-center gap-2 flex-wrap justify-end sm:flex-nowrap sm:flex-shrink-0">
+                <a
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-muted hover:text-fg flex-shrink-0 p-2 -m-1"
+                  title="Open original posting"
+                >
+                  ↗
+                </a>
+                <OnlineBadge online={a.posting_online} />
+                <JobStateBadge state={a.job_state} />
+                <StatusBadge
+                  status={a.status}
+                  summary={a.interview_summary}
+                  title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
+                />
+                {QUICK_NEXT[a.status] && (
+                  <button
+                    type="button"
+                    disabled={setStatus.isPending}
+                    className="text-xs px-2 py-0.5 rounded border border-border bg-surface text-muted hover:text-fg hover:border-muted transition-colors disabled:opacity-50 whitespace-nowrap"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setStatus.mutate({ id: a.id, status: QUICK_NEXT[a.status]! });
+                    }}
+                    title={`Mark as ${STATUS_LABEL[QUICK_NEXT[a.status]!]}`}
+                    data-testid="quick-status-button"
+                  >
+                    → {STATUS_LABEL[QUICK_NEXT[a.status]!]}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-muted hover:text-rose-600 p-2 -m-1"
+                  onClick={(e) => { e.stopPropagation(); setPendingDelete(a); }}
+                  aria-label="delete"
+                  data-testid="delete-button"
+                >
+                  🗑
+                </button>
+              </div>
             </div>
           </Card>
         ))}
