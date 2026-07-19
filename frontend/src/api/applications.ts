@@ -78,6 +78,7 @@ export type Application = {
   anschreiben_variant_id: string | null;
   job_posting_dirty: boolean;
   posting_online: boolean | null;
+  posting_offline_reason: string | null;
   labels: Label[];
   job_posting: JobPosting | null;
   folder_name: string;
@@ -94,6 +95,16 @@ export type DiscardPayload = {
   discard_reason_id?: string;
   discard_interaction_id?: string;
   discard_note?: string;
+};
+
+export type Suggestion = {
+  id: string;
+  display_id: number;
+  url: string;
+  title: string | null;
+  company: string | null;
+  posting_offline_reason: string | null;
+  posting_checked_at: string | null;
 };
 
 export type CreateApplicationBody = {
@@ -156,4 +167,7 @@ export const applications = {
       method: "POST",
       body: JSON.stringify({ raw_text }),
     }),
+  getSuggestions: () => api<Suggestion[]>("/api/applications/suggestions"),
+  dismissOffline: (id: string) =>
+    api<Application>(`/api/applications/${id}/dismiss-offline`, { method: "POST" }),
 };

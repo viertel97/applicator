@@ -150,8 +150,11 @@ def create_interaction(
     db.refresh(it)
     suggest = None
     if (
-        body.direction == InteractionDirection.in_
-        and body.sentiment == InteractionSentiment.rejection
+        body.sentiment == InteractionSentiment.rejection
+        and (
+            body.direction == InteractionDirection.in_
+            or body.channel == InteractionChannel.interview
+        )
     ):
         suggest = SuggestDiscard(reason_slug="rejected", interaction_id=it.id)
     return CreateInteractionOut(

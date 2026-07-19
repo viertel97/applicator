@@ -7,6 +7,7 @@ import {
 import { applications, type Application, type DiscardPayload } from "../api/applications";
 import { DiscardReasonPicker } from "./DiscardReasonPicker";
 import { STAGE_LABEL } from "../lib/interviewSummary";
+import { parseCalendarPaste } from "../lib/parseCalendarPaste";
 
 type Props = {
   appId: string;
@@ -38,6 +39,19 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 16)
   );
+  const [pasteErr, setPasteErr] = useState(false);
+
+  async function pasteDateTime() {
+    setPasteErr(false);
+    try {
+      const text = await navigator.clipboard.readText();
+      const parsed = parseCalendarPaste(text);
+      if (parsed) setOccurredAt(parsed);
+      else setPasteErr(true);
+    } catch {
+      setPasteErr(true);
+    }
+  }
 
   const [showDiscard, setShowDiscard] = useState(false);
   const [reasonId, setReasonId] = useState<string | null>(null);
@@ -125,20 +139,39 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
         <h2 className="text-lg font-semibold mb-3">Log interaction</h2>
         {!showDiscard ? (
           <>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <select value={direction} onChange={(e) => setDirection(e.target.value as Direction)}
-                      className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
-                <option value="out">Outgoing</option>
-                <option value="in">Incoming</option>
-              </select>
+            {channel === "interview" ? (
               <select value={channel} onChange={(e) => setChannel(e.target.value as Channel)}
-                      className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
+                      className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
                 {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <select value={channel} onChange={(e) => setChannel(e.target.value as Channel)}
+                        className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
+                  {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={direction} onChange={(e) => setDirection(e.target.value as Direction)}
+                        className="border border-border rounded px-2 py-1 text-sm bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="out">Outgoing</option>
+                  <option value="in">Incoming</option>
+                </select>
+              </div>
+            )}
+            <div className="flex gap-2 mb-2">
+              <input type="datetime-local" value={occurredAt}
+                     onChange={(e) => { setOccurredAt(e.target.value); setPasteErr(false); }}
+                     className="border border-border rounded px-2 py-1 text-sm flex-1 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring" />
+              <button type="button" onClick={pasteDateTime}
+                      title="Fill from clipboard (e.g. a copied calendar entry)"
+                      className="border border-border rounded px-3 py-1 text-sm text-fg whitespace-nowrap">
+                Paste
+              </button>
             </div>
-            <input type="datetime-local" value={occurredAt}
-                   onChange={(e) => setOccurredAt(e.target.value)}
-                   className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring" />
+            {pasteErr && (
+              <p className="text-rose-600 text-xs -mt-1 mb-2">
+                Couldn’t read a date from clipboard
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2 mb-2">
               <input placeholder="Contact name" value={contactName}
                      onChange={(e) => setContactName(e.target.value)}
@@ -172,7 +205,7 @@ export function InteractionLogModal({ appId, open, onClose, app, prefill }: Prop
               value={body}
               onChange={(e) => setBody(e.target.value)} rows={5}
               className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring" />
-            {direction === "in" && (
+            {(direction === "in" || channel === "interview") && (
               <select value={sentiment ?? ""}
                       onChange={(e) => setSentiment((e.target.value || null) as Sentiment)}
                       className="border border-border rounded px-2 py-1 text-sm w-full mb-2 bg-surface text-fg focus:outline-none focus:ring-2 focus:ring-ring">

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import ApplicationsList from "./pages/ApplicationsList";
 import ApplicationDetail from "./pages/ApplicationDetail";
+import Suggestions from "./pages/Suggestions";
 import SettingsCV from "./pages/SettingsCV";
 import SettingsAnschreiben from "./pages/SettingsAnschreiben";
 import SettingsLLM from "./pages/SettingsLLM";
@@ -42,6 +43,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <ApplicationDetail />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/suggestions"
+        element={
+          <ProtectedShell>
+            <Suggestions />
           </ProtectedShell>
         }
       />

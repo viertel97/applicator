@@ -27,7 +27,7 @@ export function DiscardReasonPicker({ value, onChange, includeArchived, disabled
     },
   });
 
-  if (!q.data) return <select disabled className="border rounded px-2 py-1 text-sm" />;
+  if (!q.data) return <select disabled className="border border-border bg-surface text-fg rounded px-2 py-1 text-sm" />;
   return (
     <div className="flex gap-1 items-center">
       <select
@@ -37,7 +37,7 @@ export function DiscardReasonPicker({ value, onChange, includeArchived, disabled
           const id = e.target.value || null;
           onChange(id, id ? q.data.find((r) => r.id === id) ?? null : null);
         }}
-        className="border rounded px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        className="border border-border bg-surface text-fg rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <option value="">— no reason —</option>
         {q.data.map((r) => (
@@ -56,7 +56,7 @@ export function DiscardReasonPicker({ value, onChange, includeArchived, disabled
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             placeholder="Label"
-            className="border rounded px-2 py-1 text-xs"
+            className="border border-border bg-surface text-fg placeholder:text-muted rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <button
             type="button"

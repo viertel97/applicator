@@ -229,6 +229,10 @@ class Application(Base):
     )
     posting_online: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     posting_checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    posting_offline_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    posting_offline_dismissed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
     discard_reason_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("discard_reason.id"), nullable=True
     )

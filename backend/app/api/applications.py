@@ -144,6 +144,7 @@ class ApplicationOut(BaseModel):
     anschreiben_variant_id: uuid.UUID | None
     job_posting_dirty: bool
     posting_online: bool | None
+    posting_offline_reason: str | None
     labels: list[LabelOut]
     job_posting: JobPostingOut | None
     folder_name: str
@@ -176,6 +177,7 @@ class ApplicationOut(BaseModel):
             anschreiben_variant_id=app.anschreiben_variant_id,
             job_posting_dirty=app.job_posting_dirty,
             posting_online=app.posting_online,
+            posting_offline_reason=app.posting_offline_reason,
             labels=[LabelOut.model_validate(lbl) for lbl in app.labels],
             job_posting=(
                 JobPostingOut.model_validate(app.job_posting) if app.job_posting else None
@@ -345,6 +347,63 @@ def list_apps(
         )
         for r in rows
     ]
+
+
+class SuggestionOut(BaseModel):
+    id: uuid.UUID
+    display_id: int
+    url: str
+    title: str | None
+    company: str | None
+    posting_offline_reason: str | None
+    posting_checked_at: datetime | None
+
+
+@router.get("/suggestions", response_model=list[SuggestionOut])
+def list_suggestions(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    """Draft applications whose posting went offline and aren't dismissed."""
+    rows = (
+        db.query(Application)
+        .filter(
+            Application.user_id == user.id,
+            Application.deleted_at.is_(None),
+            Application.status == ApplicationStatus.draft,
+            Application.posting_online.is_(False),
+            Application.posting_offline_dismissed_at.is_(None),
+        )
+        .order_by(Application.posting_checked_at.desc().nullslast())
+        .all()
+    )
+    return [
+        SuggestionOut(
+            id=r.id,
+            display_id=r.display_id,
+            url=r.url,
+            title=r.job_posting.title if r.job_posting else None,
+            company=r.job_posting.company if r.job_posting else None,
+            posting_offline_reason=r.posting_offline_reason,
+            posting_checked_at=r.posting_checked_at,
+        )
+        for r in rows
+    ]
+
+
+@router.post("/{aid}/dismiss-offline", response_model=ApplicationOut)
+def dismiss_offline(
+    aid: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    """Permanently dismiss an offline-posting suggestion. Idempotent."""
+    app_row = _load_owned(db, aid, user)
+    if app_row.posting_offline_dismissed_at is None:
+        app_row.posting_offline_dismissed_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(app_row)
+    return ApplicationOut.from_orm_row(app_row)
 
 
 @router.get("/{aid}", response_model=ApplicationOut)

@@ -1,9 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { NAV_ITEMS } from "./navItems";
 import { ThemeToggle } from "../ThemeToggle";
+import { NavCountBadge } from "./NavCountBadge";
+import { useSuggestionsCount } from "../../hooks/useSuggestionsCount";
 
 export function DesktopNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
   const loc = useLocation();
+  const suggestionCount = useSuggestionsCount();
   return (
     <nav className="hidden md:flex bg-surface border-b border-border px-4 py-2 gap-1 items-center">
       <span className="font-bold text-fg mr-3">Applicator</span>
@@ -13,13 +16,14 @@ export function DesktopNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
           <Link
             key={to}
             to={to}
-            className={`px-3 py-2 text-sm rounded ${
+            className={`px-3 py-2 text-sm rounded inline-flex items-center gap-1.5 ${
               active
                 ? "text-accent font-semibold"
                 : "text-muted hover:text-fg"
             }`}
           >
             {label}
+            {to === "/suggestions" && <NavCountBadge count={suggestionCount} />}
           </Link>
         );
       })}

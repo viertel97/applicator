@@ -2,6 +2,7 @@ export type NavItem = { to: string; label: string; group: "main" | "settings" };
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/applications", label: "Applications", group: "main" },
+  { to: "/suggestions", label: "Suggestions", group: "main" },
   { to: "/stats", label: "Stats", group: "main" },
   { to: "/settings/cv", label: "CV", group: "settings" },
   { to: "/settings/anschreiben", label: "Anschreiben", group: "settings" },

@@ -4,9 +4,12 @@ import { Link, useLocation } from "react-router-dom";
 import { NAV_ITEMS } from "./navItems";
 import { ThemeToggle } from "../ThemeToggle";
 import { IconButton } from "../ui/IconButton";
+import { NavCountBadge } from "./NavCountBadge";
+import { useSuggestionsCount } from "../../hooks/useSuggestionsCount";
 
 export function MobileNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
   const loc = useLocation();
+  const suggestionCount = useSuggestionsCount();
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -61,13 +64,14 @@ export function MobileNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
     <Link
       key={to}
       to={to}
-      className={`block px-4 py-3 rounded text-sm ${
+      className={`flex items-center gap-2 px-4 py-3 rounded text-sm ${
         loc.pathname.startsWith(to)
           ? "text-accent font-semibold bg-surface2"
           : "text-fg hover:bg-surface2"
       }`}
     >
       {label}
+      {to === "/suggestions" && <NavCountBadge count={suggestionCount} />}
     </Link>
   );
 
