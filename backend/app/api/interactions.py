@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, db_dep
 from app.db.models import (
     Application,
+    ApplicationEvent,
     Interaction,
     InteractionChannel,
     InteractionCreatedFrom,
@@ -262,3 +263,77 @@ async def import_eml(
         count=len(rows),
         used_llm=thread.used_llm,
     )
+
+
+_DISCARD_TO_VALUES = {"rejected", "discarded", "withdrawn"}
+
+
+class GlobalTimelineRow(BaseModel):
+    category: str  # "application" | "interaction" | "status" | "discard"
+    at: datetime
+    application_id: str
+    company: str | None
+    title: str | None
+    status: str
+    data: dict
+
+
+@router.get("/timeline", response_model=list[GlobalTimelineRow])
+def global_timeline(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+):
+    apps = (
+        db.query(Application)
+        .filter(Application.user_id == user.id, Application.deleted_at.is_(None))
+        .all()
+    )
+    if not apps:
+        return []
+    app_ids = [a.id for a in apps]
+
+    postings = {
+        p.application_id: p
+        for p in db.query(JobPosting).filter(JobPosting.application_id.in_(app_ids))
+    }
+    status_by_id = {a.id: a.status.value for a in apps}
+
+    def _meta(aid):
+        p = postings.get(aid)
+        return (p.company if p else None, p.title if p else None)
+
+    rows: list[GlobalTimelineRow] = []
+
+    for a in apps:
+        company, title = _meta(a.id)
+        rows.append(GlobalTimelineRow(
+            category="application", at=a.created_at, application_id=str(a.id),
+            company=company, title=title, status=a.status.value, data={},
+        ))
+
+    for it in db.query(Interaction).filter(Interaction.application_id.in_(app_ids)):
+        company, title = _meta(it.application_id)
+        rows.append(GlobalTimelineRow(
+            category="interaction", at=it.occurred_at,
+            application_id=str(it.application_id),
+            company=company, title=title, status=status_by_id[it.application_id],
+            data={
+                "direction": it.direction.value,
+                "channel": it.channel.value,
+                "subject": it.subject,
+                "interview_stage": it.interview_stage.value if it.interview_stage else None,
+            },
+        ))
+
+    for ev in db.query(ApplicationEvent).filter(ApplicationEvent.application_id.in_(app_ids)):
+        company, title = _meta(ev.application_id)
+        category = "discard" if ev.to_value in _DISCARD_TO_VALUES else "status"
+        rows.append(GlobalTimelineRow(
+            category=category, at=ev.occurred_at,
+            application_id=str(ev.application_id),
+            company=company, title=title, status=status_by_id[ev.application_id],
+            data={"kind": ev.kind.value, "from": ev.from_value, "to": ev.to_value},
+        ))
+
+    rows.sort(key=lambda r: r.at, reverse=True)
+    return rows
