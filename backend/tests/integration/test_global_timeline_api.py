@@ -40,6 +40,20 @@ def test_global_timeline_aggregates_and_scopes(client, db_session, auth_user):
     assert all(row["company"] == "Acme" for row in acme_rows)
     assert all(row["title"] == "Engineer" for row in acme_rows)
 
+    # interaction data payload
+    interaction_row = next(row for row in rows if row["category"] == "interaction")
+    assert interaction_row["data"]["direction"] == "out"
+    assert interaction_row["data"]["channel"] == "mail"
+    assert interaction_row["data"]["subject"] == "Hi"
+
+    # status/discard event data payload has non-null from/to
+    discard_row = next(row for row in rows if row["category"] == "discard")
+    assert discard_row["data"]["to"] == "rejected"
+    assert discard_row["data"]["from"] is not None
+    status_row = next(row for row in rows if row["category"] == "status")
+    assert status_row["data"]["from"] is not None
+    assert status_row["data"]["to"] is not None
+
     # newest first
     ts = [row["at"] for row in rows]
     assert ts == sorted(ts, reverse=True)

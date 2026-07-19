@@ -10,6 +10,7 @@ from app.api.deps import current_user, db_dep
 from app.db.models import (
     Application,
     ApplicationEvent,
+    ApplicationEventKind,
     Interaction,
     InteractionChannel,
     InteractionCreatedFrom,
@@ -326,11 +327,14 @@ def global_timeline(
         ))
 
     for ev in db.query(ApplicationEvent).filter(ApplicationEvent.application_id.in_(app_ids)):
+        if ev.kind != ApplicationEventKind.status_change:
+            continue  # only status_change events are surfaced on the timeline today
         company, title = _meta(ev.application_id)
         category = "discard" if ev.to_value in _DISCARD_TO_VALUES else "status"
         rows.append(GlobalTimelineRow(
             category=category, at=ev.occurred_at,
             application_id=str(ev.application_id),
+            # current application status, for a context badge (not the status at event time)
             company=company, title=title, status=status_by_id[ev.application_id],
             data={"kind": ev.kind.value, "from": ev.from_value, "to": ev.to_value},
         ))
