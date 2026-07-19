@@ -16,6 +16,12 @@ import { ActivityPanel } from "../components/ActivityPanel";
 
 const STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct", "interview"];
 
+// One-click status advances, keyed by current status, to save a dropdown trip.
+const QUICK_NEXT: Partial<Record<AppStatus, { to: AppStatus; label: string }>> = {
+  draft: { to: "applied", label: "Mark applied" },
+  applied: { to: "rejected", label: "Mark rejected" },
+};
+
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
@@ -159,6 +165,19 @@ export default function ApplicationDetail() {
               if (s === "interview") openLog({ channel: "interview", direction: "in" });
             }}
           />
+          {QUICK_NEXT[a.status] && (
+            <button
+              type="button"
+              disabled={setStatus.isPending}
+              className="text-accent border border-accent rounded px-2 py-0.5 text-sm disabled:opacity-50"
+              onClick={() => {
+                setDiscardReason("");
+                setStatus.mutate({ status: QUICK_NEXT[a.status]!.to });
+              }}
+            >
+              → {QUICK_NEXT[a.status]!.label}
+            </button>
+          )}
           {a.status !== "discarded" && (
             <button
               type="button"

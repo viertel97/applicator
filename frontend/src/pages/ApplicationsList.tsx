@@ -29,12 +29,6 @@ const AWAITING_FILTER_KEY = "applicator.awaitingFilter";
 const ALL_STATUSES: AppStatus[] = ["draft", "applied", "offer", "rejected", "accepted", "withdrawn", "discarded", "need_call", "apply_direct", "interview"];
 const HIDDEN_BY_DEFAULT: AppStatus[] = ["rejected", "withdrawn", "discarded"];
 
-// One-click status advance shown on each card, keyed by current status.
-const QUICK_NEXT: Partial<Record<AppStatus, AppStatus>> = {
-  draft: "applied",
-  applied: "rejected",
-};
-
 const STATUS_LABEL: Record<AppStatus, string> = {
   draft: "Draft",
   applied: "Applied",
@@ -126,11 +120,6 @@ export default function ApplicationsList() {
       qc.invalidateQueries({ queryKey: ["applications"] });
       setPendingDelete(null);
     },
-  });
-  const setStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: AppStatus }) =>
-      applications.setStatus(id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["applications"] }),
   });
 
   const allLabels = useQuery({ queryKey: ["labels"], queryFn: labelsApi.list });
@@ -548,21 +537,6 @@ export default function ApplicationsList() {
                   summary={a.interview_summary}
                   title={a.discard_reason_id ? reasonMap[a.discard_reason_id] : undefined}
                 />
-                {QUICK_NEXT[a.status] && (
-                  <button
-                    type="button"
-                    disabled={setStatus.isPending}
-                    className="text-xs px-2 py-0.5 rounded border border-border bg-surface text-muted hover:text-fg hover:border-muted transition-colors disabled:opacity-50 whitespace-nowrap"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setStatus.mutate({ id: a.id, status: QUICK_NEXT[a.status]! });
-                    }}
-                    title={`Mark as ${STATUS_LABEL[QUICK_NEXT[a.status]!]}`}
-                    data-testid="quick-status-button"
-                  >
-                    → {STATUS_LABEL[QUICK_NEXT[a.status]!]}
-                  </button>
-                )}
                 <button
                   type="button"
                   className="text-muted hover:text-rose-600 p-2 -m-1"
