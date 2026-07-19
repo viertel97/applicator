@@ -49,6 +49,26 @@ export type TimelineRow =
   | { kind: "interaction"; at: string; data: Interaction }
   | { kind: "event"; at: string; data: { kind: string; from: string | null; to: string | null; meta: unknown } };
 
+export type TimelineCategory = "application" | "interaction" | "status" | "discard";
+
+export type GlobalTimelineRow = {
+  category: TimelineCategory;
+  at: string;
+  application_id: string;
+  company: string | null;
+  title: string | null;
+  status: string;
+  data: {
+    direction?: Direction;
+    channel?: Channel;
+    subject?: string | null;
+    interview_stage?: InterviewStage | null;
+    kind?: string;
+    from?: string | null;
+    to?: string | null;
+  };
+};
+
 export const interactions = {
   list: (appId: string) =>
     api<Interaction[]>(`/api/applications/${appId}/interactions`),
@@ -88,4 +108,5 @@ export const interactions = {
 export const timeline = {
   get: (appId: string) =>
     api<TimelineRow[]>(`/api/applications/${appId}/timeline`),
+  getGlobal: () => api<GlobalTimelineRow[]>(`/api/timeline`),
 };
