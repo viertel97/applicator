@@ -54,6 +54,13 @@ def test_global_timeline_aggregates_and_scopes(client, db_session, auth_user):
     assert status_row["data"]["from"] is not None
     assert status_row["data"]["to"] is not None
 
+    # draft -> applied must be a status row, never a discard row
+    status_rows = [row for row in rows if row["category"] == "status"]
+    assert any(row["data"]["to"] == "applied" for row in status_rows)
+    # the applied transition must NOT be miscategorized as a discard
+    discard_tos = [row["data"]["to"] for row in rows if row["category"] == "discard"]
+    assert "applied" not in discard_tos
+
     # newest first
     ts = [row["at"] for row in rows]
     assert ts == sorted(ts, reverse=True)

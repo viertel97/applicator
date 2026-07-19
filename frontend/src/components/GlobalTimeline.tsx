@@ -97,9 +97,9 @@ export function GlobalTimeline() {
           <div key={g.key}>
             <div className="text-xs font-semibold text-muted uppercase mb-1">{g.label}</div>
             <ul className="divide-y border rounded">
-              {g.rows.map((row, i) => (
+              {g.rows.map((row) => (
                 <li
-                  key={i}
+                  key={`${row.category}-${row.application_id}-${row.at}`}
                   className="p-2 flex gap-3 cursor-pointer hover:bg-surface"
                   onClick={() => navigate(`/applications/${row.application_id}`)}
                 >
