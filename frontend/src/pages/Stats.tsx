@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { GlobalTimeline } from "../components/GlobalTimeline";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, CartesianGrid,
@@ -319,9 +321,48 @@ export default function Stats() {
   void theme;
 
   const navigate = useNavigate();
+  const [tab, setTab] = useState<"overview" | "timeline">("overview");
   const q = useQuery({ queryKey: ["stats-funnel"], queryFn: () => stats.funnel() });
   const d = useQuery({ queryKey: ["stats-detail"], queryFn: () => statsDetail.detail() });
-  if (!q.data) return <div className="p-6">Loading…</div>;
+
+  const tabBar = (
+    <div className="flex gap-2 mb-4">
+      {(["overview", "timeline"] as const).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => setTab(t)}
+          className={
+            tab === t
+              ? "text-sm px-3 py-1 rounded border bg-accent text-accentFg border-accent"
+              : "text-sm px-3 py-1 rounded border bg-surface text-muted border-border"
+          }
+        >
+          {t === "overview" ? "Overview" : "Timeline"}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (tab === "timeline") {
+    return (
+      <div className="p-6 max-w-6xl mx-auto space-y-6">
+        <h1 className="text-xl font-semibold">Stats</h1>
+        {tabBar}
+        <GlobalTimeline />
+      </div>
+    );
+  }
+
+  if (!q.data) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto space-y-6">
+        <h1 className="text-xl font-semibold">Stats</h1>
+        {tabBar}
+        <div>Loading…</div>
+      </div>
+    );
+  }
   const s = q.data;
   const overallResp =
     s.totals.applied > 0
@@ -347,6 +388,7 @@ export default function Stats() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-xl font-semibold">Stats</h1>
+      {tabBar}
       <div className="grid grid-cols-4 gap-3">
         <Kpi label="Active" value={s.totals.active} />
         <Kpi label="Response rate" value={`${overallResp}%`} />
