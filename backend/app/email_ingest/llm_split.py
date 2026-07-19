@@ -32,10 +32,25 @@ def _parse_date(text: str) -> datetime | None:
         return None
     try:
         from dateutil import parser as dtparser
-
-        return dtparser.parse(text, fuzzy=True)
+    except ImportError:
+        return None
+    try:
+        # Parse twice with distinct sentinel defaults so we can tell which
+        # fields the text actually supplied. dateutil silently fills missing
+        # components from the default, so a year-less quote header
+        # ("10. August 22:06", common in German Outlook replies) would inherit
+        # the current year and land in the future. dayfirst=True matches
+        # European numeric dates (30.04.2026 = 30 April).
+        dt = dtparser.parse(text, fuzzy=True, dayfirst=True, default=datetime(2000, 1, 1))
+        alt = dtparser.parse(text, fuzzy=True, dayfirst=True, default=datetime(2001, 6, 15))
     except (ValueError, OverflowError, TypeError):
         return None
+    if dt.year != alt.year:  # year absent from text → dateutil defaulted it
+        now = datetime.now(dt.tzinfo) if dt.tzinfo else datetime.now()
+        dt = dt.replace(year=now.year)
+        if dt > now:  # a past email can't be in the future → previous year
+            dt = dt.replace(year=now.year - 1)
+    return dt
 
 
 def llm_split_thread(text: str, llm: LLMClient) -> list[ParsedMessage]:
