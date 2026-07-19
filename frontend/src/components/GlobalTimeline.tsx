@@ -1,16 +1,25 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer,
+} from "recharts";
 import { timeline, type GlobalTimelineRow, type TimelineCategory } from "../api/interactions";
-import { groupByDay } from "../lib/timelineGroup";
+import { groupByDay, bucketByDay } from "../lib/timelineGroup";
 import { interactionIcon, interactionDescribe, eventDescribe } from "../lib/timelineRender";
+import { useTheme } from "../hooks/useTheme";
 
-const FILTERS: { key: TimelineCategory; label: string }[] = [
-  { key: "application", label: "Applications" },
-  { key: "interaction", label: "Interactions" },
-  { key: "status", label: "Status" },
-  { key: "discard", label: "Discards" },
+const FILTERS: { key: TimelineCategory; label: string; color: string }[] = [
+  { key: "application", label: "Applications", color: "#2563eb" },
+  { key: "interaction", label: "Interactions", color: "#16a34a" },
+  { key: "status", label: "Status", color: "#0891b2" },
+  { key: "discard", label: "Discards", color: "#dc2626" },
 ];
+
+function tokenColor(name: string): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v ? `rgb(${v})` : "#64748b";
+}
 
 function iconFor(row: GlobalTimelineRow): string {
   if (row.category === "application") return "📮";
@@ -43,6 +52,9 @@ function label(row: GlobalTimelineRow): string {
 
 export function GlobalTimeline() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  void theme; // referenced so tokenColor re-reads CSS vars after theme flips
+  const [view, setView] = useState<"list" | "chart">("list");
   const [active, setActive] = useState<Set<TimelineCategory>>(
     () => new Set(FILTERS.map((f) => f.key)),
   );
@@ -67,10 +79,21 @@ export function GlobalTimeline() {
 
   const visible = q.data.filter((r) => active.has(r.category));
   const groups = groupByDay(visible, new Date());
+  const chartData = bucketByDay(visible);
+
+  const mutedColor = tokenColor("--muted");
+  const borderColor = tokenColor("--border");
+  const surfaceColor = tokenColor("--surface");
+  const fgColor = tokenColor("--fg");
+  const tooltipStyle = {
+    background: surfaceColor,
+    border: `1px solid ${borderColor}`,
+    color: fgColor,
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => {
           const on = active.has(f.key);
           return (
@@ -88,9 +111,51 @@ export function GlobalTimeline() {
             </button>
           );
         })}
+        <div className="ml-auto flex gap-1">
+          {(["chart", "list"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={
+                view === v
+                  ? "text-xs px-2 py-1 rounded border bg-accent text-accentFg border-accent"
+                  : "text-xs px-2 py-1 rounded border bg-surface text-muted border-border"
+              }
+            >
+              {v === "chart" ? "Chart" : "List"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {groups.length === 0 ? (
+      {view === "chart" ? (
+        chartData.length === 0 ? (
+          <div className="text-sm text-muted">Nothing matches the current filters.</div>
+        ) : (
+          <div className="h-72 border rounded p-2">
+            <ResponsiveContainer>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: mutedColor }} />
+                <YAxis allowDecimals={false} tick={{ fill: mutedColor }} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ color: mutedColor }} />
+                {FILTERS.filter((f) => active.has(f.key)).map((f) => (
+                  <Line
+                    key={f.key}
+                    type="monotone"
+                    dataKey={f.key}
+                    name={f.label}
+                    stroke={f.color}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      ) : groups.length === 0 ? (
         <div className="text-sm text-muted">Nothing matches the current filters.</div>
       ) : (
         groups.map((g) => (

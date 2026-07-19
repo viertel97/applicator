@@ -16,6 +16,7 @@ from app.db.models import (
 )
 
 WEEK_FMT = "%G-W%V"
+DAY_FMT = "%Y-%m-%d"
 
 APPLIED_SET = {
     ApplicationStatus.applied,
@@ -62,6 +63,7 @@ class FunnelOut(BaseModel):
     avg_time_to_reply_hours: dict
     discard_breakdown: list[DiscardBreakdown]
     weekly_volume: list[WeeklyVolume]
+    daily_volume: list[WeeklyVolume]
 
 
 def _between(col, fr: datetime | None, to: datetime | None):
@@ -78,6 +80,7 @@ def _weekly_volume(
     status_events: list[ApplicationEvent],
     in_interactions: list[Interaction],
     inquiry_interactions: list[Interaction],
+    fmt: str = WEEK_FMT,
 ) -> list[WeeklyVolume]:
     # earliest status_change event per app for applied / discarded
     applied_at: dict[uuid.UUID, datetime] = {}
@@ -98,19 +101,19 @@ def _weekly_volume(
 
     for a in apps:
         if a.id in applied_at:
-            weekly[applied_at[a.id].strftime(WEEK_FMT)]["applied"] += 1
+            weekly[applied_at[a.id].strftime(fmt)]["applied"] += 1
         elif a.status in APPLIED_SET:
-            weekly[a.created_at.strftime(WEEK_FMT)]["applied"] += 1
+            weekly[a.created_at.strftime(fmt)]["applied"] += 1
 
         if a.id in discarded_at:
-            weekly[discarded_at[a.id].strftime(WEEK_FMT)]["discarded"] += 1
+            weekly[discarded_at[a.id].strftime(fmt)]["discarded"] += 1
         elif a.status == ApplicationStatus.discarded:
-            weekly[a.created_at.strftime(WEEK_FMT)]["discarded"] += 1
+            weekly[a.created_at.strftime(fmt)]["discarded"] += 1
 
     for it in in_interactions:
-        weekly[it.occurred_at.strftime(WEEK_FMT)]["responses"] += 1
+        weekly[it.occurred_at.strftime(fmt)]["responses"] += 1
     for it in inquiry_interactions:
-        weekly[it.occurred_at.strftime(WEEK_FMT)]["inquiries"] += 1
+        weekly[it.occurred_at.strftime(fmt)]["inquiries"] += 1
 
     return [WeeklyVolume(week=w, **vals) for w, vals in sorted(weekly.items())]
 
@@ -235,6 +238,7 @@ def funnel(
         if it.created_from == InteractionCreatedFrom.inquiry_sent
     ]
     weekly_volume = _weekly_volume(apps, status_events, in_rows, inquiry_rows)
+    daily_volume = _weekly_volume(apps, status_events, in_rows, inquiry_rows, fmt=DAY_FMT)
 
     totals = {
         "applications": total,
@@ -256,4 +260,5 @@ def funnel(
         avg_time_to_reply_hours=avg_reply,
         discard_breakdown=discard_breakdown,
         weekly_volume=weekly_volume,
+        daily_volume=daily_volume,
     )
