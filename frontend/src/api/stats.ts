@@ -7,6 +7,7 @@ export type FunnelStats = {
   avg_time_to_reply_hours: Record<string, number>;
   discard_breakdown: { slug: string; label: string; count: number }[];
   weekly_volume: { week: string; applied: number; discarded: number; responses: number; inquiries: number }[];
+  daily_volume: { week: string; applied: number; discarded: number; responses: number; inquiries: number }[];
 };
 
 export const stats = {

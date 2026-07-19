@@ -322,6 +322,7 @@ export default function Stats() {
 
   const navigate = useNavigate();
   const [tab, setTab] = useState<"overview" | "timeline">("overview");
+  const [volumeGran, setVolumeGran] = useState<"week" | "day">("week");
   const q = useQuery({ queryKey: ["stats-funnel"], queryFn: () => stats.funnel() });
   const d = useQuery({ queryKey: ["stats-detail"], queryFn: () => statsDetail.detail() });
 
@@ -464,12 +465,30 @@ export default function Stats() {
         </Card>
       </section>
       <section>
-        <h2 className="text-md font-semibold mb-2">Weekly volume</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-md font-semibold">Volume</h2>
+          <div className="flex gap-1">
+            {(["day", "week"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setVolumeGran(g)}
+                className={
+                  volumeGran === g
+                    ? "text-xs px-2 py-1 rounded border bg-accent text-accentFg border-accent"
+                    : "text-xs px-2 py-1 rounded border bg-surface text-muted border-border"
+                }
+              >
+                {g === "day" ? "Daily" : "Weekly"}
+              </button>
+            ))}
+          </div>
+        </div>
         <Card className="h-64">
           <ResponsiveContainer>
-            <LineChart data={s.weekly_volume}>
+            <LineChart data={volumeGran === "day" ? s.daily_volume : s.weekly_volume}>
               <CartesianGrid strokeDasharray="3 3" stroke={borderColor} />
-              <XAxis dataKey="week" tick={{ fill: mutedColor }} />
+              <XAxis dataKey="week" tick={{ fontSize: 10, fill: mutedColor }} />
               <YAxis tick={{ fill: mutedColor }} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ color: mutedColor }} />

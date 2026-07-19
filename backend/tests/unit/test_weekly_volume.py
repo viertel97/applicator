@@ -84,6 +84,15 @@ def test_discarded_only_app_not_counted_as_applied():
     assert rows["2026-W21"].applied == 0
 
 
+def test_day_granularity_buckets_by_calendar_day():
+    aid = uuid.uuid4()
+    app = _app(ApplicationStatus.applied, datetime(2026, 5, 20), aid)
+    ev = _ev(aid, "applied", datetime(2026, 6, 1, tzinfo=timezone.utc))
+    rows = _by_week(_weekly_volume([app], [ev], [], [], fmt="%Y-%m-%d"))
+    assert rows["2026-06-01"].applied == 1
+    assert all("-W" not in key for key in rows)
+
+
 def test_responses_and_inquiries_bucketed_by_occurred_at():
     resp = _interaction(datetime(2026, 5, 20), InteractionDirection.in_)  # W21
     inq = _interaction(
