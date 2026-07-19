@@ -49,7 +49,12 @@ export type TimelineRow =
   | { kind: "interaction"; at: string; data: Interaction }
   | { kind: "event"; at: string; data: { kind: string; from: string | null; to: string | null; meta: unknown } };
 
-export type TimelineCategory = "application" | "interaction" | "status" | "discard";
+export type TimelineCategory =
+  | "application"
+  | "applied"
+  | "interaction"
+  | "status"
+  | "discard";
 
 export type GlobalTimelineRow = {
   category: TimelineCategory;

@@ -26,6 +26,7 @@ export type DayBucket = {
   day: string;
   label: string;
   application: number;
+  applied: number;
   interaction: number;
   status: number;
   discard: number;
@@ -46,6 +47,7 @@ export function bucketByDay(
         day: key,
         label: d.toLocaleDateString(undefined, { day: "numeric", month: "short" }),
         application: 0,
+        applied: 0,
         interaction: 0,
         status: 0,
         discard: 0,

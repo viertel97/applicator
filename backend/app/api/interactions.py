@@ -270,7 +270,7 @@ _DISCARD_TO_VALUES = {"rejected", "discarded", "withdrawn"}
 
 
 class GlobalTimelineRow(BaseModel):
-    category: str  # "application" | "interaction" | "status" | "discard"
+    category: str  # "application" | "applied" | "interaction" | "status" | "discard"
     at: datetime
     application_id: str
     company: str | None
@@ -330,7 +330,14 @@ def global_timeline(
         if ev.kind != ApplicationEventKind.status_change:
             continue  # only status_change events are surfaced on the timeline today
         company, title = _meta(ev.application_id)
-        category = "discard" if ev.to_value in _DISCARD_TO_VALUES else "status"
+        if ev.to_value in _DISCARD_TO_VALUES:
+            category = "discard"
+        elif ev.to_value == "applied":
+            # a submission — the day you actually applied (vs. "application"
+            # which is when the record was created / added to the tool)
+            category = "applied"
+        else:
+            category = "status"
         rows.append(GlobalTimelineRow(
             category=category, at=ev.occurred_at,
             application_id=str(ev.application_id),

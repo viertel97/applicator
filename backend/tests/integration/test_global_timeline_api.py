@@ -18,6 +18,7 @@ def test_global_timeline_aggregates_and_scopes(client, db_session, auth_user):
         f"/api/applications/{aid}/interactions",
         json={"direction": "out", "channel": "mail", "subject": "Hi"},
     )
+    client.patch(f"/api/applications/{aid}", json={"status": "interview"})
     client.patch(f"/api/applications/{aid}", json={"status": "rejected"})
 
     # App B: only created, never touched
@@ -32,8 +33,9 @@ def test_global_timeline_aggregates_and_scopes(client, db_session, auth_user):
     cats = [row["category"] for row in rows]
     assert cats.count("application") == 2          # one per app
     assert "interaction" in cats
-    assert "status" in cats                        # draft -> applied
-    assert "discard" in cats                       # applied -> rejected
+    assert "applied" in cats                       # draft -> applied (submission)
+    assert "status" in cats                        # applied -> interview
+    assert "discard" in cats                       # interview -> rejected
 
     # company/title enrichment present on App A rows
     acme_rows = [row for row in rows if row["application_id"] == str(aid)]
@@ -54,11 +56,13 @@ def test_global_timeline_aggregates_and_scopes(client, db_session, auth_user):
     assert status_row["data"]["from"] is not None
     assert status_row["data"]["to"] is not None
 
-    # draft -> applied must be a status row, never a discard row
-    status_rows = [row for row in rows if row["category"] == "status"]
-    assert any(row["data"]["to"] == "applied" for row in status_rows)
-    # the applied transition must NOT be miscategorized as a discard
+    # draft -> applied is its own "applied" (submission) category
+    applied_rows = [row for row in rows if row["category"] == "applied"]
+    assert any(row["data"]["to"] == "applied" for row in applied_rows)
+    # the applied transition must NOT be miscategorized as status or discard
+    status_tos = [row["data"]["to"] for row in rows if row["category"] == "status"]
     discard_tos = [row["data"]["to"] for row in rows if row["category"] == "discard"]
+    assert "applied" not in status_tos
     assert "applied" not in discard_tos
 
     # newest first

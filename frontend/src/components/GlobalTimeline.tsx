@@ -10,7 +10,10 @@ import { interactionIcon, interactionDescribe, eventDescribe } from "../lib/time
 import { useTheme } from "../hooks/useTheme";
 
 const FILTERS: { key: TimelineCategory; label: string; color: string }[] = [
-  { key: "application", label: "Applications", color: "#2563eb" },
+  // "Applications" = record created / added to the tool (bookkeeping);
+  // "Applied" = the day you actually submitted the application (the real signal).
+  { key: "application", label: "Applications", color: "#64748b" },
+  { key: "applied", label: "Applied", color: "#2563eb" },
   { key: "interaction", label: "Interactions", color: "#16a34a" },
   { key: "status", label: "Status", color: "#0891b2" },
   { key: "discard", label: "Discards", color: "#dc2626" },
@@ -23,6 +26,7 @@ function tokenColor(name: string): string {
 
 function iconFor(row: GlobalTimelineRow): string {
   if (row.category === "application") return "📮";
+  if (row.category === "applied") return "📨";
   if (row.category === "interaction") {
     return interactionIcon({ channel: row.data.channel ?? "other", direction: row.data.direction ?? "in" });
   }
@@ -31,6 +35,7 @@ function iconFor(row: GlobalTimelineRow): string {
 
 function describe(row: GlobalTimelineRow): string {
   if (row.category === "application") return "Application created";
+  if (row.category === "applied") return "Application submitted";
   if (row.category === "interaction") {
     return interactionDescribe({
       channel: row.data.channel ?? "other",
