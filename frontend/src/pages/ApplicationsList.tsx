@@ -306,6 +306,30 @@ export default function ApplicationsList() {
     }
   }
 
+  // Restore every filter to its fresh default (not "show everything" — the
+  // default view still hides rejected/withdrawn/discarded).
+  function resetAllFilters() {
+    setQuery("");
+    setFilterLabelIds([]);
+    const def = new Set<AppStatus>(HIDDEN_BY_DEFAULT);
+    setHiddenStatuses(def);
+    saveHiddenStatuses(def);
+    setReasonFilter(null);
+    setDocFilters({});
+    localStorage.setItem(DOCS_FILTER_KEY, "{}");
+    setAwaitingFilter("all");
+    localStorage.setItem(AWAITING_FILTER_KEY, "all");
+  }
+
+  const filtersAtDefault =
+    query === "" &&
+    filterLabelIds.length === 0 &&
+    reasonFilter === null &&
+    awaitingFilter === "all" &&
+    Object.keys(docFilters).length === 0 &&
+    hiddenStatuses.size === HIDDEN_BY_DEFAULT.length &&
+    HIDDEN_BY_DEFAULT.every((s) => hiddenStatuses.has(s));
+
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">
       <h1 className="text-2xl font-semibold mb-4">Applications</h1>
@@ -361,6 +385,15 @@ export default function ApplicationsList() {
             />
           </div>
         )}
+        <button
+          type="button"
+          onClick={resetAllFilters}
+          disabled={filtersAtDefault}
+          title="Reset all filters to their defaults"
+          className="ml-auto text-xs px-2 py-1 rounded border transition-colors bg-surface text-muted border-border hover:border-muted disabled:opacity-40 disabled:cursor-default disabled:hover:border-border"
+        >
+          Reset all filters
+        </button>
       </div>
       {!discardedVisible && (
         <div className="flex items-center gap-1 mb-3 ml-4">
