@@ -47,6 +47,8 @@ class InteractionIn(BaseModel):
     contact_handle: str | None = None
     sentiment: InteractionSentiment | None = None
     interview_stage: InterviewStage | None = None
+    location: str | None = None
+    ends_at: datetime | None = None
 
 
 class InteractionPatch(BaseModel):
@@ -59,6 +61,10 @@ class InteractionPatch(BaseModel):
     contact_handle: str | None = None
     sentiment: InteractionSentiment | None = None
     interview_stage: InterviewStage | None = None
+    location: str | None = None
+    ends_at: datetime | None = None
+    needs_review: bool | None = None
+    application_id: uuid.UUID | None = None
 
 
 class InteractionOut(BaseModel):
@@ -73,6 +79,9 @@ class InteractionOut(BaseModel):
     contact_handle: str | None
     sentiment: InteractionSentiment | None
     interview_stage: InterviewStage | None
+    location: str | None
+    ends_at: datetime | None
+    needs_review: bool
     created_from: InteractionCreatedFrom
     created_at: datetime
     updated_at: datetime
@@ -145,6 +154,8 @@ def create_interaction(
         contact_handle=body.contact_handle,
         sentiment=body.sentiment,
         interview_stage=body.interview_stage,
+        location=body.location,
+        ends_at=body.ends_at,
         created_from=InteractionCreatedFrom.manual,
     )
     db.add(it)
@@ -173,7 +184,10 @@ def patch_interaction(
     user: Annotated[User, Depends(current_user)],
 ):
     it = _own_interaction(db, user, iid)
-    for field, val in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    if "application_id" in updates:
+        _own_app(db, user, updates["application_id"])
+    for field, val in updates.items():
         setattr(it, field, val)
     db.commit()
     db.refresh(it)
