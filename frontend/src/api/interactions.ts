@@ -17,7 +17,10 @@ export type Interaction = {
   contact_handle: string | null;
   sentiment: Sentiment;
   interview_stage: InterviewStage | null;
-  created_from: "manual" | "inquiry_migration" | "graph_sync" | "eml_import";
+  location: string | null;
+  ends_at: string | null;
+  needs_review: boolean;
+  created_from: "manual" | "inquiry_migration" | "graph_sync" | "eml_import" | "email_webhook";
   created_at: string;
   updated_at: string;
 };
@@ -38,6 +41,13 @@ export type CreateInteractionInput = {
   contact_handle?: string | null;
   sentiment?: Sentiment;
   interview_stage?: InterviewStage | null;
+};
+
+export type PatchInteractionInput = Partial<CreateInteractionInput> & {
+  location?: string | null;
+  ends_at?: string | null;
+  needs_review?: boolean;
+  application_id?: string;
 };
 
 export type CreateInteractionResp = {
@@ -82,7 +92,7 @@ export const interactions = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  update: (id: string, body: Partial<CreateInteractionInput>) =>
+  update: (id: string, body: PatchInteractionInput) =>
     api<Interaction>(`/api/interactions/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
