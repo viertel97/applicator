@@ -29,4 +29,5 @@ export const calendar = {
   tokens: () => api<CalendarTokens>("/api/calendar/tokens"),
   regenerate: (kind: "ingest" | "calendar") =>
     api<CalendarTokens>(`/api/calendar/tokens/regenerate?kind=${kind}`, { method: "POST" }),
+  reviewCount: () => api<{ count: number }>("/api/calendar/review-count"),
 };

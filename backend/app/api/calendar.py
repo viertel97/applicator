@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep
@@ -119,6 +119,24 @@ def regenerate_token(
         raise HTTPException(400, "kind must be ingest or calendar")
     regenerate(db, user, kind)
     return get_tokens(request, db, user)
+
+
+@router.get("/review-count")
+def review_count(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> dict:
+    n = db.execute(
+        select(func.count(Interaction.id))
+        .join(Application, Interaction.application_id == Application.id)
+        .where(
+            Application.user_id == user.id,
+            Application.deleted_at.is_(None),
+            Interaction.channel == InteractionChannel.interview,
+            Interaction.needs_review.is_(True),
+        )
+    ).scalar_one()
+    return {"count": int(n)}
 
 
 def _lookup_by_calendar_token(db: Session, token: str) -> User:

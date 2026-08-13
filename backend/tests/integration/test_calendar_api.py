@@ -59,3 +59,15 @@ def test_calendar_interviews_range_filter(client, db_session, auth_user):
 def test_calendar_interviews_requires_auth(app_client):
     resp = app_client.get("/api/calendar/interviews")
     assert resp.status_code == 401
+
+
+def test_review_count_counts_needs_review_interviews(client, db_session, auth_user):
+    _, user = auth_user
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 8, 15, 10, 0, tzinfo=timezone.utc)
+    _app_with_interview(db_session, user, company="A", when=now, needs_review=True)
+    _app_with_interview(db_session, user, company="B", when=now, needs_review=False)
+    resp = client.get("/api/calendar/review-count")
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 1

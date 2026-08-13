@@ -3,10 +3,12 @@ import { NAV_ITEMS } from "./navItems";
 import { ThemeToggle } from "../ThemeToggle";
 import { NavCountBadge } from "./NavCountBadge";
 import { useSuggestionsCount } from "../../hooks/useSuggestionsCount";
+import { useReviewCount } from "../../hooks/useReviewCount";
 
 export function DesktopNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
   const loc = useLocation();
   const suggestionCount = useSuggestionsCount();
+  const reviewCount = useReviewCount();
   return (
     <nav className="hidden md:flex bg-surface border-b border-border px-4 py-2 gap-1 items-center">
       <span className="font-bold text-fg mr-3">Applicator</span>
@@ -24,6 +26,7 @@ export function DesktopNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
           >
             {label}
             {to === "/suggestions" && <NavCountBadge count={suggestionCount} />}
+            {to === "/calendar" && <NavCountBadge count={reviewCount} />}
           </Link>
         );
       })}
