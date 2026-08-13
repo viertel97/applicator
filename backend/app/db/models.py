@@ -102,6 +102,7 @@ class InteractionCreatedFrom(str, enum.Enum):
     graph_sync = "graph_sync"
     eml_import = "eml_import"
     inquiry_sent = "inquiry_sent"
+    email_webhook = "email_webhook"
 
 
 class InterviewStage(str, enum.Enum):
@@ -169,6 +170,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320))
     display_name: Mapped[str] = mapped_column(String(200))
     ms_refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ingest_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    calendar_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
@@ -374,6 +377,11 @@ class Interaction(Base):
             values_callable=lambda e: [m.value for m in e],
         ),
         nullable=True,
+    )
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    needs_review: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
     )
     created_from: Mapped[InteractionCreatedFrom] = mapped_column(
         Enum(InteractionCreatedFrom, name="interactioncreatedfrom"),
