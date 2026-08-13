@@ -10,4 +10,5 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/llm", label: "LLM", group: "settings" },
   { to: "/settings/inquiry-prompt", label: "Inquiry prompt", group: "settings" },
   { to: "/settings/discard-reasons", label: "Discard reasons", group: "settings" },
+  { to: "/settings/calendar", label: "Calendar & Email", group: "settings" },
 ];
