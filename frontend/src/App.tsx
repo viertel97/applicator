@@ -9,6 +9,7 @@ import SettingsLLM from "./pages/SettingsLLM";
 import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
 import SettingsDiscardReasons from "./pages/SettingsDiscardReasons";
 import Stats from "./pages/Stats";
+import Calendar from "./pages/Calendar";
 import { useAuth } from "./hooks/useAuth";
 import { DesktopNav } from "./components/nav/DesktopNav";
 import { MobileNav } from "./components/nav/MobileNav";
@@ -99,6 +100,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <SettingsDiscardReasons />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedShell>
+            <Calendar />
           </ProtectedShell>
         }
       />
