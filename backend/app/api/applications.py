@@ -10,6 +10,7 @@ from pydantic import BaseModel, HttpUrl, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep, settings_dep
+from app.api.serializers import UtcDateTime
 from app.extractor.schemas import DOC_TYPES
 from app.api.labels import LabelOut
 from app.config import Settings, get_settings
@@ -120,7 +121,7 @@ class VariantsPatch(BaseModel):
 class InterviewRoundRef(BaseModel):
     round: int
     stage: str | None
-    at: datetime
+    at: UtcDateTime
 
 
 class InterviewSummary(BaseModel):
@@ -356,7 +357,7 @@ class SuggestionOut(BaseModel):
     title: str | None
     company: str | None
     posting_offline_reason: str | None
-    posting_checked_at: datetime | None
+    posting_checked_at: UtcDateTime | None
 
 
 @router.get("/suggestions", response_model=list[SuggestionOut])
@@ -484,7 +485,7 @@ def patch_notes(
 
 class TimelineRow(BaseModel):
     kind: str       # "interaction" | "event"
-    at: datetime
+    at: UtcDateTime
     data: dict
 
 
@@ -742,7 +743,7 @@ class InquiryDraftOut(BaseModel):
     subject: str
     body: str
     recipient: str | None
-    sent_at: datetime | None = None
+    sent_at: UtcDateTime | None = None
 
 
 class InquirySendIn(BaseModel):
@@ -752,7 +753,7 @@ class InquirySendIn(BaseModel):
 
 class InquirySendOut(BaseModel):
     interaction_id: uuid.UUID
-    sent_at: datetime
+    sent_at: UtcDateTime
 
 
 def _build_inquiry_job(app_row: Application):

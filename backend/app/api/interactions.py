@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep
+from app.api.serializers import UtcDateTime
 from app.db.models import (
     Application,
     ApplicationEvent,
@@ -70,7 +71,7 @@ class InteractionPatch(BaseModel):
 class InteractionOut(BaseModel):
     id: uuid.UUID
     application_id: uuid.UUID
-    occurred_at: datetime
+    occurred_at: UtcDateTime
     direction: InteractionDirection
     channel: InteractionChannel
     subject: str | None
@@ -80,11 +81,11 @@ class InteractionOut(BaseModel):
     sentiment: InteractionSentiment | None
     interview_stage: InterviewStage | None
     location: str | None
-    ends_at: datetime | None
+    ends_at: UtcDateTime | None
     needs_review: bool
     created_from: InteractionCreatedFrom
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
     model_config = {"from_attributes": True}
 
@@ -285,7 +286,7 @@ _DISCARD_TO_VALUES = {"rejected", "discarded", "withdrawn"}
 
 class GlobalTimelineRow(BaseModel):
     category: str  # "application" | "applied" | "interaction" | "status" | "discard"
-    at: datetime
+    at: UtcDateTime
     application_id: str
     company: str | None
     title: str | None

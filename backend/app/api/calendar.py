@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep
+from app.api.serializers import UtcDateTime
 from app.calendar_feed.ics import IcsEvent, render_calendar
 from app.db.models import (
     Application,
@@ -30,8 +31,8 @@ class CalendarInterview(BaseModel):
     application_id: uuid.UUID
     display_id: int
     company: str
-    starts_at: datetime
-    ends_at: datetime | None
+    starts_at: UtcDateTime
+    ends_at: UtcDateTime | None
     location: str | None
     interview_stage: InterviewStage | None
     needs_review: bool
