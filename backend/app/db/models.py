@@ -410,3 +410,34 @@ class ApplicationEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), index=True
     )
+
+
+class WebhookRequest(Base):
+    """Audit record of a single inbound-email webhook request.
+
+    Written on EVERY code path (success and failure). status/reason are plain
+    strings following a documented convention (NO DB enum) to avoid enum-drift
+    migration friction; the values are validated by tests, not the database.
+    """
+
+    __tablename__ = "webhook_request"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    # Null when the ingest token did not match a user (bad/unknown token).
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("user.id"), nullable=True, index=True
+    )
+    ingest_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    headers: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    raw_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    matched_application_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("application.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), index=True
+    )
