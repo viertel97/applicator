@@ -65,7 +65,7 @@ function CreatedInteractionBlock({ detail }: { detail: WebhookRequestDetail }) {
           onClick={() => {
             if (
               window.confirm(
-                "Reject this interview? It will be permanently deleted.",
+                "Reject this interview? It will be permanently deleted from your calendar (a scheduled-interview note remains on the application timeline).",
               )
             ) {
               reject.mutate(ci.id);
