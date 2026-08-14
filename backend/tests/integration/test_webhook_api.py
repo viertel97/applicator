@@ -191,3 +191,27 @@ def test_get_request_detail_and_ownership(app_client, db_session, auth_user):
     # Not owned → 404.
     denied = client.get(f"/api/webhooks/requests/{other.id}")
     assert denied.status_code == 404
+
+
+def test_list_requests_handles_object_from(app_client, db_session, auth_user):
+    """Some providers send `from` as an object, not a string.
+
+    The summary schema types `from` as str|None, so the read endpoint must
+    coerce it (to the email) instead of 500ing on the whole list.
+    """
+    from app.db.models import WebhookRequest
+
+    client, user = auth_user
+    db_session.add(WebhookRequest(
+        ingest_token="objfrom", user_id=user.id, status="ignored", reason="no match",
+        raw_body='{"from": {"email": "onboarding@inboxbridge.io", "name": ""},'
+                 ' "subject": "Welcome"}',
+    ))
+    db_session.commit()
+
+    resp = client.get("/api/webhooks/requests")
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert len(rows) == 1
+    assert rows[0]["from"] == "onboarding@inboxbridge.io"
+    assert rows[0]["subject"] == "Welcome"

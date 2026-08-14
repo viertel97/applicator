@@ -43,9 +43,11 @@ class InboundEmail(BaseModel):
 
     @classmethod
     def normalize(cls, payload: dict) -> "InboundEmail":
+        # `from`/`sender` may arrive as an object ({"email": ..., "name": ...});
+        # coerce to a display string so matching (and the audit view) work.
         return cls(
-            from_=payload.get("from") or payload.get("sender") or "",
-            subject=payload.get("subject") or "",
+            from_=_coerce_str(payload.get("from") or payload.get("sender")) or "",
+            subject=_coerce_str(payload.get("subject")) or "",
             body_text=payload.get("body_text") or payload.get("text")
             or payload.get("body") or "",
         )
@@ -70,6 +72,22 @@ class WebhookRequestDetail(WebhookRequestSummary):
     raw_body: str | None = None
 
 
+def _coerce_str(value: object) -> str | None:
+    """Best-effort coerce an arbitrary JSON value to a display string.
+
+    Providers vary: `from` may be a plain string or an object like
+    ``{"email": "a@b.c", "name": "A B"}``. The summary schema types these
+    fields as ``str | None``, so anything non-string must be reduced here or
+    Pydantic rejects the whole response.
+    """
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        picked = value.get("email") or value.get("address") or value.get("name")
+        return picked if isinstance(picked, str) else None
+    return str(value)
+
+
 def _derive_from_subject(raw_body: str | None) -> tuple[str | None, str | None]:
     """Best-effort extract of from/subject from a stored JSON body."""
     if not raw_body:
@@ -80,8 +98,8 @@ def _derive_from_subject(raw_body: str | None) -> tuple[str | None, str | None]:
         return None, None
     if not isinstance(payload, dict):
         return None, None
-    frm = payload.get("from") or payload.get("sender")
-    return frm, payload.get("subject")
+    frm = _coerce_str(payload.get("from") or payload.get("sender"))
+    return frm, _coerce_str(payload.get("subject"))
 
 
 def _webhook_llm():
