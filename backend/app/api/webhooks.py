@@ -4,6 +4,7 @@ import json
 import uuid
 import uuid as _uuid
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -67,9 +68,22 @@ class WebhookRequestSummary(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class CreatedInteraction(BaseModel):
+    id: uuid.UUID
+    application_id: uuid.UUID
+    display_id: int
+    company: str
+    starts_at: UtcDateTime | None = None
+    ends_at: UtcDateTime | None = None
+    location: str | None = None
+    interview_stage: str | None = None
+    needs_review: bool
+
+
 class WebhookRequestDetail(WebhookRequestSummary):
     headers: dict | None = None
     raw_body: str | None = None
+    created_interaction: CreatedInteraction | None = None
 
 
 def _coerce_str(value: object) -> str | None:
@@ -100,6 +114,66 @@ def _derive_from_subject(raw_body: str | None) -> tuple[str | None, str | None]:
         return None, None
     frm = _coerce_str(payload.get("from") or payload.get("sender"))
     return frm, _coerce_str(payload.get("subject"))
+
+
+def _company_name(jp: JobPosting | None, url: str) -> str:
+    if jp is not None and jp.company:
+        return jp.company
+    return urlparse(url).netloc or "Unknown"
+
+
+def _resolve_created_interaction(
+    db: Session, user: User, row: WebhookRequest
+) -> CreatedInteraction | None:
+    """Resolve the interview a webhook created.
+
+    Precise via the created_interaction_id FK for rows written after that
+    column existed; best-effort (application + email_webhook + subject) for
+    older rows that predate the FK. Ownership is enforced via the joined
+    Application.user_id.
+    """
+    hit = None
+    base = (
+        select(Interaction, Application, JobPosting)
+        .join(Application, Interaction.application_id == Application.id)
+        .outerjoin(JobPosting, JobPosting.application_id == Application.id)
+    )
+    if row.created_interaction_id is not None:
+        hit = db.execute(
+            base.where(
+                Interaction.id == row.created_interaction_id,
+                Application.user_id == user.id,
+            )
+        ).first()
+    elif row.status == "created" and row.matched_application_id is not None:
+        _frm, subj = _derive_from_subject(row.raw_body)
+        stmt = base.where(
+            Application.user_id == user.id,
+            Interaction.application_id == row.matched_application_id,
+            Interaction.created_from == InteractionCreatedFrom.email_webhook,
+        )
+        # Subject is the strongest tiebreak but not always derivable from an
+        # old row's raw_body; when absent we fall back to newest-first, which
+        # is only ever ambiguous for legacy (pre-FK) rows.
+        if subj:
+            stmt = stmt.where(Interaction.subject == subj)
+        hit = db.execute(
+            stmt.order_by(Interaction.created_at.desc()).limit(1)
+        ).first()
+    if hit is None:
+        return None
+    it, app, jp = hit
+    return CreatedInteraction(
+        id=it.id,
+        application_id=app.id,
+        display_id=app.display_id,
+        company=_company_name(jp, app.url),
+        starts_at=it.occurred_at,
+        ends_at=it.ends_at,
+        location=it.location,
+        interview_stage=it.interview_stage.value if it.interview_stage else None,
+        needs_review=it.needs_review,
+    )
 
 
 def _webhook_llm():
@@ -297,4 +371,5 @@ def get_webhook_request(
         subject=subj,
         headers=r.headers,
         raw_body=r.raw_body,
+        created_interaction=_resolve_created_interaction(db, user, r),
     )

@@ -212,6 +212,101 @@ def test_get_request_detail_and_ownership(app_client, db_session, auth_user):
     assert denied.status_code == 404
 
 
+def test_detail_created_interaction_via_fk(app_client, db_session, auth_user):
+    client, user = auth_user
+    app = _app(db_session, user, "Acme GmbH", "acme.example")
+    user.ingest_token = "fktok"; db_session.commit()
+    db_session.refresh(user)
+    with patch("app.api.webhooks.extract_interview", _fake_extract), \
+         patch("app.api.webhooks._webhook_llm", return_value=object()):
+        client.post(
+            "/api/webhooks/inbound-email/fktok",
+            json={"from": "jane@acme.example", "subject": "Interview at Acme", "body_text": "..."},
+        )
+    from app.db.models import WebhookRequest
+    row = db_session.query(WebhookRequest).filter_by(ingest_token="fktok").one()
+    resp = client.get(f"/api/webhooks/requests/{row.id}")
+    assert resp.status_code == 200, resp.text
+    ci = resp.json()["created_interaction"]
+    assert ci is not None
+    assert ci["application_id"] == str(app.id)
+    assert ci["company"] == "Acme GmbH"
+    assert ci["needs_review"] is True
+    assert ci["interview_stage"] == "technical"
+
+
+def test_detail_created_interaction_heuristic_for_old_row(app_client, db_session, auth_user):
+    """Old rows have no FK — match by application + email_webhook + subject."""
+    from datetime import datetime, timezone
+    from app.db.models import (
+        WebhookRequest, Interaction, InteractionChannel,
+        InteractionCreatedFrom, InteractionDirection,
+    )
+    client, user = auth_user
+    app = _app(db_session, user, "Acme GmbH", "acme.example")
+    it = Interaction(
+        application_id=app.id,
+        occurred_at=datetime(2026, 9, 1, 14, tzinfo=timezone.utc).replace(tzinfo=None),
+        direction=InteractionDirection.in_,
+        channel=InteractionChannel.interview,
+        created_from=InteractionCreatedFrom.email_webhook,
+        subject="Heur Subject",
+        needs_review=True,
+    )
+    db_session.add(it); db_session.flush()
+    row = WebhookRequest(
+        ingest_token="oldrow", user_id=user.id, status="created",
+        matched_application_id=app.id, created_interaction_id=None,
+        raw_body='{"from": "x@y.z", "subject": "Heur Subject"}',
+    )
+    db_session.add(row); db_session.commit(); db_session.refresh(row); db_session.refresh(it)
+    resp = client.get(f"/api/webhooks/requests/{row.id}")
+    assert resp.status_code == 200, resp.text
+    ci = resp.json()["created_interaction"]
+    assert ci is not None
+    assert ci["id"] == str(it.id)
+    assert ci["needs_review"] is True
+
+
+def test_detail_created_interaction_null_for_ignored(app_client, db_session, auth_user):
+    from app.db.models import WebhookRequest
+    client, user = auth_user
+    row = WebhookRequest(
+        ingest_token="ign", user_id=user.id, status="ignored", reason="no match",
+        raw_body='{"from": "x@y.z", "subject": "s"}',
+    )
+    db_session.add(row); db_session.commit(); db_session.refresh(row)
+    resp = client.get(f"/api/webhooks/requests/{row.id}")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["created_interaction"] is None
+
+
+def test_reject_deletes_interaction_and_sets_link_null(app_client, db_session, auth_user):
+    """Deleting the created interview (reject) unlinks via ON DELETE SET NULL,
+    leaving the webhook row with status 'created' and no created_interaction."""
+    from app.db.models import WebhookRequest, Interaction
+    client, user = auth_user
+    app = _app(db_session, user, "Acme GmbH", "acme.example")
+    user.ingest_token = "rejtok"; db_session.commit()
+    db_session.refresh(user)
+    with patch("app.api.webhooks.extract_interview", _fake_extract), \
+         patch("app.api.webhooks._webhook_llm", return_value=object()):
+        client.post(
+            "/api/webhooks/inbound-email/rejtok",
+            json={"from": "jane@acme.example", "subject": "Interview at Acme", "body_text": "..."},
+        )
+    row = db_session.query(WebhookRequest).filter_by(ingest_token="rejtok").one()
+    it = db_session.query(Interaction).filter_by(application_id=app.id).one()
+    # Reject via the existing interaction delete endpoint.
+    d = client.delete(f"/api/interactions/{it.id}")
+    assert d.status_code == 204, d.text
+    resp = client.get(f"/api/webhooks/requests/{row.id}")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "created"
+    assert body["created_interaction"] is None
+
+
 def test_list_requests_handles_object_from(app_client, db_session, auth_user):
     """Some providers send `from` as an object, not a string.
 
