@@ -10,7 +10,7 @@ function StatusBadge({ status }: { status: string }) {
   const tone =
     status === "created"
       ? "bg-emerald-100 text-emerald-700"
-      : status === "not_found" || status === "rejected"
+      : status === "not_found" || status === "rejected" || status === "error"
         ? "bg-rose-100 text-rose-700"
         : "bg-amber-100 text-amber-700";
   return (
