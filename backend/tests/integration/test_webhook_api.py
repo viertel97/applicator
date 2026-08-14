@@ -143,6 +143,25 @@ def test_webhook_records_row_on_unexpected_error(app_client, db_session, auth_us
     assert row.reason == "RuntimeError"
 
 
+def test_webhook_records_created_interaction_link(app_client, db_session, auth_user):
+    from app.db.models import WebhookRequest, Interaction
+
+    _, user = auth_user
+    app = _app(db_session, user, "Acme GmbH", "acme.example")
+    user.ingest_token = "linktok"; db_session.commit()
+    db_session.refresh(user)
+    with patch("app.api.webhooks.extract_interview", _fake_extract), \
+         patch("app.api.webhooks._webhook_llm", return_value=object()):
+        resp = app_client.post(
+            "/api/webhooks/inbound-email/linktok",
+            json={"from": "jane@acme.example", "subject": "Interview at Acme", "body_text": "..."},
+        )
+    assert resp.status_code == 202, resp.text
+    row = db_session.query(WebhookRequest).filter_by(ingest_token="linktok").one()
+    it = db_session.query(Interaction).filter_by(application_id=app.id).one()
+    assert row.created_interaction_id == it.id
+
+
 def test_list_requests_returns_owned_rows_only(app_client, db_session, auth_user):
     from app.db.models import WebhookRequest
 

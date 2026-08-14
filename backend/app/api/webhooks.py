@@ -132,6 +132,7 @@ async def inbound_email(
         "status": "ignored",
         "reason": None,
         "matched_application_id": None,
+        "created_interaction_id": None,
     }
     try:
         user = _lookup_user(db, ingest_token)  # raises HTTPException(404)
@@ -210,8 +211,10 @@ async def inbound_email(
             application_id=_uuid.UUID(app_id),
             kind=ApplicationEventKind.interview_scheduled,
         ))
+        db.flush()  # assign it.id before recording the audit link
         rec["status"] = "created"
         rec["matched_application_id"] = _uuid.UUID(app_id)
+        rec["created_interaction_id"] = it.id
         # NOTE: no db.commit() here — the `finally` commits the interaction,
         # event, and WebhookRequest together.
         return {"status": "created", "needs_review": True}
