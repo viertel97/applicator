@@ -307,6 +307,37 @@ def test_reject_deletes_interaction_and_sets_link_null(app_client, db_session, a
     assert body["created_interaction"] is None
 
 
+def test_reject_cascades_timeline_event(app_client, db_session, auth_user):
+    """Rejecting a webhook-created interview also removes its timeline event."""
+    from app.db.models import Interaction, ApplicationEvent, ApplicationEventKind
+
+    client, user = auth_user
+    app = _app(db_session, user, "Acme GmbH", "acme.example")
+    user.ingest_token = "casctok"; db_session.commit()
+    db_session.refresh(user)
+    with patch("app.api.webhooks.extract_interview", _fake_extract), \
+         patch("app.api.webhooks._webhook_llm", return_value=object()):
+        client.post(
+            "/api/webhooks/inbound-email/casctok",
+            json={"from": "jane@acme.example", "subject": "Interview at Acme", "body_text": "..."},
+        )
+    it = db_session.query(Interaction).filter_by(application_id=app.id).one()
+    ev = db_session.query(ApplicationEvent).filter_by(
+        application_id=app.id, kind=ApplicationEventKind.interview_scheduled
+    ).one()
+    assert ev.interaction_id == it.id  # event linked to the interview
+
+    # Reject via the existing interaction delete endpoint.
+    d = client.delete(f"/api/interactions/{it.id}")
+    assert d.status_code == 204, d.text
+
+    # The ON DELETE CASCADE removed the timeline event too.
+    db_session.expire_all()
+    assert db_session.query(ApplicationEvent).filter_by(
+        application_id=app.id, kind=ApplicationEventKind.interview_scheduled
+    ).count() == 0
+
+
 def test_list_requests_handles_object_from(app_client, db_session, auth_user):
     """Some providers send `from` as an object, not a string.
 

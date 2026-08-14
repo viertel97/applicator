@@ -281,11 +281,12 @@ async def inbound_email(
             kwargs["occurred_at"] = extracted.starts_at
         it = Interaction(**kwargs)
         db.add(it)
+        db.flush()  # assign it.id so the event + audit row can link to it
         db.add(ApplicationEvent(
             application_id=_uuid.UUID(app_id),
             kind=ApplicationEventKind.interview_scheduled,
+            interaction_id=it.id,
         ))
-        db.flush()  # assign it.id before recording the audit link
         rec["status"] = "created"
         rec["matched_application_id"] = _uuid.UUID(app_id)
         rec["created_interaction_id"] = it.id
