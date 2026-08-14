@@ -401,6 +401,12 @@ class ApplicationEvent(Base):
     application_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("application.id"), index=True
     )
+    # Set when a webhook creates this event for an interview it scheduled;
+    # ON DELETE CASCADE so rejecting (deleting) that interview also removes
+    # this timeline note. Null for events not tied to a specific interaction.
+    interaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("interaction.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     kind: Mapped[ApplicationEventKind] = mapped_column(
         Enum(ApplicationEventKind, name="applicationeventkind")
     )
