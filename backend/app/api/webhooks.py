@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
+import uuid
 import uuid as _uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import db_dep
+from app.api.deps import current_user, db_dep
 from app.config import get_settings
 from app.db.models import (
     Application,
@@ -24,6 +25,7 @@ from app.db.models import (
     User,
     WebhookRequest,
 )
+from app.api.serializers import UtcDateTime
 from app.email_ingest.interview_extract import extract_interview
 from app.email_ingest.interview_match import Candidate, match_application
 
@@ -47,6 +49,39 @@ class InboundEmail(BaseModel):
             body_text=payload.get("body_text") or payload.get("text")
             or payload.get("body") or "",
         )
+
+
+class WebhookRequestSummary(BaseModel):
+    id: uuid.UUID
+    created_at: UtcDateTime
+    status: str
+    reason: str | None = None
+    source_ip: str | None = None
+    matched_application_id: uuid.UUID | None = None
+    # Best-effort, parsed from the stored body for the table view.
+    from_: str | None = Field(default=None, alias="from")
+    subject: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class WebhookRequestDetail(WebhookRequestSummary):
+    headers: dict | None = None
+    raw_body: str | None = None
+
+
+def _derive_from_subject(raw_body: str | None) -> tuple[str | None, str | None]:
+    """Best-effort extract of from/subject from a stored JSON body."""
+    if not raw_body:
+        return None, None
+    try:
+        payload = json.loads(raw_body)
+    except Exception:
+        return None, None
+    if not isinstance(payload, dict):
+        return None, None
+    frm = payload.get("from") or payload.get("sender")
+    return frm, payload.get("subject")
 
 
 def _webhook_llm():
@@ -192,3 +227,53 @@ async def inbound_email(
                 db.commit()
             except Exception:
                 pass
+
+
+@router.get("/requests", response_model=list[WebhookRequestSummary])
+def list_webhook_requests(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> list[WebhookRequestSummary]:
+    rows = db.execute(
+        select(WebhookRequest)
+        .where(WebhookRequest.user_id == user.id)
+        .order_by(WebhookRequest.created_at.desc())
+    ).scalars().all()
+    out: list[WebhookRequestSummary] = []
+    for r in rows:
+        frm, subj = _derive_from_subject(r.raw_body)
+        out.append(WebhookRequestSummary(
+            id=r.id,
+            created_at=r.created_at,
+            status=r.status,
+            reason=r.reason,
+            source_ip=r.source_ip,
+            matched_application_id=r.matched_application_id,
+            from_=frm,
+            subject=subj,
+        ))
+    return out
+
+
+@router.get("/requests/{req_id}", response_model=WebhookRequestDetail)
+def get_webhook_request(
+    req_id: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> WebhookRequestDetail:
+    r = db.get(WebhookRequest, req_id)
+    if r is None or r.user_id != user.id:
+        raise HTTPException(404, "not found")
+    frm, subj = _derive_from_subject(r.raw_body)
+    return WebhookRequestDetail(
+        id=r.id,
+        created_at=r.created_at,
+        status=r.status,
+        reason=r.reason,
+        source_ip=r.source_ip,
+        matched_application_id=r.matched_application_id,
+        from_=frm,
+        subject=subj,
+        headers=r.headers,
+        raw_body=r.raw_body,
+    )

@@ -141,3 +141,53 @@ def test_webhook_records_row_on_unexpected_error(app_client, db_session, auth_us
     row = db_session.query(WebhookRequest).filter_by(ingest_token="errtok").one()
     assert row.status == "error"
     assert row.reason == "RuntimeError"
+
+
+def test_list_requests_returns_owned_rows_only(app_client, db_session, auth_user):
+    from app.db.models import WebhookRequest
+
+    client, user = auth_user
+    # Owned row.
+    db_session.add(WebhookRequest(
+        ingest_token="own", user_id=user.id, status="ignored", reason="no match",
+        raw_body='{"from": "jane@acme.example", "subject": "Hi"}',
+    ))
+    # Invalid-token row (user_id null) — must NOT appear in per-user list.
+    db_session.add(WebhookRequest(
+        ingest_token="bad", user_id=None, status="not_found", reason="unknown token",
+    ))
+    db_session.commit()
+
+    resp = client.get("/api/webhooks/requests")
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["status"] == "ignored"
+    assert r["reason"] == "no match"
+    assert r["from"] == "jane@acme.example"
+    assert r["subject"] == "Hi"
+
+
+def test_get_request_detail_and_ownership(app_client, db_session, auth_user):
+    from app.db.models import WebhookRequest
+
+    client, user = auth_user
+    owned = WebhookRequest(
+        ingest_token="own", user_id=user.id, status="created",
+        headers={"x-test": "1"}, raw_body='{"from": "a@b.c"}',
+    )
+    other = WebhookRequest(ingest_token="oth", user_id=None, status="not_found")
+    db_session.add_all([owned, other]); db_session.commit()
+    db_session.refresh(owned); db_session.refresh(other)
+
+    ok = client.get(f"/api/webhooks/requests/{owned.id}")
+    assert ok.status_code == 200, ok.text
+    body = ok.json()
+    assert body["headers"] == {"x-test": "1"}
+    assert body["raw_body"] == '{"from": "a@b.c"}'
+    assert body["from"] == "a@b.c"
+
+    # Not owned → 404.
+    denied = client.get(f"/api/webhooks/requests/{other.id}")
+    assert denied.status_code == 404
