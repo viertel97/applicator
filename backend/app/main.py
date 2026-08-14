@@ -7,8 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import applications as applications_api
 from app.api import auth as auth_api
 from app.api import bot as bot_api
+from app.api import calendar as calendar_api
 from app.api import chat as chat_api
 from app.api import discard_reasons as discard_reasons_api
+from app.api import webhooks as webhooks_api
 from app.api import documents as documents_api
 from app.api import inquiry_prompt as inquiry_prompt_api
 from app.api import interactions as interactions_api
@@ -50,6 +52,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(auth_api.router)
+    app.include_router(calendar_api.router)
     app.include_router(documents_api.router)
     app.include_router(applications_api.router)
     app.include_router(bot_api.router)
@@ -60,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(discard_reasons_api.router)
     app.include_router(stats_api.router)
     app.include_router(stats_detail_api.router)
+    app.include_router(webhooks_api.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

@@ -1,0 +1,67 @@
+from datetime import datetime, timezone
+from app.calendar_feed.ics import IcsEvent, render_calendar
+
+
+def _ev(**kw):
+    base = dict(
+        uid="11111111-1111-1111-1111-111111111111",
+        summary="Acme · technical",
+        starts_at=datetime(2026, 9, 1, 14, 0, tzinfo=timezone.utc),
+        ends_at=datetime(2026, 9, 1, 15, 0, tzinfo=timezone.utc),
+        location="https://meet.example/abc",
+        description="Onsite loop\nhttps://app.example/applications/1",
+        updated_at=datetime(2026, 8, 20, 9, 0, tzinfo=timezone.utc),
+    )
+    base.update(kw)
+    return IcsEvent(**base)
+
+
+def test_render_wraps_vcalendar_and_vevent():
+    out = render_calendar([_ev()])
+    assert out.startswith("BEGIN:VCALENDAR\r\n")
+    assert out.rstrip().endswith("END:VCALENDAR")
+    assert "VERSION:2.0" in out
+    assert "PRODID:" in out
+    assert "BEGIN:VEVENT\r\n" in out
+    assert "UID:11111111-1111-1111-1111-111111111111\r\n" in out
+    assert "DTSTART:20260901T140000Z\r\n" in out
+    assert "DTEND:20260901T150000Z\r\n" in out
+    assert "STATUS:CONFIRMED\r\n" in out
+    assert "SUMMARY:Acme" in out
+
+
+def test_default_end_is_start_plus_60min():
+    out = render_calendar([_ev(ends_at=None)])
+    assert "DTEND:20260901T150000Z\r\n" in out
+
+
+def test_escapes_special_chars_and_folds_long_lines():
+    ev = _ev(summary="A, B; C\\D", description="line1\nline2")
+    out = render_calendar([ev])
+    assert "SUMMARY:A\\, B\\; C\\\\D\r\n" in out
+    assert "line1\\nline2" in out
+    # 75-octet line folding: every physical line <= 75 octets before CRLF
+    for line in out.split("\r\n"):
+        assert len(line.encode("utf-8")) <= 75 or line == ""
+
+
+def test_dtstamp_and_last_modified_match_updated_at():
+    out = render_calendar([_ev()])
+    assert "DTSTAMP:20260820T090000Z\r\n" in out
+    assert "LAST-MODIFIED:20260820T090000Z\r\n" in out
+
+
+def test_optional_fields_omitted_when_none():
+    out = render_calendar([_ev(location=None, description=None)])
+    assert "LOCATION:" not in out
+    assert "DESCRIPTION:" not in out
+
+
+def test_multibyte_char_at_fold_boundary():
+    out = render_calendar([_ev(summary="A" * 73 + "中")])
+    # Every physical line must be <= 75 octets when UTF-8 encoded
+    for line in out.split("\r\n"):
+        assert len(line.encode("utf-8")) <= 75 or line == ""
+    # After unfolding (remove "\r\n "), the character must still be present
+    unfolded = out.replace("\r\n ", "")
+    assert "中" in unfolded

@@ -6,10 +6,12 @@ import { ThemeToggle } from "../ThemeToggle";
 import { IconButton } from "../ui/IconButton";
 import { NavCountBadge } from "./NavCountBadge";
 import { useSuggestionsCount } from "../../hooks/useSuggestionsCount";
+import { useReviewCount } from "../../hooks/useReviewCount";
 
 export function MobileNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
   const loc = useLocation();
   const suggestionCount = useSuggestionsCount();
+  const reviewCount = useReviewCount();
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +74,7 @@ export function MobileNav({ oauthEnabled }: { oauthEnabled?: boolean }) {
     >
       {label}
       {to === "/suggestions" && <NavCountBadge count={suggestionCount} />}
+      {to === "/calendar" && <NavCountBadge count={reviewCount} />}
     </Link>
   );
 
