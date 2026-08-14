@@ -9,6 +9,7 @@ import SettingsLLM from "./pages/SettingsLLM";
 import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
 import SettingsDiscardReasons from "./pages/SettingsDiscardReasons";
 import SettingsCalendar from "./pages/SettingsCalendar";
+import SettingsWebhooks from "./pages/SettingsWebhooks";
 import Stats from "./pages/Stats";
 import Calendar from "./pages/Calendar";
 import { useAuth } from "./hooks/useAuth";
@@ -109,6 +110,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <SettingsCalendar />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/settings/webhooks"
+        element={
+          <ProtectedShell>
+            <SettingsWebhooks />
           </ProtectedShell>
         }
       />
