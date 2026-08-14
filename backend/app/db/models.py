@@ -438,6 +438,11 @@ class WebhookRequest(Base):
     matched_application_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("application.id"), nullable=True
     )
+    # Set on the `created` path to the Interaction this webhook produced;
+    # ON DELETE SET NULL so rejecting (deleting) that interview just unlinks.
+    created_interaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("interaction.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), index=True
     )

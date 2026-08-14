@@ -31,3 +31,10 @@ def test_migration_defines_core_columns():
         '"matched_application_id"',
     ):
         assert col in hit, f"migration missing column {col}"
+
+
+def test_migration_adds_created_interaction_fk():
+    texts = [p.read_text() for p in VERSIONS.glob("*.py")]
+    assert any(
+        '"created_interaction_id"' in t and "SET NULL" in t for t in texts
+    ), "no migration adds created_interaction_id with ON DELETE SET NULL"
