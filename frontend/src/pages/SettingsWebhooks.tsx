@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   getWebhookRequest,
   listWebhookRequests,
+  type WebhookRequestDetail,
   type WebhookRequestSummary,
 } from "../api/webhooks";
+import { interactions } from "../api/interactions";
 
 function StatusBadge({ status }: { status: string }) {
   const tone =
@@ -27,6 +30,81 @@ function prettyBody(raw: string | null): string {
   } catch {
     return raw;
   }
+}
+
+function CreatedInteractionBlock({ detail }: { detail: WebhookRequestDetail }) {
+  const qc = useQueryClient();
+  const reject = useMutation({
+    mutationFn: (interactionId: string) => interactions.remove(interactionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["webhook-request", detail.id] });
+      qc.invalidateQueries({ queryKey: ["webhook-requests"] });
+      qc.invalidateQueries({ queryKey: ["calendar-interviews"] });
+      qc.invalidateQueries({ queryKey: ["calendar-review-count"] });
+    },
+  });
+
+  const ci = detail.created_interaction;
+  if (!ci) {
+    // A row that created an interview but no longer has one = rejected/removed.
+    if (detail.status === "created") {
+      return (
+        <div className="text-muted text-sm italic">Interview removed.</div>
+      );
+    }
+    return null;
+  }
+
+  return (
+    <div className="border border-border rounded p-3 space-y-2">
+      <div className="flex justify-between items-center">
+        <div className="font-semibold">Created interview</div>
+        <button
+          type="button"
+          disabled={reject.isPending}
+          onClick={() => {
+            if (
+              window.confirm(
+                "Reject this interview? It will be permanently deleted.",
+              )
+            ) {
+              reject.mutate(ci.id);
+            }
+          }}
+          className="px-2 py-1 rounded text-xs font-medium bg-rose-100 text-rose-700 hover:bg-rose-200 disabled:opacity-50"
+        >
+          {reject.isPending ? "Rejecting…" : "Reject interview"}
+        </button>
+      </div>
+      {reject.isError && (
+        <p className="text-xs text-red-600">Failed to reject. Try again.</p>
+      )}
+      <div>
+        <Link
+          to={`/applications/${ci.application_id}`}
+          className="text-accent hover:underline"
+        >
+          {ci.company} #{ci.display_id}
+        </Link>
+      </div>
+      <div className="text-muted">
+        {ci.interview_stage ?? "interview"}
+        {ci.starts_at ? ` · ${new Date(ci.starts_at).toLocaleString()}` : ""}
+        {ci.location ? ` · ${ci.location}` : ""}
+      </div>
+      <div>
+        <span
+          className={`px-2 py-0.5 rounded text-xs font-medium ${
+            ci.needs_review
+              ? "bg-amber-100 text-amber-700"
+              : "bg-emerald-100 text-emerald-700"
+          }`}
+        >
+          {ci.needs_review ? "needs review" : "confirmed"}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function DetailModal({ id, onClose }: { id: string; onClose: () => void }) {
@@ -72,6 +150,7 @@ function DetailModal({ id, onClose }: { id: string; onClose: () => void }) {
               {new Date(q.data.created_at).toLocaleString()} · IP{" "}
               {q.data.source_ip ?? "—"}
             </div>
+            <CreatedInteractionBlock detail={q.data} />
             <div>
               <div className="font-semibold mb-1">Headers</div>
               <pre className="bg-bg rounded p-2 text-xs overflow-auto max-h-40">
