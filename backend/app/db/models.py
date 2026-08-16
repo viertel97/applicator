@@ -341,6 +341,14 @@ class DiscardReason(Base):
 
 class Interaction(Base):
     __tablename__ = "interaction"
+    __table_args__ = (
+        # Idempotent upsert key for externally-synced interactions (e.g. MS
+        # Graph calendar events). Partial-unique semantics are enforced in code
+        # (both null for manual rows); the constraint guards the sync path.
+        UniqueConstraint(
+            "external_source", "external_id", name="uq_interaction_external"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     application_id: Mapped[uuid.UUID] = mapped_column(
@@ -388,7 +396,37 @@ class Interaction(Base):
         default=InteractionCreatedFrom.manual,
         server_default=InteractionCreatedFrom.manual.value,
     )
+    # Provenance of an externally-synced interaction. `external_source` is a
+    # plain string (e.g. "ms_graph") and `external_id` the source's stable id
+    # (Graph event id); together they key an idempotent upsert. Both null for
+    # manually-created rows.
+    external_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CalendarSyncState(Base):
+    """One row per synced external calendar; holds the delta cursor.
+
+    `delta_link` is the opaque MS Graph ``@odata.deltaLink`` used to fetch only
+    changes since the last sync. Null before the first full sync (or after a
+    410 reset).
+    """
+
+    __tablename__ = "calendar_sync_state"
+    __table_args__ = (
+        UniqueConstraint("user_id", "calendar_id", name="uq_calsync_user_calendar"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), index=True)
+    calendar_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    delta_link: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

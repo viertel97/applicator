@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     ms_client_id: str = ""
     ms_client_secret: str = ""
     ms_redirect_uri: str = "http://localhost:8000/api/auth/callback"
+    outlook_calendar_name: str = "Interviews"
     llm_provider: str = "groq"
     llm_model: str = "openai/gpt-oss-120b"
     llm_api_key: str

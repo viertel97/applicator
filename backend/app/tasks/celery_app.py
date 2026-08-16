@@ -14,6 +14,7 @@ def make_celery() -> Celery:
             "app.tasks.check_postings",
             "app.tasks.backfill",
             "app.tasks.categorize_labels",
+            "app.tasks.sync_outlook_calendar",
         ],
     )
     app.conf.task_acks_late = True
@@ -24,6 +25,10 @@ def make_celery() -> Celery:
         "check-postings-every-6h": {
             "task": "tasks.check_postings",
             "schedule": 21600.0,
+        },
+        "sync-outlook-calendar-every-10m": {
+            "task": "tasks.sync_outlook_calendar",
+            "schedule": 600.0,
         },
     }
     return app
