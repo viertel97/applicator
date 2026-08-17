@@ -57,6 +57,46 @@ def test_optional_fields_omitted_when_none():
     assert "DESCRIPTION:" not in out
 
 
+def _unfold(out: str) -> str:
+    return out.replace("\r\n ", "")
+
+
+def _ics_unescape(s: str) -> str:
+    # reverse RFC5545 TEXT escaping so we can assert on the HTML payload
+    return (
+        s.replace("\\n", "\n")
+        .replace("\\,", ",")
+        .replace("\\;", ";")
+        .replace("\\\\", "\\")
+    )
+
+
+def test_html_alt_description_links_urls():
+    out = render_calendar([_ev(description="Onsite loop\nhttps://app.example/applications/1")])
+    assert "X-ALT-DESC;FMTTYPE=text/html:" in out
+    unfolded = _unfold(out)
+    assert '<a href="https://app.example/applications/1">' in unfolded
+    assert "<br>" in unfolded  # newline preserved as a break
+
+
+def test_html_alt_description_escapes_markup():
+    out = render_calendar([_ev(description="a <b> & c")])
+    payload = _ics_unescape(_unfold(out))
+    assert "&lt;b&gt;" in payload
+    assert "&amp;" in payload
+
+
+def test_html_alt_desc_link_drops_trailing_period():
+    out = render_calendar([_ev(description="see https://a.test/p.")])
+    unfolded = _unfold(out)
+    assert '<a href="https://a.test/p">https://a.test/p</a>' in unfolded
+
+
+def test_no_alt_desc_without_description():
+    out = render_calendar([_ev(description=None)])
+    assert "X-ALT-DESC" not in out
+
+
 def test_multibyte_char_at_fold_boundary():
     out = render_calendar([_ev(summary="A" * 73 + "中")])
     # Every physical line must be <= 75 octets when UTF-8 encoded

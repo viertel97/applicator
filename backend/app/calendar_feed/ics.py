@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import html as _html
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+
+_URL_RE = re.compile(r"https?://[^\s<]+")
+_TRAIL = ".,;:!?)]"
 
 PRODID = "-//Applicator//Interview Calendar//EN"
 
@@ -53,6 +58,21 @@ def _prop(name: str, value: str) -> str:
     return _fold(f"{name}:{value}")
 
 
+def _html_description(text: str) -> str:
+    # HTML alt-description so calendar clients (Apple, Outlook) render URLs as
+    # real anchors. Google autolinks the plaintext DESCRIPTION on its own.
+    parts: list[str] = []
+    pos = 0
+    for m in _URL_RE.finditer(text):
+        url = m.group(0).rstrip(_TRAIL)  # keep trailing punctuation out of the link
+        parts.append(_html.escape(text[pos:m.start()]))
+        safe = _html.escape(url, quote=True)
+        parts.append(f'<a href="{safe}">{safe}</a>')
+        pos = m.start() + len(url)
+    parts.append(_html.escape(text[pos:]))
+    return "".join(parts).replace("\n", "<br>")
+
+
 def render_event(ev: IcsEvent) -> list[str]:
     end = ev.ends_at or (ev.starts_at + timedelta(minutes=60))
     lines = [
@@ -71,6 +91,8 @@ def render_event(ev: IcsEvent) -> list[str]:
         lines.append(_prop("LOCATION", _escape(ev.location)))
     if ev.description:
         lines.append(_prop("DESCRIPTION", _escape(ev.description)))
+        html_desc = _html_description(ev.description)
+        lines.append(_fold(f"X-ALT-DESC;FMTTYPE=text/html:{_escape(html_desc)}"))
     lines.append("END:VEVENT")
     return lines
 
