@@ -9,6 +9,8 @@ const STAGES: InterviewStage[] = ["phone_screen", "technical", "onsite", "hr", "
 
 function utcIsoToLocalInput(iso: string): string {
   const d = new Date(iso);
+  // A bad/missing timestamp used to throw RangeError inside render → white screen.
+  if (Number.isNaN(d.getTime())) return "";
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 

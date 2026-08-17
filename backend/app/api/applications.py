@@ -10,7 +10,7 @@ from pydantic import BaseModel, HttpUrl, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user, db_dep, settings_dep
-from app.api.serializers import UtcDateTime
+from app.api.serializers import UtcDateTime, _serialize_utc
 from app.extractor.schemas import DOC_TYPES
 from app.api.labels import LabelOut
 from app.config import Settings, get_settings
@@ -503,6 +503,10 @@ def get_timeline(
             kind="interaction", at=it.occurred_at,
             data={
                 "id": str(it.id),
+                "application_id": str(it.application_id),
+                "occurred_at": _serialize_utc(it.occurred_at),
+                "ends_at": _serialize_utc(it.ends_at) if it.ends_at else None,
+                "location": it.location,
                 "direction": it.direction.value,
                 "channel": it.channel.value,
                 "subject": it.subject,
