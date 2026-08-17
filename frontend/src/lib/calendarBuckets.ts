@@ -1,7 +1,7 @@
 export type HasStart = { starts_at: string };
 export type DayGroup<T> = { key: string; date: Date; items: T[] };
 
-function dayKey(d: Date): string {
+export function dayKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
