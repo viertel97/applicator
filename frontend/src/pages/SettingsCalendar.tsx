@@ -1,6 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { calendar } from "../api/calendar";
 
+// Illustrative mock of a confirmed interview as Google Calendar renders it from
+// the enriched ICS feed: title + time, the join link (LOCATION) with a Join
+// button, and a DESCRIPTION carrying subject + mail body + the Applicator link.
+// Static example data — it does not reflect the user's real interviews.
+function CalendarEntryPreview() {
+  return (
+    <div className="mb-6">
+      <div className="text-sm font-semibold mb-1">What a calendar entry looks like</div>
+      <div className="rounded-lg border border-border bg-surface p-4 shadow-sm max-w-sm">
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="inline-block w-2.5 h-2.5 rounded-full bg-violet-500" />
+          <span className="text-sm font-semibold text-fg">Acme · technical</span>
+        </div>
+        <div className="text-xs text-muted mt-1">Tue, Sep 1 · 14:00 – 15:00</div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <span aria-hidden="true">📍</span>
+          <a
+            href="https://meet.google.com/abc-defg-hij"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent hover:underline truncate"
+          >
+            meet.google.com/abc-defg-hij
+          </a>
+          <span className="ml-auto px-2 py-0.5 rounded bg-accent text-accentFg text-xs">Join</span>
+        </div>
+
+        <hr className="my-3 border-border" />
+
+        <div className="text-xs text-fg whitespace-pre-wrap">
+          {"Technical interview – Acme\n\nHi Janik, here's the Teams link for your interview…"}
+        </div>
+        <div className="mt-2 text-xs text-accent hover:underline">Open in Applicator ↗</div>
+      </div>
+      <p className="text-xs text-muted mt-1">Example — illustrative only, not your real data.</p>
+    </div>
+  );
+}
+
 function UrlRow({ label, url }: { label: string; url: string | null }) {
   return (
     <div className="mb-3">
@@ -54,6 +94,8 @@ export default function SettingsCalendar() {
       >
         Regenerate iCal URL
       </button>
+
+      <CalendarEntryPreview />
 
       <UrlRow
         label="Forward-to-add email webhook URL"
