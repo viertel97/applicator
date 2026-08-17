@@ -179,7 +179,7 @@ def ics_feed(
                 starts_at=it.occurred_at,
                 ends_at=it.ends_at,
                 location=it.location,
-                description="\n".join(filter(None, [it.subject, deep])),
+                description="\n\n".join(filter(None, [it.subject, it.body, deep])),
                 updated_at=it.updated_at,
             )
         )

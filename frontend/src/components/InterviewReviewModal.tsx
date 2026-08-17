@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { interactions, type InterviewStage } from "../api/interactions";
 import { applications } from "../api/applications";
-import type { CalendarInterview } from "../api/calendar";
 import { STAGE_LABEL } from "../lib/interviewSummary";
+import { detectMeetingUrl } from "../lib/detectMeetingUrl";
 
 const STAGES: InterviewStage[] = ["phone_screen", "technical", "onsite", "hr", "final", "other"];
 
@@ -16,14 +16,27 @@ function localInputToUtcIso(localValue: string): string {
   return new Date(localValue).toISOString();
 }
 
+export type InterviewModalData = {
+  id: string;
+  application_id: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  interview_stage: InterviewStage | null;
+  subject?: string | null;
+  body?: string | null;
+};
+
 export function InterviewReviewModal({
   ev,
   open,
   onClose,
+  mode = "review",
 }: {
-  ev: CalendarInterview;
+  ev: InterviewModalData;
   open: boolean;
   onClose: () => void;
+  mode?: "review" | "edit";
 }) {
   const qc = useQueryClient();
   const [startsAt, setStartsAt] = useState(utcIsoToLocalInput(ev.starts_at));
@@ -31,30 +44,53 @@ export function InterviewReviewModal({
   const [location, setLocation] = useState(ev.location ?? "");
   const [stage, setStage] = useState<InterviewStage>(ev.interview_stage ?? "other");
   const [appId, setAppId] = useState(ev.application_id);
+  const [body, setBody] = useState(ev.body ?? "");
 
   const appList = useQuery({
     queryKey: ["applications-min"],
     queryFn: () => applications.list(),
+    enabled: mode === "review",
   });
 
   const save = useMutation({
-    mutationFn: () =>
-      interactions.update(ev.id, {
+    mutationFn: () => {
+      const loc = location.trim() || detectMeetingUrl(body) || null;
+
+      const patch: Parameters<typeof interactions.update>[1] = {
         occurred_at: localInputToUtcIso(startsAt),
         ends_at: endsAt ? localInputToUtcIso(endsAt) : null,
-        location: location || null,
+        location: loc,
         interview_stage: stage,
-        application_id: appId,
-        needs_review: false,
-      }),
+        // subject has no edit field here; preserve the existing value when present
+        // (CalendarInterview lacks subject → omit), never wipe it.
+        ...(ev.subject !== undefined ? { subject: ev.subject } : {}),
+        // body only belongs to edit mode, where ev actually carries it. Review
+        // mode has no body source (CalendarInterview lacks it), so sending
+        // body: null would silently wipe a webhook-populated body → omit it.
+        ...(mode === "edit" ? { body: body || null } : {}),
+        ...(mode === "review"
+          ? { application_id: appId, needs_review: false }
+          : {}),
+      };
+
+      return interactions.update(ev.id, patch);
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["calendar-interviews"] });
-      qc.invalidateQueries({ queryKey: ["calendar-review-count"] });
+      if (mode === "review") {
+        qc.invalidateQueries({ queryKey: ["calendar-interviews"] });
+        qc.invalidateQueries({ queryKey: ["calendar-review-count"] });
+      } else {
+        qc.invalidateQueries({ queryKey: ["application-timeline", ev.application_id] });
+        qc.invalidateQueries({ queryKey: ["interactions", ev.application_id] });
+      }
       onClose();
     },
   });
 
   if (!open) return null;
+
+  const headerText = mode === "review" ? "Confirm interview" : "Edit interview";
+  const confirmLabel = mode === "review" ? "Confirm" : "Save";
 
   return (
     <div
@@ -66,11 +102,11 @@ export function InterviewReviewModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Confirm interview"
+        aria-label={headerText}
         className="bg-surface rounded-lg p-4 w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-base font-semibold mb-3">Confirm interview</h2>
+        <h2 className="text-base font-semibold mb-3">{headerText}</h2>
         <label className="block text-xs mb-2">
           Starts
           <input
@@ -97,6 +133,17 @@ export function InterviewReviewModal({
             className="w-full px-2 py-1 rounded border border-border bg-bg"
           />
         </label>
+        {mode === "edit" && (
+          <label className="block text-xs mb-2">
+            Description
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={4}
+              className="w-full px-2 py-1 rounded border border-border bg-bg resize-y"
+            />
+          </label>
+        )}
         <label className="block text-xs mb-2">
           Stage
           <select
@@ -111,22 +158,24 @@ export function InterviewReviewModal({
             ))}
           </select>
         </label>
-        <label className="block text-xs mb-3">
-          Application
-          <select
-            value={appId}
-            onChange={(e) => setAppId(e.target.value)}
-            disabled={appList.isPending}
-            className="w-full px-2 py-1 rounded border border-border bg-bg"
-          >
-            {appList.isPending && <option value={appId}>Loading…</option>}
-            {(appList.data ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                #{a.display_id} {a.job_posting?.company ?? a.url}
-              </option>
-            ))}
-          </select>
-        </label>
+        {mode === "review" && (
+          <label className="block text-xs mb-3">
+            Application
+            <select
+              value={appId}
+              onChange={(e) => setAppId(e.target.value)}
+              disabled={appList.isPending}
+              className="w-full px-2 py-1 rounded border border-border bg-bg"
+            >
+              {appList.isPending && <option value={appId}>Loading…</option>}
+              {(appList.data ?? []).map((a) => (
+                <option key={a.id} value={a.id}>
+                  #{a.display_id} {a.job_posting?.company ?? a.url}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="flex gap-2 justify-end">
           {save.isError && (
             <p className="text-xs text-red-600 mr-auto self-center">Failed to save. Try again.</p>
@@ -139,7 +188,7 @@ export function InterviewReviewModal({
             disabled={save.isPending}
             className="px-3 py-1 rounded bg-accent text-accentFg text-sm"
           >
-            Confirm
+            {confirmLabel}
           </button>
         </div>
       </div>

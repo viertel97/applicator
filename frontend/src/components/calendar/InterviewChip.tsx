@@ -27,7 +27,7 @@ export function InterviewChip({ ev }: { ev: CalendarInterview }) {
           if (ev.needs_review) {
             setModalOpen(true);
           } else {
-            navigate(`/applications/${ev.application_id}`);
+            navigate(`/applications/${ev.application_id}#activity`);
           }
         }}
         className={`w-full flex items-center gap-1 text-left text-xs px-1 py-0.5 rounded hover:bg-surface2 ${ev.needs_review ? "opacity-60" : ""}`}

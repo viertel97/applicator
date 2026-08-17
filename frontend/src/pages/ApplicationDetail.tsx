@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applications } from "../api/applications";
 import type { AppStatus, DiscardPayload } from "../api/applications";
@@ -26,6 +26,8 @@ export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const activityRef = useRef<HTMLDivElement>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const q = useQuery({
     queryKey: ["application", id],
@@ -61,6 +63,15 @@ export default function ApplicationDetail() {
     }
     return () => { document.title = prev; };
   }, [q.data]);
+
+  const scrolledRef = useRef(false);
+  useEffect(() => { scrolledRef.current = false; }, [location.hash]);
+  useEffect(() => {
+    if (location.hash === "#activity" && q.data && !scrolledRef.current) {
+      scrolledRef.current = true;
+      activityRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [location.hash, q.data]);
 
   const [discardReason, setDiscardReason] = useState("");
   const [showDiscard, setShowDiscard] = useState(false);
@@ -381,7 +392,7 @@ export default function ApplicationDetail() {
           </button>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4" id="activity" ref={activityRef}>
           <ActivityPanel
             appId={a.id}
             app={a}
