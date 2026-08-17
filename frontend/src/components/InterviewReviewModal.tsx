@@ -61,10 +61,13 @@ export function InterviewReviewModal({
         ends_at: endsAt ? localInputToUtcIso(endsAt) : null,
         location: loc,
         interview_stage: stage,
-        body: body || null,
         // subject has no edit field here; preserve the existing value when present
         // (CalendarInterview lacks subject → omit), never wipe it.
         ...(ev.subject !== undefined ? { subject: ev.subject } : {}),
+        // body only belongs to edit mode, where ev actually carries it. Review
+        // mode has no body source (CalendarInterview lacks it), so sending
+        // body: null would silently wipe a webhook-populated body → omit it.
+        ...(mode === "edit" ? { body: body || null } : {}),
         ...(mode === "review"
           ? { application_id: appId, needs_review: false }
           : {}),
@@ -130,15 +133,17 @@ export function InterviewReviewModal({
             className="w-full px-2 py-1 rounded border border-border bg-bg"
           />
         </label>
-        <label className="block text-xs mb-2">
-          Description
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={4}
-            className="w-full px-2 py-1 rounded border border-border bg-bg resize-y"
-          />
-        </label>
+        {mode === "edit" && (
+          <label className="block text-xs mb-2">
+            Description
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={4}
+              className="w-full px-2 py-1 rounded border border-border bg-bg resize-y"
+            />
+          </label>
+        )}
         <label className="block text-xs mb-2">
           Stage
           <select
