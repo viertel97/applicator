@@ -1,0 +1,3 @@
+* Make the general frontend more appealing / nicer to use
+* Optimize the user experience on mobile devices
+* Make it possible to track multiple job interviews - bc it makes a difference if i am BEFORE the first interview or after the second one. Currently we only have status "Interview"
