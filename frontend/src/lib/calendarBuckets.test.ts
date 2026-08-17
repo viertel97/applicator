@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { groupByDay, monthMatrix, eventsForDay } from "./calendarBuckets.ts";
+import { groupByDay, monthMatrix, eventsForDay, dayKey } from "./calendarBuckets.ts";
 
 const ev = (id: string, starts_at: string) =>
   ({ id, starts_at } as { id: string; starts_at: string });
@@ -25,6 +25,10 @@ test("eventsForDay returns only rows matching the given local date", () => {
   const result = eventsForDay(rows, new Date(2026, 8, 1));
   assert.equal(result.length, 1);
   assert.equal(result[0].id, "sep1");
+});
+
+test("dayKey formats a Date as YYYY-MM-DD using local calendar day", () => {
+  assert.equal(dayKey(new Date(2026, 7, 17)), "2026-08-17");
 });
 
 test("monthMatrix returns 6 weeks of 7 days covering the month", () => {
