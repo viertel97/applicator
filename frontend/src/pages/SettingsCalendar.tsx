@@ -1,42 +1,99 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { calendar } from "../api/calendar";
+import { Link } from "react-router-dom";
+import { calendar, type CalendarInterview } from "../api/calendar";
+import { STAGE_LABEL } from "../lib/interviewSummary";
 
-// Illustrative mock of a confirmed interview as Google Calendar renders it from
-// the enriched ICS feed: title + time, the join link (LOCATION) with a Join
-// button, and a DESCRIPTION carrying subject + mail body + the Applicator link.
-// Static example data — it does not reflect the user's real interviews.
-function CalendarEntryPreview() {
+const STAGE_DOT: Record<string, string> = {
+  phone_screen: "bg-blue-500",
+  technical: "bg-violet-500",
+  onsite: "bg-amber-500",
+  hr: "bg-teal-500",
+  final: "bg-emerald-600",
+  other: "bg-slate-500",
+};
+
+function formatWhen(starts: string, ends: string | null): string {
+  const s = new Date(starts);
+  const date = s.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  const start = s.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (!ends) return `${date} · ${start}`;
+  const end = new Date(ends).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${date} · ${start} – ${end}`;
+}
+
+// Renders the user's next confirmed interview exactly as Google Calendar shows
+// it from the enriched ICS feed: title + time, the join link (LOCATION) with a
+// Join button, and the Applicator deep-link. The event description also carries
+// the invitation mail (subject + body), which the calendar list endpoint does
+// not expose here — hence the note rather than the full body.
+function PreviewCard({ ev }: { ev: CalendarInterview }) {
+  const stage = ev.interview_stage ?? "other";
+  const isUrl = !!ev.location && /^https?:\/\//i.test(ev.location);
   return (
-    <div className="mb-6">
-      <div className="text-sm font-semibold mb-1">What a calendar entry looks like</div>
-      <div className="rounded-lg border border-border bg-surface p-4 shadow-sm max-w-sm">
-        <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="inline-block w-2.5 h-2.5 rounded-full bg-violet-500" />
-          <span className="text-sm font-semibold text-fg">Acme · technical</span>
-        </div>
-        <div className="text-xs text-muted mt-1">Tue, Sep 1 · 14:00 – 15:00</div>
+    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm max-w-sm">
+      <div className="flex items-center gap-2">
+        <span aria-hidden="true" className={`inline-block w-2.5 h-2.5 rounded-full ${STAGE_DOT[stage] ?? "bg-slate-500"}`} />
+        <span className="text-sm font-semibold text-fg">
+          {ev.company} · {STAGE_LABEL[stage] ?? "interview"}
+        </span>
+      </div>
+      <div className="text-xs text-muted mt-1">{formatWhen(ev.starts_at, ev.ends_at)}</div>
 
+      {ev.location && (
         <div className="mt-3 flex items-center gap-2">
           <span aria-hidden="true">📍</span>
-          <a
-            href="https://meet.google.com/abc-defg-hij"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-accent hover:underline truncate"
-          >
-            meet.google.com/abc-defg-hij
-          </a>
-          <span className="ml-auto px-2 py-0.5 rounded bg-accent text-accentFg text-xs">Join</span>
+          {isUrl ? (
+            <>
+              <a
+                href={ev.location}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-accent hover:underline truncate"
+              >
+                {ev.location.replace(/^https?:\/\//i, "")}
+              </a>
+              <span className="ml-auto px-2 py-0.5 rounded bg-accent text-accentFg text-xs">Join</span>
+            </>
+          ) : (
+            <span className="text-xs text-fg truncate">{ev.location}</span>
+          )}
         </div>
+      )}
 
-        <hr className="my-3 border-border" />
+      <hr className="my-3 border-border" />
 
-        <div className="text-xs text-fg whitespace-pre-wrap">
-          {"Technical interview – Acme\n\nHi Janik, here's the Teams link for your interview…"}
+      <div className="text-xs text-muted">Your invitation mail appears in the event description.</div>
+      <Link
+        to={`/applications/${ev.application_id}#activity`}
+        className="mt-2 inline-block text-xs text-accent hover:underline"
+      >
+        Open in Applicator ↗
+      </Link>
+    </div>
+  );
+}
+
+function CalendarEntryPreview() {
+  const q = useQuery({
+    queryKey: ["calendar-preview"],
+    queryFn: () => calendar.interviews(new Date().toISOString()),
+  });
+  // The list is ordered soonest-first; pick the next confirmed (non-review) one,
+  // matching what the ICS feed actually publishes.
+  const next = (q.data ?? []).find((ev) => !ev.needs_review) ?? null;
+
+  return (
+    <div className="mb-6">
+      <div className="text-sm font-semibold mb-1">Your next interview in the calendar</div>
+      {q.isPending ? (
+        <div className="text-xs text-muted">Loading…</div>
+      ) : next ? (
+        <PreviewCard ev={next} />
+      ) : (
+        <div className="rounded-lg border border-dashed border-border bg-surface p-4 text-xs text-muted max-w-sm">
+          No upcoming interviews yet — your next confirmed interview will show up here and in Google Calendar.
         </div>
-        <div className="mt-2 text-xs text-accent hover:underline">Open in Applicator ↗</div>
-      </div>
-      <p className="text-xs text-muted mt-1">Example — illustrative only, not your real data.</p>
+      )}
     </div>
   );
 }
