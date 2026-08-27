@@ -10,6 +10,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     Sequence as SASequence,
@@ -119,6 +120,12 @@ class ApplicationEventKind(str, enum.Enum):
     created = "created"
     inquiry_generated = "inquiry_generated"
     interview_scheduled = "interview_scheduled"
+
+
+class CalendarSuggestionStatus(str, enum.Enum):
+    pending = "pending"
+    confirmed = "confirmed"
+    dismissed = "dismissed"
 
 
 def _uuid() -> uuid.UUID:
@@ -427,6 +434,58 @@ class CalendarSyncState(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), index=True)
     calendar_id: Mapped[str] = mapped_column(String(255), nullable=False)
     delta_link: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CalendarSuggestion(Base):
+    """A pulled external calendar event staged for user review.
+
+    One row per Outlook event, keyed on (user_id, external_source,
+    external_id). Serves as both the staging store (status='pending') and the
+    tombstone (confirmed/dismissed) that keeps a full re-sync idempotent — a
+    410 re-sync must never resurrect a dismissed or already-confirmed event.
+    """
+
+    __tablename__ = "calendar_suggestion"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "external_source",
+            "external_id",
+            name="uq_calsuggestion_external",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), index=True)
+    external_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[CalendarSuggestionStatus] = mapped_column(
+        Enum(CalendarSuggestionStatus, name="calendarsuggestionstatus"),
+        default=CalendarSuggestionStatus.pending,
+        server_default=CalendarSuggestionStatus.pending.value,
+        index=True,
+    )
+    subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organizer_email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suggested_application_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("application.id"), nullable=True, index=True
+    )
+    match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    interaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("interaction.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
