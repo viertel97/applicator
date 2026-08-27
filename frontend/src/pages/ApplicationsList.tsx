@@ -340,7 +340,7 @@ export default function ApplicationsList() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search title, company, location…"
+          placeholder="Search title, company, location, ID…"
           className="bg-surface border border-border rounded px-3 py-2 pr-8 text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ring w-full text-sm"
         />
         {query && (

@@ -1,3 +1,1 @@
-* Make the general frontend more appealing / nicer to use
-* Optimize the user experience on mobile devices
-* Make it possible to track multiple job interviews - bc it makes a difference if i am BEFORE the first interview or after the second one. Currently we only have status "Interview"
+* What else need to be provided so events from Microsoft Calendar / Outlook are automatically taken? Should we use the same AppID or should i create a new one and give it which permissions?
