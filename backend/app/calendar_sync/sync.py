@@ -102,6 +102,9 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
                 db.delete(existing)
                 stats["deleted"] += 1
             elif existing.status == CalendarSuggestionStatus.confirmed:
+                # Fully delete interview + suggestion + timeline note. No
+                # tombstone needed: Graph won't re-send a deleted event, so
+                # there is nothing for a later re-sync to resurrect.
                 it = _linked_interaction(db, external_id)
                 if it is not None:
                     db.delete(it)  # CASCADE removes the timeline note

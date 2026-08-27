@@ -1,8 +1,10 @@
-"""Celery task: poll the Outlook "Interviews" calendar and mirror events.
+"""Celery task: poll the Outlook "Interviews" calendar and stage events.
 
-One-way fan-out. Reads each user's refresh token (Fernet-encrypted), mints a
-Graph access token, delta-syncs the target calendar, and projects changes into
-Interactions. Skips cleanly when OAuth is disabled or no token is stored.
+Reads each user's refresh token (Fernet-encrypted), mints a Graph access token,
+delta-syncs the target calendar, and stages changes as CalendarSuggestions for
+user review (see calendar_sync.sync). Nothing becomes a real interview until the
+user confirms; only already-confirmed events keep their linked Interaction in
+step. Skips cleanly when OAuth is disabled or no token is stored.
 """
 from __future__ import annotations
 
