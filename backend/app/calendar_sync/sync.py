@@ -124,8 +124,9 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
         if existing is None:
             if candidates is None:
                 candidates = _candidates(db, user)
+            organizer_email = _organizer_email(ev)
             app_id, score = match_application(
-                sender=_organizer_email(ev),
+                sender=organizer_email,
                 subject=subject or "",
                 body=body or "",
                 candidates=candidates,
@@ -141,7 +142,7 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
                     ends_at=end,
                     location=location,
                     body=body,
-                    organizer_email=_organizer_email(ev),
+                    organizer_email=organizer_email,
                     suggested_application_id=(
                         uuid.UUID(app_id) if app_id else None
                     ),
@@ -166,15 +167,19 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
             continue
 
         # confirmed → live-link: keep the promoted interview in step.
-        it = _linked_interaction(db, external_id)
-        if it is not None:
-            it.occurred_at = start
-            it.ends_at = end
-            it.location = location
-            it.subject = subject
-            it.body = body
-            stats["updated"] += 1
+        if existing.status == CalendarSuggestionStatus.confirmed:
+            it = _linked_interaction(db, external_id)
+            if it is not None:
+                it.occurred_at = start
+                it.ends_at = end
+                it.location = location
+                it.subject = subject
+                it.body = body
+                stats["updated"] += 1
+            else:
+                stats["skipped"] += 1
         else:
+            # Unknown/future status — skip rather than silently mishandle.
             stats["skipped"] += 1
 
     db.commit()
