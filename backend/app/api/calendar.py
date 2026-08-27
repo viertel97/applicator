@@ -15,7 +15,13 @@ from app.api.serializers import UtcDateTime
 from app.calendar_feed.ics import IcsEvent, render_calendar
 from app.db.models import (
     Application,
+    ApplicationEvent,
+    ApplicationEventKind,
+    CalendarSuggestion,
+    CalendarSuggestionStatus,
     InteractionChannel,
+    InteractionCreatedFrom,
+    InteractionDirection,
     InterviewStage,
     JobPosting,
     Interaction,
@@ -138,6 +144,144 @@ def review_count(
         )
     ).scalar_one()
     return {"count": int(n)}
+
+
+class SuggestedApp(BaseModel):
+    id: uuid.UUID
+    display_id: int
+    company: str
+
+
+class CalendarSuggestionOut(BaseModel):
+    id: uuid.UUID
+    external_id: str
+    subject: str | None
+    starts_at: UtcDateTime
+    ends_at: UtcDateTime | None
+    location: str | None
+    organizer_email: str | None
+    match_score: float | None
+    suggested_application: SuggestedApp | None
+
+
+class ConfirmSuggestionIn(BaseModel):
+    application_id: uuid.UUID | None = None
+
+
+def _owned_suggestion(db: Session, sid: uuid.UUID, user: User) -> CalendarSuggestion:
+    s = db.execute(
+        select(CalendarSuggestion).where(
+            CalendarSuggestion.id == sid,
+            CalendarSuggestion.user_id == user.id,
+        )
+    ).scalar_one_or_none()
+    if s is None:
+        raise HTTPException(404, "suggestion not found")
+    return s
+
+
+@router.get("/suggestions", response_model=list[CalendarSuggestionOut])
+def list_calendar_suggestions(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> list[CalendarSuggestionOut]:
+    rows = db.execute(
+        select(CalendarSuggestion, Application, JobPosting)
+        .outerjoin(Application, CalendarSuggestion.suggested_application_id == Application.id)
+        .outerjoin(JobPosting, JobPosting.application_id == Application.id)
+        .where(
+            CalendarSuggestion.user_id == user.id,
+            CalendarSuggestion.status == CalendarSuggestionStatus.pending,
+        )
+        .order_by(CalendarSuggestion.starts_at.asc())
+    ).all()
+    out: list[CalendarSuggestionOut] = []
+    for s, app, jp in rows:
+        suggested = None
+        if app is not None:
+            suggested = SuggestedApp(
+                id=app.id, display_id=app.display_id, company=_company(jp, app.url)
+            )
+        out.append(
+            CalendarSuggestionOut(
+                id=s.id,
+                external_id=s.external_id,
+                subject=s.subject,
+                starts_at=s.starts_at,
+                ends_at=s.ends_at,
+                location=s.location,
+                organizer_email=s.organizer_email,
+                match_score=s.match_score,
+                suggested_application=suggested,
+            )
+        )
+    return out
+
+
+@router.post("/suggestions/{sid}/confirm")
+def confirm_calendar_suggestion(
+    sid: uuid.UUID,
+    payload: ConfirmSuggestionIn,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> dict:
+    s = _owned_suggestion(db, sid, user)
+    if s.status != CalendarSuggestionStatus.pending:
+        raise HTTPException(409, "suggestion already resolved")
+
+    app_id = payload.application_id or s.suggested_application_id
+    if app_id is None:
+        raise HTTPException(400, "no application to link; pick one to confirm")
+    app_row = db.execute(
+        select(Application).where(
+            Application.id == app_id,
+            Application.user_id == user.id,
+            Application.deleted_at.is_(None),
+        )
+    ).scalar_one_or_none()
+    if app_row is None:
+        raise HTTPException(400, "application not found")
+
+    it = Interaction(
+        application_id=app_row.id,
+        occurred_at=s.starts_at,
+        ends_at=s.ends_at,
+        direction=InteractionDirection.in_,
+        channel=InteractionChannel.interview,
+        location=s.location,
+        subject=s.subject,
+        body=s.body,
+        needs_review=False,
+        created_from=InteractionCreatedFrom.graph_sync,
+        external_source=s.external_source,
+        external_id=s.external_id,
+    )
+    db.add(it)
+    db.flush()
+    db.add(
+        ApplicationEvent(
+            application_id=app_row.id,
+            kind=ApplicationEventKind.interview_scheduled,
+            interaction_id=it.id,
+        )
+    )
+    s.status = CalendarSuggestionStatus.confirmed
+    s.interaction_id = it.id
+    db.commit()
+    return {"ok": True, "interaction_id": str(it.id)}
+
+
+@router.post("/suggestions/{sid}/dismiss")
+def dismiss_calendar_suggestion(
+    sid: uuid.UUID,
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> dict:
+    s = _owned_suggestion(db, sid, user)
+    if s.status == CalendarSuggestionStatus.pending:
+        s.status = CalendarSuggestionStatus.dismissed
+        db.commit()
+    return {"ok": True}
 
 
 def _lookup_by_calendar_token(db: Session, token: str) -> User:
