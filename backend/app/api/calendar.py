@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import current_user, db_dep
 from app.api.serializers import UtcDateTime
 from app.calendar_feed.ics import IcsEvent, render_calendar
+from app.config import Settings, get_settings
+from app.tasks.sync_outlook_calendar import _record_health, sync_user_calendar
 from app.db.models import (
     Application,
     ApplicationEvent,
@@ -282,6 +284,112 @@ def dismiss_calendar_suggestion(
         s.status = CalendarSuggestionStatus.dismissed
         db.commit()
     return {"ok": True}
+
+
+class SyncCounts(BaseModel):
+    created: int
+    updated: int
+    deleted: int
+    skipped: int
+
+
+class SyncStatusOut(BaseModel):
+    last_sync_at: UtcDateTime | None
+    last_status: str | None
+    last_reason: str | None
+    last_trigger: str | None
+    last_counts: SyncCounts | None
+    last_error: str | None
+    oauth_enabled: bool
+
+
+def _sync_status_out(user: User, settings: Settings) -> SyncStatusOut:
+    return SyncStatusOut(
+        last_sync_at=user.outlook_last_sync_at,
+        last_status=user.outlook_last_status,
+        last_reason=user.outlook_last_reason,
+        last_trigger=user.outlook_last_trigger,
+        last_counts=user.outlook_last_counts,
+        last_error=user.outlook_last_error,
+        oauth_enabled=settings.oauth_enabled,
+    )
+
+
+@router.get("/sync-status", response_model=SyncStatusOut)
+def get_sync_status(
+    user: Annotated[User, Depends(current_user)],
+) -> SyncStatusOut:
+    return _sync_status_out(user, get_settings())
+
+
+@router.post("/sync-now", response_model=SyncStatusOut)
+def sync_now(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> SyncStatusOut:
+    settings = get_settings()
+    if not settings.oauth_enabled:
+        _record_health(user, status="skipped", reason="oauth_disabled", trigger="manual")
+        db.commit()
+        db.refresh(user)
+        return _sync_status_out(user, settings)
+    try:
+        sync_user_calendar(db, user, settings, trigger="manual")
+    except Exception:  # noqa: BLE001 - health recorded inside; report it, don't 500
+        db.rollback()
+    db.refresh(user)
+    return _sync_status_out(user, settings)
+
+
+class CalendarEntryOut(BaseModel):
+    id: uuid.UUID
+    external_id: str
+    subject: str | None
+    starts_at: UtcDateTime
+    ends_at: UtcDateTime | None
+    location: str | None
+    organizer_email: str | None
+    status: str
+    match_score: float | None
+    suggested_application: SuggestedApp | None
+    interaction_id: uuid.UUID | None
+
+
+@router.get("/entries", response_model=list[CalendarEntryOut])
+def list_calendar_entries(
+    db: Annotated[Session, Depends(db_dep)],
+    user: Annotated[User, Depends(current_user)],
+) -> list[CalendarEntryOut]:
+    rows = db.execute(
+        select(CalendarSuggestion, Application, JobPosting)
+        .outerjoin(Application, CalendarSuggestion.suggested_application_id == Application.id)
+        .outerjoin(JobPosting, JobPosting.application_id == Application.id)
+        .where(CalendarSuggestion.user_id == user.id)
+        .order_by(CalendarSuggestion.starts_at.desc())
+    ).all()
+    out: list[CalendarEntryOut] = []
+    for s, app, jp in rows:
+        suggested = None
+        if app is not None:
+            suggested = SuggestedApp(
+                id=app.id, display_id=app.display_id, company=_company(jp, app.url)
+            )
+        out.append(
+            CalendarEntryOut(
+                id=s.id,
+                external_id=s.external_id,
+                subject=s.subject,
+                starts_at=s.starts_at,
+                ends_at=s.ends_at,
+                location=s.location,
+                organizer_email=s.organizer_email,
+                status=s.status.value,
+                match_score=s.match_score,
+                suggested_application=suggested,
+                interaction_id=s.interaction_id,
+            )
+        )
+    return out
 
 
 def _lookup_by_calendar_token(db: Session, token: str) -> User:

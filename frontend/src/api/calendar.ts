@@ -34,6 +34,41 @@ export type CalendarSuggestion = {
   } | null;
 };
 
+export type SyncCounts = {
+  created: number;
+  updated: number;
+  deleted: number;
+  skipped: number;
+};
+
+export type SyncStatus = {
+  last_sync_at: string | null;
+  last_status: "ok" | "skipped" | "error" | null;
+  last_reason: string | null;
+  last_trigger: "scheduled" | "manual" | null;
+  last_counts: SyncCounts | null;
+  last_error: string | null;
+  oauth_enabled: boolean;
+};
+
+export type CalendarEntry = {
+  id: string;
+  external_id: string;
+  subject: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  organizer_email: string | null;
+  status: "pending" | "confirmed" | "dismissed";
+  match_score: number | null;
+  suggested_application: {
+    id: string;
+    display_id: number;
+    company: string;
+  } | null;
+  interaction_id: string | null;
+};
+
 export const calendar = {
   interviews: (from?: string, to?: string) => {
     const q = new URLSearchParams();
@@ -54,4 +89,7 @@ export const calendar = {
     ),
   dismissSuggestion: (id: string) =>
     api<{ ok: boolean }>(`/api/calendar/suggestions/${id}/dismiss`, { method: "POST" }),
+  syncStatus: () => api<SyncStatus>("/api/calendar/sync-status"),
+  syncNow: () => api<SyncStatus>("/api/calendar/sync-now", { method: "POST" }),
+  entries: () => api<CalendarEntry[]>("/api/calendar/entries"),
 };

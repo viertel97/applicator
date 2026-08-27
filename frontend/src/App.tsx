@@ -10,6 +10,7 @@ import SettingsInquiryPrompt from "./pages/SettingsInquiryPrompt";
 import SettingsDiscardReasons from "./pages/SettingsDiscardReasons";
 import SettingsCalendar from "./pages/SettingsCalendar";
 import SettingsWebhooks from "./pages/SettingsWebhooks";
+import SettingsOutlookSync from "./pages/SettingsOutlookSync";
 import Stats from "./pages/Stats";
 import Calendar from "./pages/Calendar";
 import { useAuth } from "./hooks/useAuth";
@@ -118,6 +119,14 @@ export default function App() {
         element={
           <ProtectedShell>
             <SettingsWebhooks />
+          </ProtectedShell>
+        }
+      />
+      <Route
+        path="/settings/outlook"
+        element={
+          <ProtectedShell>
+            <SettingsOutlookSync />
           </ProtectedShell>
         }
       />

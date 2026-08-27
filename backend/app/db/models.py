@@ -180,6 +180,12 @@ class User(Base):
     ingest_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     calendar_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    outlook_last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    outlook_last_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    outlook_last_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    outlook_last_trigger: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    outlook_last_counts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    outlook_last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class CVVariant(Base):
