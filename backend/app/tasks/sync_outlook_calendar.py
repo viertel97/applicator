@@ -153,12 +153,14 @@ def sync_user_calendar(
         stats = sync_calendar_events(db, user, events)
         state.delta_link = delta_link
     except GraphRateLimited as exc:
+        db.rollback()
         _record_health(
             user, status="error", reason="rate_limited", trigger=trigger, error=str(exc)
         )
         db.commit()
         raise
     except Exception as exc:  # noqa: BLE001 - record then re-raise for the task
+        db.rollback()
         _record_health(
             user, status="error", reason="graph_error",
             trigger=trigger, error=str(exc)[:500],

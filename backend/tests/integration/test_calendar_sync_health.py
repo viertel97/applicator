@@ -123,6 +123,42 @@ def test_persist_failure_records_error(db_session, auth_user, monkeypatch):
     assert "db exploded" in user.outlook_last_error
 
 
+def test_persist_integrity_error_still_records_health(db_session, auth_user, monkeypatch):
+    from datetime import datetime as _dt
+
+    from app.calendar_sync.sync import MS_GRAPH
+    from app.db.models import CalendarSuggestion, CalendarSuggestionStatus
+
+    _, user = auth_user
+    _app(db_session, user)
+    graph = FakeGraph(events=[_event()], delta="delta-A")
+
+    def _dup(db, user, events):
+        # Two rows with the same (user, source, external_id) violate the unique
+        # constraint on flush -> IntegrityError -> session enters failed txn.
+        for _ in range(2):
+            db.add(
+                CalendarSuggestion(
+                    user_id=user.id,
+                    external_source=MS_GRAPH,
+                    external_id="dup",
+                    status=CalendarSuggestionStatus.pending,
+                    subject="x",
+                    starts_at=_dt(2026, 9, 1, 10, 0),
+                )
+            )
+        db.flush()
+
+    monkeypatch.setattr(mod, "sync_calendar_events", _dup)
+
+    with pytest.raises(Exception):
+        sync_user_calendar(db_session, user, get_settings(), graph=graph, trigger="scheduled")
+
+    db_session.refresh(user)  # would raise if the session were still poisoned
+    assert user.outlook_last_status == "error"
+    assert user.outlook_last_reason == "graph_error"
+
+
 def test_no_token_records_skipped(db_session, auth_user):
     _, user = auth_user
     user.ms_refresh_token_encrypted = None
