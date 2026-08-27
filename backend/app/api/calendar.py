@@ -317,7 +317,6 @@ def _sync_status_out(user: User, settings: Settings) -> SyncStatusOut:
 
 @router.get("/sync-status", response_model=SyncStatusOut)
 def get_sync_status(
-    db: Annotated[Session, Depends(db_dep)],
     user: Annotated[User, Depends(current_user)],
 ) -> SyncStatusOut:
     return _sync_status_out(user, get_settings())
