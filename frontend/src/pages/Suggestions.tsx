@@ -194,7 +194,7 @@ function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
           </option>
           {appList.data?.map((a) => (
             <option key={a.id} value={a.id}>
-              #{a.display_id} {a.company ?? a.url}
+              #{a.display_id} {a.job_posting?.company ?? a.url}
             </option>
           ))}
         </select>
