@@ -1,12 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { applications } from "../api/applications";
+import { calendar } from "../api/calendar";
 
-// Open-suggestion count for the nav badge. Shares the ["suggestions"] cache
-// with the Suggestions page so dismiss/discard there updates the badge.
+// Open-suggestion count for the nav badge. Shares the ["suggestions"] and
+// ["calendar-suggestions"] caches with the Suggestions page so actions there
+// update the badge live.
 export function useSuggestionsCount(): number {
-  const q = useQuery({
+  const offline = useQuery({
     queryKey: ["suggestions"],
     queryFn: () => applications.getSuggestions(),
   });
-  return q.data?.length ?? 0;
+  const cal = useQuery({
+    queryKey: ["calendar-suggestions"],
+    queryFn: () => calendar.suggestions(),
+  });
+  return (offline.data?.length ?? 0) + (cal.data?.length ?? 0);
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applications, type Suggestion } from "../api/applications";
+import { calendar, type CalendarSuggestion } from "../api/calendar";
 import { suggestionReasonLabel } from "../lib/suggestionReason";
 import { useToast } from "../components/Toast";
 import { DiscardReasonPicker } from "../components/DiscardReasonPicker";
@@ -116,6 +117,130 @@ function SuggestionRow({ s }: { s: Suggestion }) {
   );
 }
 
+function fmtRange(startIso: string, endIso: string | null): string {
+  const start = new Date(startIso);
+  const s = start.toLocaleString();
+  if (!endIso) return s;
+  const end = new Date(endIso);
+  const sameDay = start.toDateString() === end.toDateString();
+  return `${s} – ${sameDay ? end.toLocaleTimeString() : end.toLocaleString()}`;
+}
+
+function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [overrideId, setOverrideId] = useState<string>("");
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["calendar-suggestions"] });
+    qc.invalidateQueries({ queryKey: ["suggestions"] });
+    qc.invalidateQueries({ queryKey: ["calendar-interviews"] });
+  };
+
+  const confirm = useMutation({
+    mutationFn: () =>
+      calendar.confirmSuggestion(
+        s.id,
+        overrideId || s.suggested_application?.id || undefined,
+      ),
+    onSuccess: () => {
+      invalidate();
+      toast("Interview übernommen");
+    },
+    onError: () => toast("Bitte zuerst eine Bewerbung wählen"),
+  });
+
+  const dismiss = useMutation({
+    mutationFn: () => calendar.dismissSuggestion(s.id),
+    onSuccess: () => {
+      invalidate();
+      toast("Vorschlag ausgeblendet");
+    },
+  });
+
+  const busy = confirm.isPending || dismiss.isPending;
+  const appList = useQuery({ queryKey: ["applications"], queryFn: () => applications.list() });
+
+  return (
+    <li className="border border-border rounded-lg p-4 bg-surface flex flex-col gap-2">
+      <div className="font-semibold text-fg truncate">
+        {s.subject ?? "(ohne Titel)"}
+      </div>
+      <div className="text-sm text-muted">
+        {fmtRange(s.starts_at, s.ends_at)}
+        {s.location && <span> · {s.location}</span>}
+      </div>
+      <div className="text-sm">
+        {s.suggested_application ? (
+          <span className="text-muted">
+            Zuordnung → #{s.suggested_application.display_id}{" "}
+            {s.suggested_application.company}
+            {s.match_score != null && (
+              <span className="text-xs"> ({s.match_score.toFixed(1)})</span>
+            )}
+          </span>
+        ) : (
+          <span className="text-orange-600">Keine Zuordnung — Bewerbung wählen</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          className="border border-border rounded px-2 py-1 text-sm bg-surface"
+          value={overrideId}
+          onChange={(e) => setOverrideId(e.target.value)}
+        >
+          <option value="">
+            {s.suggested_application ? "Vorgeschlagene übernehmen" : "Bewerbung wählen…"}
+          </option>
+          {appList.data?.map((a) => (
+            <option key={a.id} value={a.id}>
+              #{a.display_id} {a.company ?? a.url}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="bg-accent text-white rounded px-3 py-1 text-sm disabled:opacity-50"
+          disabled={busy}
+          onClick={() => confirm.mutate()}
+        >
+          Bestätigen
+        </button>
+        <button
+          type="button"
+          className="border border-border rounded px-3 py-1 text-sm text-muted hover:text-fg disabled:opacity-50"
+          disabled={busy}
+          onClick={() => dismiss.mutate()}
+        >
+          Ausblenden
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function CalendarSuggestionsSection() {
+  const q = useQuery({
+    queryKey: ["calendar-suggestions"],
+    queryFn: () => calendar.suggestions(),
+  });
+  if ((q.data?.length ?? 0) === 0) return null;
+  return (
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold text-fg mb-2">Kalender-Interviews</h2>
+      <p className="text-sm text-muted mb-3">
+        Aus deinem Outlook-Kalender übernommen. Bestätige, um sie als Interview
+        zu speichern.
+      </p>
+      <ul className="flex flex-col gap-3">
+        {q.data!.map((s) => (
+          <CalendarSuggestionRow key={s.id} s={s} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function Suggestions() {
   const q = useQuery({
     queryKey: ["suggestions"],
@@ -129,6 +254,8 @@ export default function Suggestions() {
         Entwürfe, deren Stellenanzeige offline gegangen ist. Die App ändert
         nichts von selbst — du entscheidest.
       </p>
+      <CalendarSuggestionsSection />
+      <h2 className="text-lg font-semibold text-fg mb-2">Offline-Anzeigen</h2>
       {q.isLoading ? (
         <div className="text-muted">Lädt…</div>
       ) : q.isError ? (
