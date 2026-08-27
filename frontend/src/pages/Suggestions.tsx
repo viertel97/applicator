@@ -147,7 +147,8 @@ function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
       invalidate();
       toast("Interview übernommen");
     },
-    onError: () => toast("Bitte zuerst eine Bewerbung wählen"),
+    onError: (err: unknown) =>
+      toast(err instanceof Error ? err.message : "Bestätigen fehlgeschlagen"),
   });
 
   const dismiss = useMutation({
@@ -159,6 +160,7 @@ function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
   });
 
   const busy = confirm.isPending || dismiss.isPending;
+  const hasApplication = !!overrideId || !!s.suggested_application;
   const appList = useQuery({ queryKey: ["applications"], queryFn: () => applications.list() });
 
   return (
@@ -185,6 +187,7 @@ function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <select
+          aria-label="Bewerbung für diesen Termin"
           className="border border-border rounded px-2 py-1 text-sm bg-surface"
           value={overrideId}
           onChange={(e) => setOverrideId(e.target.value)}
@@ -201,7 +204,7 @@ function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
         <button
           type="button"
           className="bg-accent text-white rounded px-3 py-1 text-sm disabled:opacity-50"
-          disabled={busy}
+          disabled={busy || !hasApplication}
           onClick={() => confirm.mutate()}
         >
           Bestätigen
