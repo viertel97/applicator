@@ -12,4 +12,5 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/discard-reasons", label: "Discard reasons", group: "settings" },
   { to: "/settings/calendar", label: "Calendar & Email", group: "settings" },
   { to: "/settings/webhooks", label: "Webhook log", group: "settings" },
+  { to: "/settings/outlook", label: "Outlook sync", group: "settings" },
 ];
