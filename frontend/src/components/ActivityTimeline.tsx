@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DeleteConfirmButton } from "./DeleteConfirmButton";
 import { InterviewReviewModal } from "./InterviewReviewModal";
-import { Linkify } from "./Linkify";
+import { RichBody } from "./RichBody";
 import { timeline, type Interaction, type TimelineRow } from "../api/interactions";
 import { interactionIcon, interactionDescribe, eventDescribe } from "../lib/timelineRender";
 
@@ -47,8 +47,8 @@ export function ActivityTimeline({
                 {new Date(row.at).toLocaleString()}
               </div>
               {row.kind === "interaction" && row.data.body && (
-                <div className="text-sm text-fg mt-1 whitespace-pre-wrap">
-                  <Linkify text={row.data.body} />
+                <div className="text-sm text-fg mt-1 whitespace-pre-wrap break-words">
+                  <RichBody text={row.data.body} />
                 </div>
               )}
             </div>

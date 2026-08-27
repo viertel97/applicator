@@ -6,12 +6,22 @@ so tests can drive it with a MockTransport.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import httpx
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 # MS Graph caps event lists; a generous page size keeps round-trips low.
+# On delta queries $top is rejected — page size travels via the Prefer header.
 _PAGE_SIZE = 100
+
+# calendarView/delta requires a fixed date window, which Graph freezes into the
+# delta token for the whole sync round. Cover recent past + a year ahead so
+# rescheduled interviews stay inside the window (events that leave it resurface
+# as @removed — see calendar_sync.sync).
+_WINDOW_PAST = timedelta(days=30)
+_WINDOW_FUTURE = timedelta(days=365)
 
 
 class GraphError(Exception):
@@ -44,11 +54,17 @@ class GraphClient:
 
     # -- low-level ---------------------------------------------------------
 
-    def _get(self, url: str, params: dict | None = None) -> dict:
+    def _get(
+        self, url: str, params: dict | None = None, *, max_page_size: int | None = None
+    ) -> dict:
+        # Ask Graph to return start/end in UTC so we can store naive-UTC. Delta
+        # paging is requested via Prefer:odata.maxpagesize ($top 400s on delta).
+        prefer = 'outlook.timezone="UTC"'
+        if max_page_size is not None:
+            prefer = f"{prefer}, odata.maxpagesize={max_page_size}"
         headers = {
             "Authorization": f"Bearer {self._token}",
-            # Ask Graph to return start/end in UTC so we can store naive-UTC.
-            "Prefer": 'outlook.timezone="UTC"',
+            "Prefer": prefer,
         }
         r = self._client.get(url, headers=headers, params=params)
         if r.status_code == 429:
@@ -76,25 +92,41 @@ class GraphClient:
     # -- delta sync --------------------------------------------------------
 
     def delta_events(
-        self, calendar_id: str, delta_link: str | None = None
+        self,
+        calendar_id: str,
+        delta_link: str | None = None,
+        *,
+        now: datetime | None = None,
     ) -> tuple[list[dict], str]:
         """Fetch changed events since `delta_link` (or a full sync if None).
 
         Returns (events, next_delta_link). Follows @odata.nextLink pages and
         returns the final @odata.deltaLink to persist for the next run.
         Raises DeltaExpired on a 410 (stale link).
+
+        Event change tracking is only exposed through calendarView/delta over a
+        required [startDateTime, endDateTime] window (there is no events/delta).
+        `now` anchors that window and is injectable for tests.
         """
+        max_page: int | None
         if delta_link:
             url = delta_link
             params: dict | None = None
+            max_page = None  # window + page size are encoded in the token
         else:
-            url = f"{self._base}/me/calendars/{calendar_id}/events/delta"
-            params = {"$top": _PAGE_SIZE}
+            ref = now or datetime.utcnow()
+            url = f"{self._base}/me/calendars/{calendar_id}/calendarView/delta"
+            params = {
+                "startDateTime": (ref - _WINDOW_PAST).isoformat(timespec="seconds"),
+                "endDateTime": (ref + _WINDOW_FUTURE).isoformat(timespec="seconds"),
+            }
+            max_page = _PAGE_SIZE
 
         events: list[dict] = []
         while True:
-            data = self._get(url, params=params)
+            data = self._get(url, params=params, max_page_size=max_page)
             params = None  # only the first request carries query params
+            max_page = None  # nextLink already encodes the page size
             events.extend(data.get("value", []))
             next_link = data.get("@odata.nextLink")
             if next_link:

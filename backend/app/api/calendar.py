@@ -161,6 +161,7 @@ class CalendarSuggestionOut(BaseModel):
     starts_at: UtcDateTime
     ends_at: UtcDateTime | None
     location: str | None
+    body: str | None
     organizer_email: str | None
     match_score: float | None
     suggested_application: SuggestedApp | None
@@ -212,6 +213,7 @@ def list_calendar_suggestions(
                 starts_at=s.starts_at,
                 ends_at=s.ends_at,
                 location=s.location,
+                body=s.body,
                 organizer_email=s.organizer_email,
                 match_score=s.match_score,
                 suggested_application=suggested,

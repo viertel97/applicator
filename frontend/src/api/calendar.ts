@@ -25,6 +25,7 @@ export type CalendarSuggestion = {
   starts_at: string;
   ends_at: string | null;
   location: string | null;
+  body: string | null;
   organizer_email: string | null;
   match_score: number | null;
   suggested_application: {

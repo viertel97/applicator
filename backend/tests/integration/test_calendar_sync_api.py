@@ -20,7 +20,7 @@ def _app(db, user, *, company="Acme GmbH"):
     return a
 
 
-def _suggestion(db, user, app=None, *, eid, status):
+def _suggestion(db, user, app=None, *, eid, status, body=None):
     s = CalendarSuggestion(
         user_id=user.id,
         external_source=MS_GRAPH,
@@ -30,6 +30,7 @@ def _suggestion(db, user, app=None, *, eid, status):
         starts_at=datetime(2026, 9, 1, 10, 0),
         ends_at=datetime(2026, 9, 1, 11, 0),
         location="Zoom",
+        body=body,
         organizer_email="hr@acme.example",
         suggested_application_id=(app.id if app else None),
         match_score=0.9 if app else None,
@@ -70,6 +71,23 @@ def test_entries_returns_all_statuses(client, db_session, auth_user):
     assert statuses == {"pending", "confirmed", "dismissed"}
     ext = next(row for row in data if row["external_id"] == "e1")
     assert ext["suggested_application"]["company"] == "Acme GmbH"
+
+
+def test_suggestions_returns_full_body_with_links(client, db_session, auth_user):
+    _, user = auth_user
+    app = _app(db_session, user)
+    teams = "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc"
+    body = f'<html><body>Join: <a href="{teams}">Teams</a></body></html>'
+    _suggestion(
+        db_session, user, app, eid="e1",
+        status=CalendarSuggestionStatus.pending, body=body,
+    )
+
+    r = client.get("/api/calendar/suggestions")
+    assert r.status_code == 200
+    row = next(x for x in r.json() if x["external_id"] == "e1")
+    assert row["body"] == body
+    assert teams in row["body"]
 
 
 def test_sync_now_oauth_disabled_returns_skipped_200(client, db_session, auth_user, monkeypatch):

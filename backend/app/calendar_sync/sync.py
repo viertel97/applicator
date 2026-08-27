@@ -40,6 +40,16 @@ def _parse_dt(node: dict | None) -> datetime | None:
         return None
 
 
+def _body(ev: dict) -> str | None:
+    """Full appointment description. Prefer the complete ``body.content`` — it
+    keeps embedded links (Teams join URL, dial-ins) — over ``bodyPreview``,
+    which Graph truncates and strips of markup."""
+    content = (ev.get("body") or {}).get("content")
+    if content:
+        return content
+    return ev.get("bodyPreview")
+
+
 def _location(ev: dict) -> str | None:
     loc = (ev.get("location") or {}).get("displayName")
     if loc:
@@ -122,7 +132,7 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
         end = _parse_dt(ev.get("end"))
         location = _location(ev)
         subject = ev.get("subject")
-        body = ev.get("bodyPreview")
+        body = _body(ev)
 
         if existing is None:
             if candidates is None:

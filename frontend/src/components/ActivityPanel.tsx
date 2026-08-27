@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { InteractionLogModal } from "./InteractionLogModal";
 import { DeleteConfirmButton } from "./DeleteConfirmButton";
-import { Linkify } from "./Linkify";
+import { RichBody } from "./RichBody";
 import { useToast } from "./Toast";
 import { interactions, type Interaction, type Channel, type Direction } from "../api/interactions";
 import type { Application } from "../api/applications";
@@ -145,7 +145,7 @@ export function ActivityPanel({
                   <div className="text-xs text-muted">
                     {new Date(it.occurred_at).toLocaleString()}
                   </div>
-                  {it.body && <div className="text-fg whitespace-pre-wrap"><Linkify text={it.body} /></div>}
+                  {it.body && <div className="text-fg whitespace-pre-wrap break-words"><RichBody text={it.body} /></div>}
                 </div>
                 <DeleteConfirmButton
                   label="Delete interaction"

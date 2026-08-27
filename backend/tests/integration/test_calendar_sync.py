@@ -59,6 +59,31 @@ def test_new_event_creates_pending_suggestion(db_session, auth_user):
     assert db_session.execute(select(Interaction)).scalar_one_or_none() is None
 
 
+def test_full_body_captured_with_links_not_truncated_preview(db_session, auth_user):
+    """The whole appointment description must be stored, keeping links (Teams
+    etc.). bodyPreview strips links and truncates, so body.content wins."""
+    _, user = auth_user
+    _app(db_session, user)
+    teams = "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc"
+    full = f'<html><body>Join here: <a href="{teams}">Teams</a></body></html>'
+    ev = _event(bodyPreview="Join here: Teams", body={"contentType": "html", "content": full})
+
+    sync_calendar_events(db_session, user, [ev])
+
+    s = _get_suggestion(db_session)
+    assert s.body == full
+    assert teams in s.body  # the join link survived
+
+
+def test_body_falls_back_to_preview_when_no_full_body(db_session, auth_user):
+    _, user = auth_user
+    _app(db_session, user)
+
+    sync_calendar_events(db_session, user, [_event(bodyPreview="See you then")])
+
+    assert _get_suggestion(db_session).body == "See you then"
+
+
 def test_online_meeting_join_url_used_when_no_location(db_session, auth_user):
     _, user = auth_user
     _app(db_session, user)

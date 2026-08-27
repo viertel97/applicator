@@ -70,6 +70,31 @@ def test_delta_events_collects_pages_and_returns_delta_link():
     assert delta == "https://graph.microsoft.com/v1.0/delta-token"
 
 
+def test_delta_events_initial_request_hits_calendarview_delta():
+    """Event delta is only exposed via calendarView/delta with a required date
+    window; /events/delta does not exist and 400s. Page size goes through the
+    Prefer header, not $top (unsupported on delta)."""
+    from datetime import datetime
+
+    seen = {}
+
+    def handler(request):
+        seen["url"] = request.url
+        seen["prefer"] = request.headers.get("Prefer", "")
+        return httpx.Response(200, json={"value": [], "@odata.deltaLink": "d1"})
+
+    _client(handler).delta_events("cal-2", now=datetime(2026, 1, 1, 12, 0, 0))
+
+    url = seen["url"]
+    assert url.path == "/v1.0/me/calendars/cal-2/calendarView/delta"
+    params = dict(url.params)
+    assert "startDateTime" in params and "endDateTime" in params
+    assert params["startDateTime"] == "2025-12-02T12:00:00"
+    assert params["endDateTime"] == "2027-01-01T12:00:00"
+    assert "$top" not in params
+    assert "odata.maxpagesize=100" in seen["prefer"]
+
+
 def test_delta_events_uses_stored_delta_link():
     seen = {}
 

@@ -6,6 +6,7 @@ import { calendar, type CalendarSuggestion } from "../api/calendar";
 import { suggestionReasonLabel } from "../lib/suggestionReason";
 import { useToast } from "../components/Toast";
 import { DiscardReasonPicker } from "../components/DiscardReasonPicker";
+import { RichBody } from "../components/RichBody";
 
 function checkedLabel(iso: string | null): string {
   if (!iso) return "noch nicht geprüft";
@@ -172,6 +173,11 @@ function CalendarSuggestionRow({ s }: { s: CalendarSuggestion }) {
         {fmtRange(s.starts_at, s.ends_at)}
         {s.location && <span> · {s.location}</span>}
       </div>
+      {s.body && (
+        <div className="text-sm text-fg whitespace-pre-wrap break-words max-h-48 overflow-y-auto border-l-2 border-border pl-3">
+          <RichBody text={s.body} />
+        </div>
+      )}
       <div className="text-sm">
         {s.suggested_application ? (
           <span className="text-muted">
