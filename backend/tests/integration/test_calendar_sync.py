@@ -1,14 +1,12 @@
-"""Integration tests for the MS Graph → Interaction sync service."""
+"""Integration tests for the MS Graph → CalendarSuggestion state machine."""
 from sqlalchemy import select
 
 from app.calendar_sync.sync import MS_GRAPH, sync_calendar_events
 from app.db.models import (
     Application,
-    ApplicationEvent,
-    ApplicationEventKind,
+    CalendarSuggestion,
+    CalendarSuggestionStatus,
     Interaction,
-    InteractionChannel,
-    InteractionCreatedFrom,
     JobPosting,
 )
 
@@ -37,40 +35,28 @@ def _event(eid="e1", **over):
     return ev
 
 
-def test_created_event_becomes_interview_needs_review(db_session, auth_user):
+def _get_suggestion(db, eid="e1"):
+    return db.execute(
+        select(CalendarSuggestion).where(CalendarSuggestion.external_id == eid)
+    ).scalar_one()
+
+
+def test_new_event_creates_pending_suggestion(db_session, auth_user):
     _, user = auth_user
     app = _app(db_session, user)
 
     stats = sync_calendar_events(db_session, user, [_event()])
 
     assert stats["created"] == 1
-    it = db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalar_one()
-    assert it.channel == InteractionChannel.interview
-    assert it.created_from == InteractionCreatedFrom.graph_sync
-    assert it.external_source == MS_GRAPH
-    assert it.needs_review is True
-    assert it.application_id == app.id  # matched by organizer domain
-    assert it.location == "Zoom"
-    assert it.occurred_at.hour == 10 and it.ends_at.hour == 11
-
-
-def test_created_event_writes_timeline_note(db_session, auth_user):
-    _, user = auth_user
-    _app(db_session, user)
-
-    sync_calendar_events(db_session, user, [_event()])
-
-    ev = db_session.execute(
-        select(ApplicationEvent).where(
-            ApplicationEvent.kind == ApplicationEventKind.interview_scheduled
-        )
-    ).scalar_one()
-    it = db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalar_one()
-    assert ev.interaction_id == it.id
+    s = _get_suggestion(db_session)
+    assert s.status == CalendarSuggestionStatus.pending
+    assert s.external_source == MS_GRAPH
+    assert s.subject == "Interview with Acme"
+    assert s.location == "Zoom"
+    assert s.starts_at.hour == 10 and s.ends_at.hour == 11
+    assert s.suggested_application_id == app.id  # matched by organizer domain
+    # No interview is created yet.
+    assert db_session.execute(select(Interaction)).scalar_one_or_none() is None
 
 
 def test_online_meeting_join_url_used_when_no_location(db_session, auth_user):
@@ -80,75 +66,38 @@ def test_online_meeting_join_url_used_when_no_location(db_session, auth_user):
 
     sync_calendar_events(db_session, user, [ev])
 
-    it = db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalar_one()
-    assert it.location == "https://meet/x"
+    assert _get_suggestion(db_session).location == "https://meet/x"
 
 
-def test_update_refreshes_fields_keeps_link(db_session, auth_user):
+def test_pending_suggestion_refreshed_on_update(db_session, auth_user):
     _, user = auth_user
     _app(db_session, user)
     sync_calendar_events(db_session, user, [_event()])
-    it = db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalar_one()
-    original_id = it.id
-    original_app = it.application_id
+    original_id = _get_suggestion(db_session).id
 
-    updated = _event(
-        subject="Rescheduled",
-        start={"dateTime": "2026-08-21T14:00:00.0000000", "timeZone": "UTC"},
-        end={"dateTime": "2026-08-21T15:00:00.0000000", "timeZone": "UTC"},
-        location={"displayName": "Office"},
+    stats = sync_calendar_events(
+        db_session,
+        user,
+        [_event(subject="Rescheduled",
+                start={"dateTime": "2026-08-21T14:00:00.0000000", "timeZone": "UTC"},
+                end={"dateTime": "2026-08-21T15:00:00.0000000", "timeZone": "UTC"})],
     )
-    stats = sync_calendar_events(db_session, user, [updated])
 
     assert stats["updated"] == 1 and stats["created"] == 0
     db_session.expire_all()
-    it2 = db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalar_one()
-    assert it2.id == original_id  # same row, not a duplicate
-    assert it2.application_id == original_app
-    assert it2.subject == "Rescheduled"
-    assert it2.occurred_at.day == 21 and it2.location == "Office"
+    s = _get_suggestion(db_session)
+    assert s.id == original_id  # same row, not a duplicate
+    assert s.subject == "Rescheduled" and s.starts_at.day == 21
 
 
-def test_removed_event_deletes_interview_and_timeline_note(db_session, auth_user):
-    _, user = auth_user
-    _app(db_session, user)
-    sync_calendar_events(db_session, user, [_event()])
+def test_new_event_without_applications_still_stages_unmatched(db_session, auth_user):
+    _, user = auth_user  # no applications
 
-    stats = sync_calendar_events(
-        db_session, user, [{"id": "e1", "@removed": {"reason": "deleted"}}]
-    )
+    stats = sync_calendar_events(db_session, user, [_event()])
 
-    assert stats["deleted"] == 1
-    assert db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalar_one_or_none() is None
-    # CASCADE removed the timeline note too.
-    assert db_session.execute(
-        select(ApplicationEvent).where(
-            ApplicationEvent.kind == ApplicationEventKind.interview_scheduled
-        )
-    ).scalar_one_or_none() is None
-
-
-def test_sync_is_idempotent(db_session, auth_user):
-    _, user = auth_user
-    _app(db_session, user)
-    events = [_event()]
-
-    sync_calendar_events(db_session, user, events)
-    stats = sync_calendar_events(db_session, user, events)
-
-    assert stats["created"] == 0 and stats["updated"] == 1
-    rows = db_session.execute(
-        select(Interaction).where(Interaction.external_id == "e1")
-    ).scalars().all()
-    assert len(rows) == 1  # no duplicate on re-run
+    assert stats["created"] == 1
+    s = _get_suggestion(db_session)
+    assert s.suggested_application_id is None  # nothing to match to
 
 
 def test_event_missing_start_is_skipped(db_session, auth_user):
@@ -160,9 +109,117 @@ def test_event_missing_start_is_skipped(db_session, auth_user):
     assert stats["skipped"] == 1 and stats["created"] == 0
 
 
-def test_no_applications_skips_creation(db_session, auth_user):
-    _, user = auth_user  # no applications seeded
+def test_removed_pending_event_deletes_suggestion(db_session, auth_user):
+    _, user = auth_user
+    _app(db_session, user)
+    sync_calendar_events(db_session, user, [_event()])
 
+    stats = sync_calendar_events(
+        db_session, user, [{"id": "e1", "@removed": {"reason": "deleted"}}]
+    )
+
+    assert stats["deleted"] == 1
+    assert db_session.execute(
+        select(CalendarSuggestion).where(CalendarSuggestion.external_id == "e1")
+    ).scalar_one_or_none() is None
+
+
+def test_dismissed_event_is_not_resurrected(db_session, auth_user):
+    _, user = auth_user
+    _app(db_session, user)
+    sync_calendar_events(db_session, user, [_event()])
+    s = _get_suggestion(db_session)
+    s.status = CalendarSuggestionStatus.dismissed
+    db_session.commit()
+
+    # A full re-sync sends the same event again.
     stats = sync_calendar_events(db_session, user, [_event()])
 
     assert stats["skipped"] == 1 and stats["created"] == 0
+    db_session.expire_all()
+    assert _get_suggestion(db_session).status == CalendarSuggestionStatus.dismissed
+
+
+def test_confirmed_event_updates_linked_interaction(db_session, auth_user):
+    _, user = auth_user
+    app = _app(db_session, user)
+    sync_calendar_events(db_session, user, [_event()])
+    s = _get_suggestion(db_session)
+    # Simulate confirm: create the live-linked interview + mark confirmed.
+    from app.db.models import (
+        ApplicationEvent,
+        ApplicationEventKind,
+        InteractionChannel,
+        InteractionCreatedFrom,
+        InteractionDirection,
+    )
+    it = Interaction(
+        application_id=app.id,
+        occurred_at=s.starts_at,
+        ends_at=s.ends_at,
+        direction=InteractionDirection.in_,
+        channel=InteractionChannel.interview,
+        location=s.location,
+        subject=s.subject,
+        body=s.body,
+        needs_review=False,
+        created_from=InteractionCreatedFrom.graph_sync,
+        external_source=MS_GRAPH,
+        external_id=s.external_id,
+    )
+    db_session.add(it)
+    db_session.flush()
+    db_session.add(ApplicationEvent(
+        application_id=app.id,
+        kind=ApplicationEventKind.interview_scheduled,
+        interaction_id=it.id,
+    ))
+    s.status = CalendarSuggestionStatus.confirmed
+    s.interaction_id = it.id
+    db_session.commit()
+
+    stats = sync_calendar_events(
+        db_session, user,
+        [_event(start={"dateTime": "2026-08-22T09:00:00.0000000", "timeZone": "UTC"},
+                end={"dateTime": "2026-08-22T09:30:00.0000000", "timeZone": "UTC"})],
+    )
+
+    assert stats["updated"] == 1
+    db_session.expire_all()
+    it2 = db_session.execute(
+        select(Interaction).where(Interaction.external_id == "e1")
+    ).scalar_one()
+    assert it2.occurred_at.day == 22 and it2.ends_at.hour == 9
+
+
+def test_removed_confirmed_event_deletes_interaction(db_session, auth_user):
+    _, user = auth_user
+    app = _app(db_session, user)
+    sync_calendar_events(db_session, user, [_event()])
+    s = _get_suggestion(db_session)
+    from app.db.models import (
+        InteractionChannel,
+        InteractionCreatedFrom,
+        InteractionDirection,
+    )
+    it = Interaction(
+        application_id=app.id, occurred_at=s.starts_at,
+        direction=InteractionDirection.in_, channel=InteractionChannel.interview,
+        needs_review=False, created_from=InteractionCreatedFrom.graph_sync,
+        external_source=MS_GRAPH, external_id=s.external_id,
+    )
+    db_session.add(it)
+    db_session.flush()
+    s.status = CalendarSuggestionStatus.confirmed
+    s.interaction_id = it.id
+    db_session.commit()
+
+    stats = sync_calendar_events(
+        db_session, user, [{"id": "e1", "@removed": {"reason": "deleted"}}]
+    )
+
+    assert stats["deleted"] == 1
+    db_session.expire_all()
+    assert db_session.execute(
+        select(Interaction).where(Interaction.external_id == "e1")
+    ).scalar_one_or_none() is None

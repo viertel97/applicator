@@ -1,13 +1,14 @@
-"""Idempotent projection of MS Graph calendar events into Interactions.
+"""Idempotent projection of MS Graph calendar events into CalendarSuggestions.
 
-Mirrors the email-webhook ingest path: each event becomes an interview
-`Interaction`, matched to a best-guess application and flagged
-``needs_review`` so it surfaces in the existing review queue. Re-runs
-converge — events are keyed on ``(external_source, external_id)``.
+Pulled events are STAGED, not applied: each event becomes a CalendarSuggestion
+(status='pending') keyed on (external_source, external_id). Confirmation into a
+real interview happens elsewhere (the confirm endpoint). Once confirmed, this
+sync keeps the linked Interaction in step with Outlook (live-link); once
+dismissed, the event is never resurrected. Re-runs converge.
 """
 from __future__ import annotations
 
-import uuid as _uuid
+import uuid
 from datetime import datetime
 
 from sqlalchemy import select
@@ -15,12 +16,9 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     Application,
-    ApplicationEvent,
-    ApplicationEventKind,
+    CalendarSuggestion,
+    CalendarSuggestionStatus,
     Interaction,
-    InteractionChannel,
-    InteractionCreatedFrom,
-    InteractionDirection,
     JobPosting,
     User,
 )
@@ -30,12 +28,7 @@ MS_GRAPH = "ms_graph"
 
 
 def _parse_dt(node: dict | None) -> datetime | None:
-    """Parse a Graph ``{"dateTime": ..., "timeZone": ...}`` node to naive UTC.
-
-    Graph returns fractional seconds (7 digits) that ``fromisoformat`` chokes
-    on, so truncate to whole seconds. Values are requested in UTC via the
-    Prefer header, so we drop the (assumed-UTC) zone and store naive.
-    """
+    """Parse a Graph ``{"dateTime": ...}`` node to naive UTC (whole seconds)."""
     if not node:
         return None
     raw = node.get("dateTime")
@@ -55,9 +48,7 @@ def _location(ev: dict) -> str | None:
 
 
 def _organizer_email(ev: dict) -> str:
-    return (
-        (ev.get("organizer") or {}).get("emailAddress", {}).get("address", "")
-    )
+    return (ev.get("organizer") or {}).get("emailAddress", {}).get("address", "")
 
 
 def _candidates(db: Session, user: User) -> list[Candidate]:
@@ -72,28 +63,22 @@ def _candidates(db: Session, user: User) -> list[Candidate]:
     ]
 
 
-def _delete_event(db: Session, external_id: str) -> bool:
-    it = db.execute(
+def _linked_interaction(db: Session, external_id: str) -> Interaction | None:
+    return db.execute(
         select(Interaction).where(
             Interaction.external_source == MS_GRAPH,
             Interaction.external_id == external_id,
         )
     ).scalar_one_or_none()
-    if it is None:
-        return False
-    # ON DELETE CASCADE on ApplicationEvent.interaction_id removes the
-    # linked interview_scheduled timeline note.
-    db.delete(it)
-    return True
 
 
 def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
-    """Upsert/delete Interactions for the given Graph delta events.
+    """Upsert/delete CalendarSuggestions for the given Graph delta events.
 
     Returns a stats dict: created / updated / deleted / skipped.
     """
     stats = {"created": 0, "updated": 0, "deleted": 0, "skipped": 0}
-    candidates = _candidates(db, user)
+    candidates = None  # lazily computed only when we create a new suggestion
 
     for ev in events:
         external_id = ev.get("id")
@@ -101,17 +86,33 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
             stats["skipped"] += 1
             continue
 
-        # @removed → cancelled event: drop the mirrored interview.
+        existing = db.execute(
+            select(CalendarSuggestion).where(
+                CalendarSuggestion.user_id == user.id,
+                CalendarSuggestion.external_source == MS_GRAPH,
+                CalendarSuggestion.external_id == external_id,
+            )
+        ).scalar_one_or_none()
+
+        # Cancellation.
         if ev.get("@removed") is not None:
-            if _delete_event(db, external_id):
+            if existing is None:
+                stats["skipped"] += 1
+            elif existing.status == CalendarSuggestionStatus.pending:
+                db.delete(existing)
                 stats["deleted"] += 1
-            else:
+            elif existing.status == CalendarSuggestionStatus.confirmed:
+                it = _linked_interaction(db, external_id)
+                if it is not None:
+                    db.delete(it)  # CASCADE removes the timeline note
+                db.delete(existing)
+                stats["deleted"] += 1
+            else:  # dismissed
                 stats["skipped"] += 1
             continue
 
         start = _parse_dt(ev.get("start"))
         if start is None:
-            # No usable start time — nothing meaningful to schedule.
             stats["skipped"] += 1
             continue
 
@@ -120,59 +121,61 @@ def sync_calendar_events(db: Session, user: User, events: list[dict]) -> dict:
         subject = ev.get("subject")
         body = ev.get("bodyPreview")
 
-        existing = db.execute(
-            select(Interaction).where(
-                Interaction.external_source == MS_GRAPH,
-                Interaction.external_id == external_id,
+        if existing is None:
+            if candidates is None:
+                candidates = _candidates(db, user)
+            app_id, score = match_application(
+                sender=_organizer_email(ev),
+                subject=subject or "",
+                body=body or "",
+                candidates=candidates,
             )
-        ).scalar_one_or_none()
-
-        if existing is not None:
-            # Update: refresh time/location/subject; keep the existing link.
-            existing.occurred_at = start
-            existing.ends_at = end
-            existing.location = location
-            existing.subject = subject
-            existing.body = body
-            stats["updated"] += 1
+            db.add(
+                CalendarSuggestion(
+                    user_id=user.id,
+                    external_source=MS_GRAPH,
+                    external_id=external_id,
+                    status=CalendarSuggestionStatus.pending,
+                    subject=subject,
+                    starts_at=start,
+                    ends_at=end,
+                    location=location,
+                    body=body,
+                    organizer_email=_organizer_email(ev),
+                    suggested_application_id=(
+                        uuid.UUID(app_id) if app_id else None
+                    ),
+                    match_score=score,
+                )
+            )
+            stats["created"] += 1
             continue
 
-        if not candidates:
-            # No applications to link to (FK is non-null). Same effective
-            # behaviour as the webhook path's "no applications".
+        if existing.status == CalendarSuggestionStatus.dismissed:
             stats["skipped"] += 1
             continue
 
-        app_id, _score = match_application(
-            sender=_organizer_email(ev),
-            subject=subject or "",
-            body=body or "",
-            candidates=candidates,
-        )
-        it = Interaction(
-            application_id=_uuid.UUID(app_id),
-            occurred_at=start,
-            ends_at=end,
-            direction=InteractionDirection.in_,
-            channel=InteractionChannel.interview,
-            location=location,
-            subject=subject,
-            body=body,
-            needs_review=True,
-            created_from=InteractionCreatedFrom.graph_sync,
-            external_source=MS_GRAPH,
-            external_id=external_id,
-        )
-        db.add(it)
-        db.flush()  # assign it.id so the timeline note can link to it
-        db.add(
-            ApplicationEvent(
-                application_id=_uuid.UUID(app_id),
-                kind=ApplicationEventKind.interview_scheduled,
-                interaction_id=it.id,
-            )
-        )
-        stats["created"] += 1
+        if existing.status == CalendarSuggestionStatus.pending:
+            existing.subject = subject
+            existing.starts_at = start
+            existing.ends_at = end
+            existing.location = location
+            existing.body = body
+            existing.organizer_email = _organizer_email(ev)
+            stats["updated"] += 1
+            continue
+
+        # confirmed → live-link: keep the promoted interview in step.
+        it = _linked_interaction(db, external_id)
+        if it is not None:
+            it.occurred_at = start
+            it.ends_at = end
+            it.location = location
+            it.subject = subject
+            it.body = body
+            stats["updated"] += 1
+        else:
+            stats["skipped"] += 1
 
     db.commit()
     return stats
