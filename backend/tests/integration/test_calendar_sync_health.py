@@ -104,6 +104,25 @@ def test_rate_limited_records_error_and_reraises(db_session, auth_user):
     assert user.outlook_last_reason == "rate_limited"
 
 
+def test_persist_failure_records_error(db_session, auth_user, monkeypatch):
+    _, user = auth_user
+    _app(db_session, user)
+    graph = FakeGraph(events=[_event()], delta="delta-A")
+
+    def _boom(db, user, events):
+        raise RuntimeError("db exploded")
+
+    monkeypatch.setattr(mod, "sync_calendar_events", _boom)
+
+    with pytest.raises(RuntimeError):
+        sync_user_calendar(db_session, user, get_settings(), graph=graph, trigger="scheduled")
+
+    db_session.refresh(user)
+    assert user.outlook_last_status == "error"
+    assert user.outlook_last_reason == "graph_error"
+    assert "db exploded" in user.outlook_last_error
+
+
 def test_no_token_records_skipped(db_session, auth_user):
     _, user = auth_user
     user.ms_refresh_token_encrypted = None

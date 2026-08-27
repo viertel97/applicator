@@ -149,6 +149,9 @@ def sync_user_calendar(
             )
             state.delta_link = None
             events, delta_link = graph.delta_events(calendar_id, None)
+
+        stats = sync_calendar_events(db, user, events)
+        state.delta_link = delta_link
     except GraphRateLimited as exc:
         _record_health(
             user, status="error", reason="rate_limited", trigger=trigger, error=str(exc)
@@ -163,8 +166,6 @@ def sync_user_calendar(
         db.commit()
         raise
 
-    stats = sync_calendar_events(db, user, events)
-    state.delta_link = delta_link
     _record_health(user, status="ok", trigger=trigger, counts=stats)
     db.commit()
     return stats
