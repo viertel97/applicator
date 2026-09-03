@@ -28,12 +28,27 @@ def _utc(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+# RFC5545 forbids C0 control chars in TEXT values except HTAB. Real interview
+# data (email bodies, Outlook-synced events) carries lone CR, vertical tabs, and
+# other control chars that a strict parser like Google Calendar rejects — one
+# raw CR mid-value breaks line structure and the whole feed silently imports
+# nothing. Drop them, keeping only TAB and normalized line breaks.
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _sanitize(text: str) -> str:
+    # Normalize every line-ending flavor (CRLF, lone CR, LF) to LF, then strip
+    # remaining control chars so no bare control byte survives into the output.
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    return _CTRL_RE.sub("", text)
+
+
 def _escape(text: str) -> str:
     return (
-        text.replace("\\", "\\\\")
+        _sanitize(text)
+        .replace("\\", "\\\\")
         .replace(";", "\\;")
         .replace(",", "\\,")
-        .replace("\r\n", "\\n")
         .replace("\n", "\\n")
     )
 
@@ -61,6 +76,7 @@ def _prop(name: str, value: str) -> str:
 def _html_description(text: str) -> str:
     # HTML alt-description so calendar clients (Apple, Outlook) render URLs as
     # real anchors. Google autolinks the plaintext DESCRIPTION on its own.
+    text = _sanitize(text)
     parts: list[str] = []
     pos = 0
     for m in _URL_RE.finditer(text):

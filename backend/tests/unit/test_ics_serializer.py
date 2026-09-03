@@ -97,6 +97,32 @@ def test_no_alt_desc_without_description():
     assert "X-ALT-DESC" not in out
 
 
+def _has_raw_control_char(out: str) -> bool:
+    # Any C0 control char (except TAB) or DEL surviving inside a physical line —
+    # i.e. not the CRLF line separators — is a Google-rejecting corruption.
+    import re
+
+    for line in out.split("\r\n"):
+        if re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", line):
+            return True
+    return False
+
+
+def test_lone_cr_normalized_not_left_raw():
+    # Mac/Outlook line endings (lone CR) must not survive as a raw control byte.
+    out = render_calendar([_ev(summary="Co\rMangled", description="a\rb")])
+    assert not _has_raw_control_char(out)
+    assert "SUMMARY:Co\\nMangled\r\n" in out
+
+
+def test_strips_forbidden_control_chars():
+    # Vertical tab / form feed / NUL from scraped email bodies get dropped;
+    # TAB is allowed and preserved.
+    out = render_calendar([_ev(description="x\x0by\x0cz\x00w\tkeep")])
+    assert not _has_raw_control_char(out)
+    assert "DESCRIPTION:xyzw\tkeep\r\n" in out
+
+
 def test_multibyte_char_at_fold_boundary():
     out = render_calendar([_ev(summary="A" * 73 + "中")])
     # Every physical line must be <= 75 octets when UTF-8 encoded
